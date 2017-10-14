@@ -1,0 +1,171 @@
+### h8.o8
+
+:const KB_1 0x1
+:const KB_2 0x2
+:const KB_3 0x3
+:const KB_4 0xC
+:const KB_Q 0x4
+:const KB_W 0x5
+:const KB_E 0x6
+:const KB_R 0xD
+:const KB_A 0x7
+:const KB_S 0x8
+:const KB_D 0x9
+:const KB_F 0xE
+:const KB_Z 0xA
+:const KB_X 0x0
+:const KB_C 0xB
+:const KB_V 0xF
+
+:calc KEY_LEFT { KB_A }
+:calc KEY_RIGHT { KB_D }
+:calc KEY_UP { KB_W }
+:calc KEY_DOWN { KB_S }
+
+# This could be switch instead of a dedicated key for each
+:calc KEY_LH { KB_Q }
+:calc KEY_RH { KB_E }
+
+
+:calc MOVE_SPEED { 3 }
+:calc MOVE_SPEED_REVERSE { 0 - MOVE_SPEED }
+
+:const FRAME_DELAY 2
+
+
+# Positions stored here
+:alias lhx v3
+:alias lhy v4
+:alias rhx v5
+:alias rhy v6
+
+:alias xtemp v2
+:alias ytemp v1
+
+:alias limb v7 # Which limb are we controlling?
+:const LIMB_LEFTHAND 0
+:const LIMB_RIGHTHAND 1
+
+:macro draw label x y h { i := label sprite x y h }
+:macro ifkey keynum { vF := keynum if vF key then }
+
+
+:macro draw_hand_and_arm_inc_arm exit-label {
+	v0 += 16
+	vF := 64
+	vF &= v0
+	if vF != 0 then jump exit-label
+}
+
+:macro draw_hand_and_arm x y hand-label arm-label exit-label {
+	i := hand-label
+	sprite x y 0
+	i := arm-label
+	v0 := y
+	draw_hand_and_arm_inc_arm exit-label
+	sprite x v0 0
+	draw_hand_and_arm_inc_arm exit-label
+	sprite x v0 0
+	draw_hand_and_arm_inc_arm exit-label
+	sprite x v0 0
+	: exit-label
+}
+
+
+:macro update_limb x y hand-sprite arm-sprite exit-a exit-b {
+	draw_hand_and_arm x y hand-sprite arm-sprite exit-a
+	x += xtemp
+	y += ytemp
+	draw_hand_and_arm x y hand-sprite arm-sprite exit-b
+	xtemp := 0
+	ytemp := 0
+}
+
+
+:macro fix_hands_crossing left-x right-x {
+	
+}
+
+: main
+	hires
+
+	lhx := 20
+	lhy := 58
+	rhx := 100
+	rhy := 58
+
+	xtemp := 0
+	ytemp := 0
+
+	draw_hand_and_arm lhx lhy left_hand arm exit1
+	draw_hand_and_arm rhx rhy right_hand arm exit2
+
+	: main_loop
+	loop
+
+		if limb == LIMB_LEFTHAND then jump lefthand
+		: righthand
+			update_limb rhx rhy right_hand arm exit3 exit4
+			jump switchlimbs
+
+		: lefthand
+			update_limb lhx lhy left_hand arm exit5 exit6
+
+		: switchlimbs
+			ifkey KEY_LH limb := LIMB_LEFTHAND
+			ifkey KEY_RH limb := LIMB_RIGHTHAND
+			ifkey KEY_LEFT xtemp += MOVE_SPEED_REVERSE
+			ifkey KEY_RIGHT xtemp += MOVE_SPEED
+			ifkey KEY_UP ytemp += MOVE_SPEED_REVERSE
+			ifkey KEY_DOWN ytemp += MOVE_SPEED
+
+			v0 := random 0b00001100
+			vF := random 0b00000001
+			jump0 randtable
+			: randtable
+			xtemp += vF
+			jump endrand
+			xtemp -= vF
+			jump endrand
+			ytemp += vF
+			jump endrand
+			ytemp -= vF
+			: endrand
+
+
+		: delay_loop
+		# lock the framerate of this program via the delay timer:
+		loop
+			vf := delay
+			if vf != 0 then
+		again
+		vf := FRAME_DELAY
+		delay := vf
+	again
+
+
+
+: right_hand
+0x01 0x40 0x06 0xA0 0x02 0xA8 0x12 0xA8 
+0x1B 0xF8 0x1B 0xF8 0x0F 0xF0 0x07 0xE0 
+0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0 
+0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0 
+
+: left_hand
+0x02 0x80 0x05 0x60 0x15 0x40 0x15 0x48 
+0x1F 0xD8 0x1F 0xD8 0x0F 0xF0 0x0F 0xE0 
+0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0 
+0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0 
+
+
+
+: arm
+0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0 
+0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0 
+0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0 
+0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0 
+
+
+
+
+
