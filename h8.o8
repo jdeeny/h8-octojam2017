@@ -28,6 +28,8 @@
 # This could be switch instead of a dedicated key for each
 :calc KEY_LH { KB_Q }
 :calc KEY_RH { KB_E }
+:calc KEY_LF { KB_Z }
+:calc KEY_RF { KB_C }
 
 
 :calc MOVE_SPEED { 2 }
