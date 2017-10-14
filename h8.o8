@@ -30,7 +30,7 @@
 :calc KEY_RH { KB_E }
 
 
-:calc MOVE_SPEED { 3 }
+:calc MOVE_SPEED { 2 }
 :calc MOVE_SPEED_REVERSE { 0 - MOVE_SPEED }
 
 :const FRAME_DELAY 2
