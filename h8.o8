@@ -176,7 +176,7 @@
 ####################
 :const TITLE_CHAR_WIDTH 16
 
-:const TITLE_H8_YOFFSET 10
+:const TITLE_H8_YOFFSET 17
 :const TITLE_H8_SPACING 6
 :calc TITLE_H8_XSKIP { TITLE_H8_SPACING + 16 }
 :calc TITLE_H8_XOFFSET { 64 - ( ( TITLE_CHAR_WIDTH + TITLE_H8_XSKIP ) / 2 ) }
@@ -186,6 +186,14 @@
 :calc TITLE_RH_XOFFSET { TITLE_H8_XOFFSET + 20 }
 :calc TITLE_RH_YOFFSET { TITLE_H8_YOFFSET + 26 }
 
+
+:const TITLE_SUB_WIDTH 8
+:const TITLE_SUB_HEIGHT 5
+:const TITLE_SUB_TILES 10
+:calc TITLE_SUB_TOTAL_WIDTH { ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) - 3 } # Subtract for empty cols at end
+:calc TITLE_SUB_XOFFSET { 64 - ( TITLE_SUB_TOTAL_WIDTH / 2 ) }
+:calc TITLE_SUB_YOFFSET { TITLE_H8_YOFFSET - 10 }
+:calc TITLE_SUB_XEND { TITLE_SUB_XOFFSET + ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) }
 
 : title_draw
 	clear
@@ -204,6 +212,18 @@
 	v1 := TITLE_RH_XOFFSET
 	v2 := TITLE_RH_YOFFSET
 	draw_hand_and_arm v1 v2 right_hand arm exit_title2
+
+
+	v1 := TITLE_SUB_XOFFSET
+	v2 := TITLE_SUB_YOFFSET
+	v0 := TITLE_SUB_HEIGHT
+	i := title_sub_be
+	loop
+		sprite v1 v2 TITLE_SUB_HEIGHT
+		v1 += TITLE_SUB_WIDTH
+		i += v0
+		while v1 != TITLE_SUB_XEND
+	again
 	;
 
 : title_htop
@@ -230,4 +250,20 @@
 0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
 0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
 0x7F 0xFE 0x3F 0xFC 0x1F 0xF8 0x07 0xE0
+
+
+# H8 - Bergsteigersimulator
+: title_sub_be	0xCE 0xA8 0xCC 0xA8 0xCE # BE
+: title_sub_rg	0xCE 0xA8 0xCA 0xAA 0xAE # RG
+: title_sub_st 	0xEE 0x84 0xE4 0x24 0xE4 # ST
+: title_sub_ei 	0xEB 0x8A 0xCA 0x8A 0xEB # EI 1/2 G
+: title_sub_ge 	0x3B 0x22 0xB3 0xA2 0xBA  # GE 2 col R
+: title_sub_rsi 0xBA 0xA2 0x3A 0x8A 0xBA # 1 col R,SI
+: title_sub_m 	0x8A 0xDA 0xAA 0x8A 0x8B # M 1/2 U
+: title_sub_ula 0xA1 0xA2 0xA3 0xA2 0xBA # 1/2 u L 1/2A
+: title_sub_TO	0x39 0x92 0x92 0x92 0x91 # 1/2 A, T, 1/2 O
+: title_sub_R 	0x38 0xA8 0xB0 0xA8 0x28 # 1/2 O, R
+
+
+
 ### End Title Screen
