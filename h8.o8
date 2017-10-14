@@ -125,6 +125,18 @@
 			ifkey KEY_UP ytemp += MOVE_SPEED_REVERSE
 			ifkey KEY_DOWN ytemp += MOVE_SPEED
 
+			v0 := random 0b00001100
+			vF := random 0b00000001
+			jump0 randtable
+			: randtable
+			xtemp += vF
+			jump endrand
+			xtemp -= vF
+			jump endrand
+			ytemp += vF
+			jump endrand
+			ytemp -= vF
+			: endrand
 
 		: delay_loop
 		# lock the framerate of this program via the delay timer:
