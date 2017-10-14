@@ -171,15 +171,20 @@
 0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
 
 
-:const TITLE_H8_XOFFSET 30
+####################
+### Title Screen ###
+####################
+:const TITLE_CHAR_WIDTH 16
+
 :const TITLE_H8_YOFFSET 10
 :const TITLE_H8_SPACING 6
 :calc TITLE_H8_XSKIP { TITLE_H8_SPACING + 16 }
+:calc TITLE_H8_XOFFSET { 64 - ( ( TITLE_CHAR_WIDTH + TITLE_H8_XSKIP ) / 2 ) }
 
-:const TITLE_LH_XOFFSET 85
-:const TITLE_LH_YOFFSET 55
-:const TITLE_RH_XOFFSET 108
-:const TITLE_RH_YOFFSET 37
+:calc TITLE_LH_XOFFSET { TITLE_H8_XOFFSET / 3 }
+:calc TITLE_LH_YOFFSET { 64 - 6 }
+:calc TITLE_RH_XOFFSET { TITLE_H8_XOFFSET + 20 }
+:calc TITLE_RH_YOFFSET { TITLE_H8_YOFFSET + 26 }
 
 
 : title_draw
@@ -225,3 +230,4 @@
 0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
 0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
 0x7F 0xFE 0x3F 0xFC 0x1F 0xF8 0x07 0xE0
+### End Title Screen
