@@ -142,8 +142,8 @@
 		# Scan limb selection keys
 		ifkey KEY_LH Climbing_Limb := LIMB_LEFTHAND
 		ifkey KEY_RH Climbing_Limb := LIMB_RIGHTHAND
-		ifkey KEY_LH Climbing_Limb := LIMB_LEFTFOOT
-		ifkey KEY_RH Climbing_Limb := LIMB_RIGHTFOOT
+		ifkey KEY_LF Climbing_Limb := LIMB_LEFTFOOT
+		ifkey KEY_RF Climbing_Limb := LIMB_RIGHTFOOT
 
 		# Don't do anything if no limb was selected
 		if Climbing_Limb == LIMB_NONE then jump climbing_delay_loop
@@ -180,6 +180,7 @@
 				jump climbing_endrand
 				Climbing_DeltaY -= vF
 				: climbing_endrand
+
 			# Scan movement keys and adjust delta x/y
 				ifkey KEY_LEFT Climbing_DeltaX += CLIMBING_SPEED_REVERSE
 				ifkey KEY_RIGHT Climbing_DeltaX += CLIMBING_SPEED
@@ -189,11 +190,9 @@
 			# Erase, update XY, and redraw the limb
 				# Erase limb
 					climbing_drawlimb
-
 				# Adjust x/y
 					Climbing_X += Climbing_DeltaX
 					Climbing_Y += Climbing_DeltaY
-
 				# Draw limb
 					climbing_drawlimb
 
@@ -201,6 +200,7 @@
 				# If we are not debounced, don't allow switch
 				if Climbing_Debounce == 0 then jump climbing_check_debounce
 				if Climbing_Limb key then jump climbing_exit_movement	# Exit if they press the same limb key again
+				jump climbing_delay_loop
 
 				: climbing_check_debounce
 				if Climbing_Limb -key then Climbing_Debounce := 1		# Set debounced flag if the key was released
@@ -208,6 +208,7 @@
 
 		# Limb movement is over, determine if the move landed on a hold
 		: climbing_exit_movement
+		:breakpoint exitmove
 
 		# Save limb data to ram
 		i := climbing_data
