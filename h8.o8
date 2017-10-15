@@ -1,24 +1,34 @@
-# Chip8 is a virtual machine designed in 1977 for programming video games.
-# Octo is a high level assembler, disassembler and simulator for Chip8.
-# Click 'Run' and then press ASWD to move the sprite around the screen.
-# Click the Octo logo for source, documentation and examples.
+                      ###############################
+                      ##                           ##
+                      ##   BERGSTEIGERSIMULATOR    ##
+                      ##                           ##
+                      ##   d8b    d8b  88    88    ##
+                      ##   888    888  .d8888b.    ##
+                      ##   888    888 d88P  Y88b   ##
+                      ##   8888888888 Y88b. d88P   ##
+                      ##   8888888888  "Y88888"    ##
+                      ##   888    888 .d8P""Y8b.   ##
+                      ##   888    888 888    888   ##
+                      ##   888    888 Y88b  d88P   ##
+                      ##   Y8P    Y8P  "Y8888P"    ##
+                      ##                           ##
+                      ###############################
 
-:const KB_1 0x1
-:const KB_2 0x2
-:const KB_3 0x3
-:const KB_4 0xC
-:const KB_Q 0x4
-:const KB_W 0x5
-:const KB_E 0x6
-:const KB_R 0xD
-:const KB_A 0x7
-:const KB_S 0x8
-:const KB_D 0x9
-:const KB_F 0xE
-:const KB_Z 0xA
-:const KB_X 0x0
-:const KB_C 0xB
-:const KB_V 0xF
+# A mountaineering simulator and entry for `Octojam IV`.
+#
+# This program is designed to target a bug-fixed version of the SuperChip
+# emulator `SCHIP` running on an HP48 GX calculator, as well as the Octo
+# emulator. It has not been tested on other platforms.
+#
+# This program uses instructions from the SuperChip instruction set extension.
+# It assumes sprites are clipped to the screen edge, but otherwise assumes the
+# emulator does not have the classic SCHIP emulation bugs.
+#
+
+:const KB_1 0x1 :const KB_2 0x2 :const KB_3 0x3 :const KB_4 0xC
+:const KB_Q 0x4 :const KB_W 0x5 :const KB_E 0x6 :const KB_R 0xD
+:const KB_A 0x7 :const KB_S 0x8 :const KB_D 0x9 :const KB_F 0xE
+:const KB_Z 0xA :const KB_X 0x0 :const KB_C 0xB :const KB_V 0xF
 
 :calc KEY_LEFT { KB_A }
 :calc KEY_RIGHT { KB_D }
@@ -102,10 +112,10 @@
 # Storage of limb coordinates, LH XY, RH XY, LF XY, RF XY
 :const CLIMBING_DATA_BYTES 2
 : climbing_data
-: climbing_data_lefthand 	0 0
-: climbing_data_righthand 0 0
-: climbing_data_leftfoot 	0 0
-: climbing_data_rightfoot	0 0
+: climbing_data_lefthand 		0 0
+: climbing_data_righthand		0 0
+: climbing_data_leftfoot 		0 0
+: climbing_data_rightfoot		0 0
 
 # This sets up the beginning of a climbing session
 #  - loads level data, sets limb locations etc
@@ -166,11 +176,32 @@
 		# Initialize before move loop
 		Climbing_Debounce := 0	# Clear debounce flag
 		Climbing_Moving := 1		# Moving = True
+		Climbing_DeltaX := 0
+		Climbing_DeltaY := 0
 
 		# Move a limb
 		: climbing_moving_limb
-			Climbing_DeltaX := 0
-			Climbing_DeltaY := 0
+
+			# Erase, update XY, and redraw the limb
+				: climbing_redraw_limb
+				# Erase limb
+					climbing_drawlimb
+				# Adjust x/y
+					Climbing_X += Climbing_DeltaX
+					Climbing_Y += Climbing_DeltaY
+				# Observe some limits to movement
+
+				# Draw limb
+					climbing_drawlimb
+
+			# Scan movement keys and adjust delta x/y
+				: climbing_scan_movement_keys
+				Climbing_DeltaX := 0
+				Climbing_DeltaY := 0
+				ifkey KEY_LEFT Climbing_DeltaX += CLIMBING_SPEED_REVERSE
+				ifkey KEY_RIGHT Climbing_DeltaX += CLIMBING_SPEED
+				ifkey KEY_UP Climbing_DeltaY += CLIMBING_SPEED_REVERSE
+				ifkey KEY_DOWN Climbing_DeltaY += CLIMBING_SPEED
 
 			# Add random jitter to the delta x/y
 				v0 := random 0b00001100
@@ -186,22 +217,9 @@
 				Climbing_DeltaY -= vF
 				: climbing_endrand
 
-			# Scan movement keys and adjust delta x/y
-				ifkey KEY_LEFT Climbing_DeltaX += CLIMBING_SPEED_REVERSE
-				ifkey KEY_RIGHT Climbing_DeltaX += CLIMBING_SPEED
-				ifkey KEY_UP Climbing_DeltaY += CLIMBING_SPEED_REVERSE
-				ifkey KEY_DOWN Climbing_DeltaY += CLIMBING_SPEED
-
-			# Erase, update XY, and redraw the limb
-				# Erase limb
-					climbing_drawlimb
-				# Adjust x/y
-					Climbing_X += Climbing_DeltaX
-					Climbing_Y += Climbing_DeltaY
-				# Draw limb
-					climbing_drawlimb
 
 			# Check keys to see if we are finished moving
+				: climbing_scan_moveend_keys
 				# If we are not debounced, don't allow switch
 				if Climbing_Debounce == 0 then jump climbing_check_debounce
 				if Climbing_Limb key then jump climbing_exit_movement	# Exit if they press the same limb key again
