@@ -158,6 +158,11 @@
 		if Climbing_Limb == LIMB_LEFTHAND then climbing_setup_drawlimb_lefthand
 		if Climbing_Limb == LIMB_RIGHTHAND then climbing_setup_drawlimb_righthand
 
+		# i is set equal to the correct data area by the above setup functions
+		load v1
+		Climbing_X := v0
+		Climbing_Y := v1
+
 		# Initialize before move loop
 		Climbing_Debounce := 0	# Clear debounce flag
 		Climbing_Moving := 1		# Moving = True
@@ -208,16 +213,14 @@
 
 		# Limb movement is over, determine if the move landed on a hold
 		: climbing_exit_movement
-		:breakpoint exitmove
+		# Cheap debounce
+		loop while Climbing_Limb key again
 
 		# Save limb data to ram
-		i := climbing_data
-		vF := Climbing_Limb
-		v0 := CLIMBING_DATA_BYTES
-		loop while vF != 0
-			i += v0
-			vF += -1
-		again
+		if Climbing_Limb == LIMB_LEFTHAND then i := climbing_data_lefthand
+		if Climbing_Limb == LIMB_RIGHTHAND then i := climbing_data_righthand
+		if Climbing_Limb == LIMB_LEFTFOOT then i := climbing_data_leftfoot
+		if Climbing_Limb == LIMB_RIGHTFOOT then i := climbing_data_rightfoot
 		v0 := Climbing_X
 		v1 := Climbing_Y
 		save v1
@@ -430,10 +433,12 @@
 ### Stuff that has to come after sprite declarations
 : climbing_setup_drawlimb_lefthand
 	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_lefthand
+	i := climbing_data_lefthand
 	;
 
 : climbing_setup_drawlimb_righthand
 	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_righthand
+	i := climbing_data_righthand
 	;
 
 
