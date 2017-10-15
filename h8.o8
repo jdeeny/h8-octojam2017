@@ -60,7 +60,7 @@
 #########################
 ### Code Modification ###
 #########################
-:macro hilo value { :calc hi { value >> 8 } :calc lo { value & 0xFF } }
+:macro hilo value { :calc hi { value >> 8 } :calc lo { value & 0xFF } }	# Convenience macro, splits a 16-bit const value into 2 8-bit values
 
 # Allocates space for a trampoline
 :macro Trampoline: label {
@@ -85,6 +85,9 @@
 :calc CLIMBING_SPEED_REVERSE { 0 - CLIMBING_SPEED }
 :const CLIMBING_FRAME_DELAY 2
 
+
+:alias Climbing_Limit_Top v4
+:alias Climbing_Limit_Bot v5
 :alias Climbing_View v6
 :alias Climbing_Moving v7
 :alias Climbing_Debounce v8
@@ -128,6 +131,7 @@
 	v0 := 80
 	save v1
 	v0 := 40
+	v1 := 10
 	save v1
 	v0 := 80
 	save v1
@@ -179,6 +183,9 @@
 		Climbing_DeltaX := 0
 		Climbing_DeltaY := 0
 
+		# Set limb limits based on other limbs
+		climbing_set_limits
+
 		# Move a limb
 		: climbing_moving_limb
 
@@ -189,6 +196,20 @@
 				# Adjust x/y
 					Climbing_X += Climbing_DeltaX
 					Climbing_Y += Climbing_DeltaY
+				# Apply limits
+
+					vF := 0x80
+					vF &= Climbing_Y
+					if vF != 0 then Climbing_Y := Climbing_Limit_Top
+
+					vF := Climbing_Y
+					vF -= Climbing_Limit_Bot
+					if vF != 0 then Climbing_Y := Climbing_Limit_Bot
+
+					vF := Climbing_Y
+					vF -= Climbing_Limit_Top
+					if vF == 0 then Climbing_Y := Climbing_Limit_Top
+
 				# Observe some limits to movement
 
 				# Draw limb
@@ -302,6 +323,32 @@
 	sprite Climbing_X v0 0
 	;
 
+# Sets the movement limits based on the current limb selection
+:	climbing_set_limits
+	# TODO: Expand to add left-right limits
+	if Climbing_Limb == LIMB_LEFTHAND then jump climbing_set_limits_hands
+	if Climbing_Limb == LIMB_RIGHTHAND then jump climbing_set_limits_hands
+
+	: climbing_set_limits_feet
+		i := climbing_data_lefthand
+		load v3
+		vF := v1
+		vF -= v3
+		if vF == 0 then v1 := v3 # replace v1 if v3 is larger
+		Climbing_Limit_Bot := 64
+		Climbing_Limit_Bot -= v1
+		Climbing_Limit_Top := 0
+		;
+	: climbing_set_limits_hands
+		i := climbing_data_leftfoot
+		load v3
+		vF := v1
+		vF -= v3
+		if vF != 0 then v1 := v3 # replace v1 if v3 is smaller
+		Climbing_Limit_Top := 0
+		Climbing_Limit_Top += v1
+		Climbing_Limit_Bot := 63
+		;
 
 ### End Climbing
 
@@ -458,26 +505,3 @@
 	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_righthand
 	i := climbing_data_righthand
 	;
-
-
-# :macro update_righthand {
-# 	draw_right_handarm
-# 	rhx += Climbing_DeltaX
-# 	rhy += Climbing_DeltaY
-# 	vF := LEFT_HAND_LIMIT
-# 	vF -= rhx
-# 	if vF != 0 then rhx := LEFT_HAND_LIMIT
-# 	vF := RIGHT_HAND_LIMIT
-# 	vF -= rhx
-# 	if vF == 0 then rhx := RIGHT_HAND_LIMIT
-# 	vF := 64
-# 	vF -= rhy
-# 	if vF == 0 then rhy := TOP_HAND_LIMIT
-# 	vF := BOT_HAND_LIMIT
-# 	vF -= rhy
-# 	if vF == 0 then rhy := BOT_HAND_LIMIT
-#
-# 	draw_right_handarm
-# 	Climbing_DeltaX := 0
-# 	Climbing_DeltaY := 0
-# }
