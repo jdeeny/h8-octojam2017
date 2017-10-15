@@ -56,6 +56,13 @@
 :const LIMB_LEFTHAND 0
 :const LIMB_RIGHTHAND 1
 
+
+:const LEFT_HAND_LIMIT 16
+:const RIGHT_HAND_LIMIT 96
+:const TOP_HAND_LIMIT 0
+:const BOT_HAND_LIMIT 48
+
+
 :macro draw label x y h { i := label sprite x y h }
 :macro ifkey keynum { vF := keynum if vF key then }
 
@@ -145,20 +152,48 @@
 	;
 
 
+:macro update_lefthand {
+	draw_left_handarm
+	lhx += xtemp
+	lhy += ytemp
+	vF := LEFT_HAND_LIMIT
+	vF -= lhx
+	if vF != 0 then lhx := LEFT_HAND_LIMIT
+	vF := RIGHT_HAND_LIMIT
+	vF -= lhx
+	if vF == 0 then lhx := RIGHT_HAND_LIMIT
+	vF := 64
+	vF -= lhy
+	if vF == 0 then lhy := TOP_HAND_LIMIT
+	vF := BOT_HAND_LIMIT
+	vF -= lhy
+	if vF == 0 then lhy := BOT_HAND_LIMIT
 
-
-:macro update_limb x y draw-func {
-	draw-func
-	x += xtemp
-	y += ytemp
-	draw-func
+	draw_left_handarm
 	xtemp := 0
 	ytemp := 0
 }
 
+:macro update_righthand {
+	draw_right_handarm
+	rhx += xtemp
+	rhy += ytemp
+	vF := LEFT_HAND_LIMIT
+	vF -= rhx
+	if vF != 0 then rhx := LEFT_HAND_LIMIT
+	vF := RIGHT_HAND_LIMIT
+	vF -= rhx
+	if vF == 0 then rhx := RIGHT_HAND_LIMIT
+	vF := 64
+	vF -= rhy
+	if vF == 0 then rhy := TOP_HAND_LIMIT
+	vF := BOT_HAND_LIMIT
+	vF -= rhy
+	if vF == 0 then rhy := BOT_HAND_LIMIT
 
-:macro fix_hands_crossing left-x right-x {
-
+	draw_right_handarm
+	xtemp := 0
+	ytemp := 0
 }
 
 : main
@@ -183,11 +218,11 @@
 
 		if limb == LIMB_LEFTHAND then jump lefthand
 		: righthand
-			update_limb rhx rhy draw_right_handarm
+			update_righthand
 			jump switchlimbs
 
 		: lefthand
-			update_limb lhx lhy draw_left_handarm
+			update_lefthand
 
 		: switchlimbs
 			ifkey KEY_LH limb := LIMB_LEFTHAND
