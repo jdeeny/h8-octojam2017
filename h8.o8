@@ -43,45 +43,115 @@
 :alias lhy v4
 :alias rhx v5
 :alias rhy v6
+:alias lfx v7
+:alias lfy v8
+:alias rfx v9
+:alias rfy vA
 
-:alias xtemp v2
-:alias ytemp v1
 
-:alias limb v7 # Which limb are we controlling?
+:alias xtemp vB
+:alias ytemp vC
+
+:alias limb vD # Which limb are we controlling?
 :const LIMB_LEFTHAND 0
 :const LIMB_RIGHTHAND 1
 
 :macro draw label x y h { i := label sprite x y h }
 :macro ifkey keynum { vF := keynum if vF key then }
 
-
-:macro draw_hand_and_arm_inc_arm exit-label {
+: draw_left_handarm
+	draw left_hand lhx lhy 0
+	i := arm
+	v0 := lhy
+	vF := 0b01110000
+	vF &= lhy
+	if vF == 0 then jump draw_left_handarm_3
+	if vF == 16 then jump draw_left_handarm_2
+	if vF == 32 then jump draw_left_handarm_1
+	return
+	: draw_left_handarm_3
 	v0 += 16
-	vF := 64
-	vF &= v0
-	if vF != 0 then jump exit-label
-}
+	sprite lhx v0 0
+	: draw_left_handarm_2
+	v0 += 16
+	sprite lhx v0 0
+	: draw_left_handarm_1
+	v0 += 16
+	sprite lhx v0 0
+	;
 
-:macro draw_hand_and_arm x y hand-label arm-label exit-label {
-	i := hand-label
-	sprite x y 0
-	i := arm-label
-	v0 := y
-	draw_hand_and_arm_inc_arm exit-label
-	sprite x v0 0
-	draw_hand_and_arm_inc_arm exit-label
-	sprite x v0 0
-	draw_hand_and_arm_inc_arm exit-label
-	sprite x v0 0
-	: exit-label
-}
+: draw_right_handarm
+	draw right_hand rhx rhy 0
+	i := arm
+	v0 := rhy
+	vF := 0b01110000
+	vF &= rhy
+	if vF == 0 then jump draw_right_handarm_3
+	if vF == 16 then jump draw_right_handarm_2
+	if vF == 32 then jump draw_right_handarm_1
+	return
+	: draw_right_handarm_3
+	v0 += 16
+	sprite rhx v0 0
+	: draw_right_handarm_2
+	v0 += 16
+	sprite rhx v0 0
+	: draw_right_handarm_1
+	v0 += 16
+	sprite rhx v0 0
+	;
+
+# TODO: Fix these, they act just like arms not legs!
+: draw_left_footleg
+	draw left_foot lfx lfy 0
+	i := leg
+	v0 := lfy
+	vF := 0b01110000
+	vF &= lfy
+	if vF == 0 then jump draw_left_footleg_1
+	if vF == 16 then jump draw_left_footleg_2
+	if vF == 32 then jump draw_left_footleg_3
+	return
+	: draw_left_footleg_3
+	v0 += 16
+	sprite lfx v0 0
+	: draw_left_footleg_2
+	v0 += 16
+	sprite lfx v0 0
+	: draw_left_footleg_1
+	v0 += 16
+	sprite lfx v0 0
+	;
+
+: draw_right_footleg
+	draw right_foot rfx rfy 0
+	i := leg
+	v0 := rfy
+	vF := 0b01110000
+	vF &= rfy
+	if vF == 0 then jump draw_right_footleg_1
+	if vF == 16 then jump draw_right_footleg_2
+	if vF == 32 then jump draw_right_footleg_3
+	return
+	: draw_right_footleg_3
+	v0 += 16
+	sprite rfx v0 0
+	: draw_right_footleg_2
+	v0 += 16
+	sprite rfx v0 0
+	: draw_right_footleg_1
+	v0 += 16
+	sprite rfx v0 0
+	;
 
 
-:macro update_limb x y hand-sprite arm-sprite exit-a exit-b {
-	draw_hand_and_arm x y hand-sprite arm-sprite exit-a
+
+
+:macro update_limb x y draw-func {
+	draw-func
 	x += xtemp
 	y += ytemp
-	draw_hand_and_arm x y hand-sprite arm-sprite exit-b
+	draw-func
 	xtemp := 0
 	ytemp := 0
 }
@@ -105,19 +175,19 @@
 	xtemp := 0
 	ytemp := 0
 
-	draw_hand_and_arm lhx lhy left_hand arm exit1
-	draw_hand_and_arm rhx rhy right_hand arm exit2
+	draw_left_handarm
+	draw_right_handarm
 
 	: main_loop
 	loop
 
 		if limb == LIMB_LEFTHAND then jump lefthand
 		: righthand
-			update_limb rhx rhy right_hand arm exit3 exit4
+			update_limb rhx rhy draw_right_handarm
 			jump switchlimbs
 
 		: lefthand
-			update_limb lhx lhy left_hand arm exit5 exit6
+			update_limb lhx lhy draw_left_handarm
 
 		: switchlimbs
 			ifkey KEY_LH limb := LIMB_LEFTHAND
@@ -233,12 +303,12 @@
 	draw title_8bot v0 v1 0
 	v1 += -16
 	draw title_8top v0 v1 0
-	v1 := TITLE_LH_XOFFSET
-	v2 := TITLE_LH_YOFFSET
-	draw_hand_and_arm v1 v2 left_hand arm exit_title1
-	v1 := TITLE_RH_XOFFSET
-	v2 := TITLE_RH_YOFFSET
-	draw_hand_and_arm v1 v2 right_hand arm exit_title2
+	lhx := TITLE_LH_XOFFSET
+	lhy := TITLE_LH_YOFFSET
+	draw_left_handarm
+	rhx := TITLE_RH_XOFFSET
+	rhy := TITLE_RH_YOFFSET
+	draw_right_handarm
 
 
 	v1 := TITLE_SUB_XOFFSET
