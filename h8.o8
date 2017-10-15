@@ -40,10 +40,8 @@
 	vF := key
 	clear
 
-	:breakpoint pre-climbing
 	climbing_init
 	climbing_run
-	:breakpoint post-climbing
 
 	: main_loop
 	loop
@@ -138,7 +136,9 @@
 
 	: climbing_main_loop
 	loop
+		# Don't select a limb if we are moving already
 		if Climbing_Moving != 0 then jump climbing_moving_limb
+
 		# Scan limb selection keys
 		ifkey KEY_LH Climbing_Limb := LIMB_LEFTHAND
 		ifkey KEY_RH Climbing_Limb := LIMB_RIGHTHAND
@@ -148,32 +148,24 @@
 		# Don't do anything if no limb was selected
 		if Climbing_Limb == LIMB_NONE then jump climbing_delay_loop
 
+		# Select a new limb and start moving it
 		: climbing_begin_move
-		## At this point, a limb is selected (Climbing_Limb := LIMB_XXX)
+		# At this point, a limb is selected (Climbing_Limb := LIMB_XXX)
 
 		# If the selection switchs between hand/foot, update screen appropriately
 
-		# Setup the limb moving function to do the right thing
-
-		# Load limb data into registers
-		i := climbing_data
-		vF := Climbing_Limb
-		v0 := CLIMBING_DATA_BYTES
-		loop while vF != 0
-			i += v0
-			vF += -1
-		again
-		save v1
-		Climbing_X := v0		# TODO: Make Climbing_X/Y be v0/v1
-		Climbing_Y := v1
+		# Setup the limb drawing function to do the right thing and load Climbing X/Y
+		if Climbing_Limb == LIMB_LEFTHAND then climbing_setup_drawlimb_lefthand
+		if Climbing_Limb == LIMB_RIGHTHAND then climbing_setup_drawlimb_righthand
 
 		# Initialize before move loop
 		Climbing_Debounce := 0	# Clear debounce flag
+		Climbing_Moving := 1		# Moving = True
 
 		# Move a limb
 		: climbing_moving_limb
-			Climbing_DeltaX := 0 # TODO: Have something set deltax/y instead of always modifying it
-			Climbing_DeltaY := 0 # TODO: This is easier to deal with at first
+			Climbing_DeltaX := 0
+			Climbing_DeltaY := 0
 
 			# Add random jitter to the delta x/y
 				v0 := random 0b00001100
@@ -212,6 +204,8 @@
 
 				: climbing_check_debounce
 				if Climbing_Limb -key then Climbing_Debounce := 1		# Set debounced flag if the key was released
+				jump climbing_delay_loop
+
 		# Limb movement is over, determine if the move landed on a hold
 		: climbing_exit_movement
 
@@ -226,6 +220,10 @@
 		v0 := Climbing_X
 		v1 := Climbing_Y
 		save v1
+
+		# Clear limb
+		Climbing_Moving := 0
+		Climbing_Limb := LIMB_NONE
 
 		# Delay and Continue with idle
 		: climbing_delay_loop
@@ -310,36 +308,35 @@
 :calc TITLE_SUB_XEND { TITLE_SUB_XOFFSET + ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) }
 
 : title_draw
-:macro disable_title {
 	clear
 	v0 := TITLE_H8_XOFFSET
 	v1 := TITLE_H8_YOFFSET
-	draw title_htop v0 v1 0
+	draw spr_title_htop v0 v1 0
 	v1 += 16
-	draw title_hbot v0 v1 0
+	draw spr_title_hbot v0 v1 0
 	v0 += TITLE_H8_XSKIP
-	draw title_8bot v0 v1 0
+	draw spr_title_8bot v0 v1 0
 	v1 += -16
-	draw title_8top v0 v1 0
-	lhx := TITLE_LH_XOFFSET
-	lhy := TITLE_LH_YOFFSET
-	draw_left_handarm
-	rhx := TITLE_RH_XOFFSET
-	rhy := TITLE_RH_YOFFSET
-	draw_right_handarm
-
+	draw spr_title_8top v0 v1 0
+	Climbing_X := TITLE_LH_XOFFSET
+	Climbing_Y := TITLE_LH_YOFFSET
+	climbing_setup_drawlimb_lefthand
+	climbing_drawlimb
+	Climbing_X := TITLE_RH_XOFFSET
+	Climbing_Y := TITLE_RH_YOFFSET
+	climbing_setup_drawlimb_righthand
+	climbing_drawlimb
 
 	v1 := TITLE_SUB_XOFFSET
 	v2 := TITLE_SUB_YOFFSET
 	v0 := TITLE_SUB_HEIGHT
-	i := title_sub_be
+	i := spr_title_sub_be
 	loop
 		sprite v1 v2 TITLE_SUB_HEIGHT
 		v1 += TITLE_SUB_WIDTH
 		i += v0
 		while v1 != TITLE_SUB_XEND
 	again
-}
 	;
 ### End Title Screen
 
@@ -435,120 +432,10 @@
 	;
 
 : climbing_setup_drawlimb_righthand
-	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_lefthand
+	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_righthand
 	;
 
 
-### Old?
-
-# : draw_left_handarm
-# 	draw left_hand lhx lhy 0
-# 	i := arm
-# 	v0 := lhy
-# 	vF := 0b01110000
-# 	vF &= lhy
-# 	if vF == 0 then jump draw_left_handarm_3
-# 	if vF == 16 then jump draw_left_handarm_2
-# 	if vF == 32 then jump draw_left_handarm_1
-# 	return
-# 	: draw_left_handarm_3
-# 	v0 += 16
-# 	sprite lhx v0 0
-# 	: draw_left_handarm_2
-# 	v0 += 16
-# 	sprite lhx v0 0
-# 	: draw_left_handarm_1
-# 	v0 += 16
-# 	sprite lhx v0 0
-# 	;
-#
-# : draw_right_handarm
-# 	draw right_hand rhx rhy 0
-# 	i := arm
-# 	v0 := rhy
-# 	vF := 0b01110000
-# 	vF &= rhy
-# 	if vF == 0 then jump draw_right_handarm_3
-# 	if vF == 16 then jump draw_right_handarm_2
-# 	if vF == 32 then jump draw_right_handarm_1
-# 	return
-# 	: draw_right_handarm_3
-# 	v0 += 16
-# 	sprite rhx v0 0
-# 	: draw_right_handarm_2
-# 	v0 += 16
-# 	sprite rhx v0 0
-# 	: draw_right_handarm_1
-# 	v0 += 16
-# 	sprite rhx v0 0
-# 	;
-#
-# # TODO: Fix these, they act just like arms not legs!
-# : draw_left_footleg
-# 	draw left_foot lfx lfy 0
-# 	i := leg
-# 	v0 := lfy
-# 	vF := 0b01110000
-# 	vF &= lfy
-# 	if vF == 0 then jump draw_left_footleg_1
-# 	if vF == 16 then jump draw_left_footleg_2
-# 	if vF == 32 then jump draw_left_footleg_3
-# 	return
-# 	: draw_left_footleg_3
-# 	v0 += 16
-# 	sprite lfx v0 0
-# 	: draw_left_footleg_2
-# 	v0 += 16
-# 	sprite lfx v0 0
-# 	: draw_left_footleg_1
-# 	v0 += 16
-# 	sprite lfx v0 0
-# 	;
-#
-# : draw_right_footleg
-# 	draw right_foot rfx rfy 0
-# 	i := leg
-# 	v0 := rfy
-# 	vF := 0b01110000
-# 	vF &= rfy
-# 	if vF == 0 then jump draw_right_footleg_1
-# 	if vF == 16 then jump draw_right_footleg_2
-# 	if vF == 32 then jump draw_right_footleg_3
-# 	return
-# 	: draw_right_footleg_3
-# 	v0 += 16
-# 	sprite rfx v0 0
-# 	: draw_right_footleg_2
-# 	v0 += 16
-# 	sprite rfx v0 0
-# 	: draw_right_footleg_1
-# 	v0 += 16
-# 	sprite rfx v0 0
-# 	;
-#
-#
-# :macro update_lefthand {
-# 	draw_left_handarm
-# 	lhx += Climbing_DeltaX
-# 	lhy += Climbing_DeltaY
-# 	vF := LEFT_HAND_LIMIT
-# 	vF -= lhx
-# 	if vF != 0 then lhx := LEFT_HAND_LIMIT
-# 	vF := RIGHT_HAND_LIMIT
-# 	vF -= lhx
-# 	if vF == 0 then lhx := RIGHT_HAND_LIMIT
-# 	vF := 64
-# 	vF -= lhy
-# 	if vF == 0 then lhy := TOP_HAND_LIMIT
-# 	vF := BOT_HAND_LIMIT
-# 	vF -= lhy
-# 	if vF == 0 then lhy := BOT_HAND_LIMIT
-#
-# 	draw_left_handarm
-# 	Climbing_DeltaX := 0
-# 	Climbing_DeltaY := 0
-# }
-#
 # :macro update_righthand {
 # 	draw_right_handarm
 # 	rhx += Climbing_DeltaX
