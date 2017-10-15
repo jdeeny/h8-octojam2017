@@ -1,7 +1,29 @@
-# Chip8 is a virtual machine designed in 1977 for programming video games.
-# Octo is a high level assembler, disassembler and simulator for Chip8.
-# Click 'Run' and then press ASWD to move the sprite around the screen.
-# Click the Octo logo for source, documentation and examples.
+###############################
+##                           ##
+##   BERGSTEIGERSIMULATOR    ##
+##                           ##
+##   d8b    d8b  88    88    ##
+##   888    888  .d8888b.    ##
+##   888    888 d88P  Y88b   ##
+##   8888888888 Y88b. d88P   ##
+##   8888888888  "Y88888"    ##
+##   888    888 .d8P""Y8b.   ##
+##   888    888 888    888   ##
+##   888    888 Y88b  d88P   ##
+##   Y8P    Y8P  "Y8888P"    ##
+##                           ##
+###############################
+
+# A mountaineering simulator and entry for `Octojam IV`.
+#
+# This program is designed to target a bug-fixed version of the SuperChip
+# emulator `SCHIP` running on an HP48 GX calculator, as well as the Octo
+# emulator. It has not been tested on other platforms.
+#
+# This program uses instructions from the SuperChip instruction set extension.
+# It assumes sprites are clipped to the screen edge, but otherwise assumes the
+# emulator does not have the classic SCHIP emulation bugs.
+#
 
 :const KB_1 0x1
 :const KB_2 0x2
