@@ -1,401 +1,525 @@
-# Chip8 is a virtual machine designed in 1977 for programming video games.
-# Octo is a high level assembler, disassembler and simulator for Chip8.
-# Click 'Run' and then press ASWD to move the sprite around the screen.
-# Click the Octo logo for source, documentation and examples.
+	# Chip8 is a virtual machine designed in 1977 for programming video games.
+	# Octo is a high level assembler, disassembler and simulator for Chip8.
+	# Click 'Run' and then press ASWD to move the sprite around the screen.
+	# Click the Octo logo for source, documentation and examples.
 
-:const KB_1 0x1
-:const KB_2 0x2
-:const KB_3 0x3
-:const KB_4 0xC
-:const KB_Q 0x4
-:const KB_W 0x5
-:const KB_E 0x6
-:const KB_R 0xD
-:const KB_A 0x7
-:const KB_S 0x8
-:const KB_D 0x9
-:const KB_F 0xE
-:const KB_Z 0xA
-:const KB_X 0x0
-:const KB_C 0xB
-:const KB_V 0xF
+	:const KB_1 0x1
+	:const KB_2 0x2
+	:const KB_3 0x3
+	:const KB_4 0xC
+	:const KB_Q 0x4
+	:const KB_W 0x5
+	:const KB_E 0x6
+	:const KB_R 0xD
+	:const KB_A 0x7
+	:const KB_S 0x8
+	:const KB_D 0x9
+	:const KB_F 0xE
+	:const KB_Z 0xA
+	:const KB_X 0x0
+	:const KB_C 0xB
+	:const KB_V 0xF
 
-:calc KEY_LEFT { KB_A }
-:calc KEY_RIGHT { KB_D }
-:calc KEY_UP { KB_W }
-:calc KEY_DOWN { KB_S }
+	:calc KEY_LEFT { KB_A }
+	:calc KEY_RIGHT { KB_D }
+	:calc KEY_UP { KB_W }
+	:calc KEY_DOWN { KB_S }
 
-# This could be switch instead of a dedicated key for each
-:calc KEY_LH { KB_Q }
-:calc KEY_RH { KB_E }
-:calc KEY_LF { KB_Z }
-:calc KEY_RF { KB_C }
-
-
-:calc MOVE_SPEED { 2 }
-:calc MOVE_SPEED_REVERSE { 0 - MOVE_SPEED }
-
-:const FRAME_DELAY 2
+	# This could be switch instead of a dedicated key for each
+	:calc KEY_LH { KB_Q }
+	:calc KEY_RH { KB_E }
+	:calc KEY_LF { KB_Z }
+	:calc KEY_RF { KB_C }
 
 
-# Positions stored here
-:alias lhx v3
-:alias lhy v4
-:alias rhx v5
-:alias rhy v6
-:alias lfx v7
-:alias lfy v8
-:alias rfx v9
-:alias rfy vA
 
 
-:alias xtemp vB
-:alias ytemp vC
-
-:alias limb vD # Which limb are we controlling?
-:const LIMB_LEFTHAND 0
-:const LIMB_RIGHTHAND 1
+	:macro draw label x y h { i := label sprite x y h }
+	:macro ifkey keynum { vF := keynum if vF key then }
 
 
-:const LEFT_HAND_LIMIT 16
-:const RIGHT_HAND_LIMIT 96
-:const TOP_HAND_LIMIT 0
-:const BOT_HAND_LIMIT 48
+	: main
+		hires
+		title_draw
+		vF := key
+		clear
 
+	#	draw_left_handarm
+	#	draw_right_handarm
 
-:macro draw label x y h { i := label sprite x y h }
-:macro ifkey keynum { vF := keynum if vF key then }
+		: main_loop
+			:breakpoint pre-climbing
+			climbing_run
+			:breakpoint post-climbing
 
-: draw_left_handarm
-	draw left_hand lhx lhy 0
-	i := arm
-	v0 := lhy
-	vF := 0b01110000
-	vF &= lhy
-	if vF == 0 then jump draw_left_handarm_3
-	if vF == 16 then jump draw_left_handarm_2
-	if vF == 32 then jump draw_left_handarm_1
-	return
-	: draw_left_handarm_3
-	v0 += 16
-	sprite lhx v0 0
-	: draw_left_handarm_2
-	v0 += 16
-	sprite lhx v0 0
-	: draw_left_handarm_1
-	v0 += 16
-	sprite lhx v0 0
-	;
-
-: draw_right_handarm
-	draw right_hand rhx rhy 0
-	i := arm
-	v0 := rhy
-	vF := 0b01110000
-	vF &= rhy
-	if vF == 0 then jump draw_right_handarm_3
-	if vF == 16 then jump draw_right_handarm_2
-	if vF == 32 then jump draw_right_handarm_1
-	return
-	: draw_right_handarm_3
-	v0 += 16
-	sprite rhx v0 0
-	: draw_right_handarm_2
-	v0 += 16
-	sprite rhx v0 0
-	: draw_right_handarm_1
-	v0 += 16
-	sprite rhx v0 0
-	;
-
-# TODO: Fix these, they act just like arms not legs!
-: draw_left_footleg
-	draw left_foot lfx lfy 0
-	i := leg
-	v0 := lfy
-	vF := 0b01110000
-	vF &= lfy
-	if vF == 0 then jump draw_left_footleg_1
-	if vF == 16 then jump draw_left_footleg_2
-	if vF == 32 then jump draw_left_footleg_3
-	return
-	: draw_left_footleg_3
-	v0 += 16
-	sprite lfx v0 0
-	: draw_left_footleg_2
-	v0 += 16
-	sprite lfx v0 0
-	: draw_left_footleg_1
-	v0 += 16
-	sprite lfx v0 0
-	;
-
-: draw_right_footleg
-	draw right_foot rfx rfy 0
-	i := leg
-	v0 := rfy
-	vF := 0b01110000
-	vF &= rfy
-	if vF == 0 then jump draw_right_footleg_1
-	if vF == 16 then jump draw_right_footleg_2
-	if vF == 32 then jump draw_right_footleg_3
-	return
-	: draw_right_footleg_3
-	v0 += 16
-	sprite rfx v0 0
-	: draw_right_footleg_2
-	v0 += 16
-	sprite rfx v0 0
-	: draw_right_footleg_1
-	v0 += 16
-	sprite rfx v0 0
-	;
-
-
-:macro update_lefthand {
-	draw_left_handarm
-	lhx += xtemp
-	lhy += ytemp
-	vF := LEFT_HAND_LIMIT
-	vF -= lhx
-	if vF != 0 then lhx := LEFT_HAND_LIMIT
-	vF := RIGHT_HAND_LIMIT
-	vF -= lhx
-	if vF == 0 then lhx := RIGHT_HAND_LIMIT
-	vF := 64
-	vF -= lhy
-	if vF == 0 then lhy := TOP_HAND_LIMIT
-	vF := BOT_HAND_LIMIT
-	vF -= lhy
-	if vF == 0 then lhy := BOT_HAND_LIMIT
-
-	draw_left_handarm
-	xtemp := 0
-	ytemp := 0
-}
-
-:macro update_righthand {
-	draw_right_handarm
-	rhx += xtemp
-	rhy += ytemp
-	vF := LEFT_HAND_LIMIT
-	vF -= rhx
-	if vF != 0 then rhx := LEFT_HAND_LIMIT
-	vF := RIGHT_HAND_LIMIT
-	vF -= rhx
-	if vF == 0 then rhx := RIGHT_HAND_LIMIT
-	vF := 64
-	vF -= rhy
-	if vF == 0 then rhy := TOP_HAND_LIMIT
-	vF := BOT_HAND_LIMIT
-	vF -= rhy
-	if vF == 0 then rhy := BOT_HAND_LIMIT
-
-	draw_right_handarm
-	xtemp := 0
-	ytemp := 0
-}
-
-: main
-	hires
-	title_draw
-	vF := key
-	clear
-
-	lhx := 20
-	lhy := 58
-	rhx := 100
-	rhy := 58
-
-	xtemp := 0
-	ytemp := 0
-
-	draw_left_handarm
-	draw_right_handarm
-
-	: main_loop
-	loop
-
-		if limb == LIMB_LEFTHAND then jump lefthand
-		: righthand
-			update_righthand
-			jump switchlimbs
-
-		: lefthand
-			update_lefthand
-
-		: switchlimbs
-			ifkey KEY_LH limb := LIMB_LEFTHAND
-			ifkey KEY_RH limb := LIMB_RIGHTHAND
-			ifkey KEY_LEFT xtemp += MOVE_SPEED_REVERSE
-			ifkey KEY_RIGHT xtemp += MOVE_SPEED
-			ifkey KEY_UP ytemp += MOVE_SPEED_REVERSE
-			ifkey KEY_DOWN ytemp += MOVE_SPEED
-
-			v0 := random 0b00001100
-			vF := random 0b00000001
-			jump0 randtable
-			: randtable
-			xtemp += vF
-			jump endrand
-			xtemp -= vF
-			jump endrand
-			ytemp += vF
-			jump endrand
-			ytemp -= vF
-			: endrand
-
-		: delay_loop
-		# lock the framerate of this program via the delay timer:
 		loop
-			vf := delay
-			if vf != 0 then
 		again
-		vf := FRAME_DELAY
-		delay := vf
-	again
 
 
 
 
-: right_hand
-0x01 0x40 0x06 0xA0 0x02 0xA8 0x0A 0xA8
-0x0B 0xF8 0x0F 0xF0 0x0F 0xF0 0x07 0xE0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
 
-: left_hand
-0x02 0x80 0x05 0x60 0x15 0x40 0x15 0x50
-0x1F 0xD0 0x0F 0xF0 0x0F 0xF0 0x07 0xE0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
+	################
+	### Climbing ###
+	################
+	:calc CLIMBING_SPEED { 2 }
+	:calc CLIMBING_SPEED_REVERSE { 0 - CLIMBING_SPEED }
+	:const CLIMBING_FRAME_DELAY 2
 
-: arm
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
+	:alias Climbing_View v6
+	:alias Climbing_Moving v7
+	:alias Climbing_Debounce v8
+	:alias Climbing_X v9
+	:alias Climbing_Y vA
+	:alias Climbing_DeltaX vB
+	:alias Climbing_DeltaY vC
+	:alias Climbing_Limb vD
 
-: right_foot
-0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
-0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
-0x07 0xE0 0x07 0xE0 0x07 0xE0 0x03 0xE0
-0x03 0xC0 0x07 0xFC 0x07 0xFE 0x03 0xFE
+	# Store the limb as the keycode so we can scan that key quickly
+	:calc LIMB_NONE { 0xFF }
+	:calc LIMB_LEFTHAND { KEY_LH }
+	:calc LIMB_RIGHTHAND { KEY_RH }
+	:calc LIMB_LEFTFOOT { KEY_LF }
+	:calc LIMB_RIGHTFOOT { KEY_RF }
 
-: left_foot
-0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
-0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
-0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xC0
-0x03 0xC0 0x3F 0xE0 0x7F 0xE0 0x7F 0xC0
+	:const LEFT_HAND_LIMIT 16
+	:const RIGHT_HAND_LIMIT 96
+	:const TOP_HAND_LIMIT 0
+	:const BOT_HAND_LIMIT 48
 
-: leg
-0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
-0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
-0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
-0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
+	:const CLIMBING_VIEW_HANDS 0
+	:const CLIMBING_VIEW_FEET 1
 
-# Some holds, these are 3 tall ellipses
-: hold_3x3 0x40 0xA0 0x40
-: hold_3x4 0x60 0x90 0x60
-: hold_3x5 0x70 0x88 0x70
-: hold_3x6 0x78 0x84 0x78
-: hold_3x7 0x7C 0x82 0x7C
-: hold_3x8 0x7E 0x81 0x7E
+	# Storage of limb coordinates, LH XY, RH XY, LF XY, RF XY
+	:const CLIMBING_DATA_BYTES 2
+	: climbing_data 0 0  0 0  0 0  0 0
 
+	# This sets up the beginning of a climbing session
+	#  - loads level data, sets limb locations etc
+	: climbing_init
+		;
 
-####################
-### Title Screen ###
-####################
-:const TITLE_CHAR_WIDTH 16
+	# This loops around idling, waiting for limb select and moving a limb onto a hold
+	: climbing_run
+		# Setup
+		Climbing_Limb := LIMB_NONE
+		Climbing_Moving := 0
+		Climbing_View := CLIMBING_VIEW_HANDS
 
-:const TITLE_H8_YOFFSET 17
-:const TITLE_H8_SPACING 6
-:calc TITLE_H8_XSKIP { TITLE_H8_SPACING + 16 }
-:calc TITLE_H8_XOFFSET { 64 - ( ( TITLE_CHAR_WIDTH + TITLE_H8_XSKIP ) / 2 ) }
+		: climbing_main_loop
+		loop
+			if Climbing_Moving != 0 then jump climbing_moving_limb
+			# Scan limb selection keys
+			ifkey KEY_LH Climbing_Limb := LIMB_LEFTHAND
+			ifkey KEY_RH Climbing_Limb := LIMB_RIGHTHAND
+			ifkey KEY_LH Climbing_Limb := LIMB_LEFTFOOT
+			ifkey KEY_RH Climbing_Limb := LIMB_RIGHTFOOT
 
-:calc TITLE_LH_XOFFSET { TITLE_H8_XOFFSET / 3 }
-:calc TITLE_LH_YOFFSET { 64 - 6 }
-:calc TITLE_RH_XOFFSET { TITLE_H8_XOFFSET + 19 }
-:calc TITLE_RH_YOFFSET { TITLE_H8_YOFFSET + 27 }
+			# Don't do anything if no limb was selected
+			if Climbing_Limb == LIMB_NONE then jump climbing_delay_loop
 
+			: climbing_begin_move
+			## At this point, a limb is selected (Climbing_Limb := LIMB_XXX)
 
-:const TITLE_SUB_WIDTH 8
-:const TITLE_SUB_HEIGHT 5
-:const TITLE_SUB_TILES 10
-:calc TITLE_SUB_TOTAL_WIDTH { ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) - 3 } # Subtract for empty cols at end
-:calc TITLE_SUB_XOFFSET { 64 - ( TITLE_SUB_TOTAL_WIDTH / 2 ) }
-:calc TITLE_SUB_YOFFSET { TITLE_H8_YOFFSET - 10 }
-:calc TITLE_SUB_XEND { TITLE_SUB_XOFFSET + ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) }
+			# If the selection switchs between hand/foot, update screen appropriately
 
-: title_draw
-	clear
-	v0 := TITLE_H8_XOFFSET
-	v1 := TITLE_H8_YOFFSET
-	draw title_htop v0 v1 0
-	v1 += 16
-	draw title_hbot v0 v1 0
-	v0 += TITLE_H8_XSKIP
-	draw title_8bot v0 v1 0
-	v1 += -16
-	draw title_8top v0 v1 0
-	lhx := TITLE_LH_XOFFSET
-	lhy := TITLE_LH_YOFFSET
-	draw_left_handarm
-	rhx := TITLE_RH_XOFFSET
-	rhy := TITLE_RH_YOFFSET
-	draw_right_handarm
+			# Setup the limb moving function to do the right thing
 
+			# Load limb data into registers
+			i := climbing_data
+			vF := Climbing_Limb
+			v0 := CLIMBING_DATA_BYTES
+			loop while vF != 0
+				i += v0
+				vF += -1
+			again
+			save v1
+			Climbing_X := v0		# TODO: Make Climbing_X/Y be v0/v1
+			Climbing_Y := v1
 
-	v1 := TITLE_SUB_XOFFSET
-	v2 := TITLE_SUB_YOFFSET
-	v0 := TITLE_SUB_HEIGHT
-	i := title_sub_be
-	loop
-		sprite v1 v2 TITLE_SUB_HEIGHT
-		v1 += TITLE_SUB_WIDTH
-		i += v0
-		while v1 != TITLE_SUB_XEND
-	again
-	;
+			# Initialize before move loop
+			Climbing_Debounce := 0	# Clear debounce flag
 
-: title_htop
-0x00 0x00 0x60 0x06 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xFF 0xFF 0xFF 0xFF
+			# Move a limb
+			: climbing_moving_limb
+				Climbing_DeltaX := 0 # TODO: Have something set deltax/y instead of always modifying it
+				Climbing_DeltaY := 0 # TODO: This is easier to deal with at first
 
-: title_hbot
-0xFF 0xFF 0xFF 0xFF 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0x60 0x06
+				# Add random jitter to the delta x/y
+					v0 := random 0b00001100
+					vF := random 0b00000001
+					jump0 climbing_randtable
+					: climbing_randtable
+					Climbing_DeltaX += vF
+					jump climbing_endrand
+					Climbing_DeltaX -= vF
+					jump climbing_endrand
+					Climbing_DeltaY += vF
+					jump climbing_endrand
+					Climbing_DeltaY -= vF
+					: climbing_endrand
+				# Scan movement keys and adjust delta x/y
+					ifkey KEY_LEFT Climbing_DeltaX += CLIMBING_SPEED_REVERSE
+					ifkey KEY_RIGHT Climbing_DeltaX += CLIMBING_SPEED
+					ifkey KEY_UP Climbing_DeltaY += CLIMBING_SPEED_REVERSE
+					ifkey KEY_DOWN Climbing_DeltaY += CLIMBING_SPEED
 
-: title_8top
-0x30 0x0C 0x78 0x1E 0x78 0x1E 0x30 0x0C
-0x07 0xE0 0x1F 0xF8 0x3F 0xFC 0x7F 0xFE
-0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
-
-
-: title_8bot
-0x3F 0xFC 0x1F 0xF8 0x1F 0xF8 0x3F 0xFC
-0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
-0x7F 0xFE 0x3F 0xFC 0x1F 0xF8 0x07 0xE0
-
-
-# H8 - Bergsteigersimulator
-: title_sub_be	0xCE 0xA8 0xCC 0xA8 0xCE # BE
-: title_sub_rg	0xCE 0xA8 0xCA 0xAA 0xAE # RG
-: title_sub_st 	0xEE 0x84 0xE4 0x24 0xE4 # ST
-: title_sub_ei 	0xEB 0x8A 0xCA 0x8A 0xEB # EI 1/2 G
-: title_sub_ge 	0xBB 0x22 0xB3 0xA2 0xBA # GE 2 col R
-: title_sub_rsi 0xBA 0xA2 0x3A 0x8A 0xBA # 1 col R,SI
-: title_sub_m 	0x8A 0xDA 0xAA 0x8A 0x8B # M 1/2 U
-: title_sub_ula 0xA1 0xA2 0xA3 0xA2 0xBA # 1/2 u L 1/2A
-: title_sub_TO	0x3B 0x92 0x92 0x92 0x93 # 1/2 A, T, 1/2 O
-: title_sub_R 	0xB8 0xA8 0xB0 0xA8 0xA8 # 1/2 O, R
+				# Erase, update XY, and redraw the limb
+					# Erase limb
+						i := spr_lefthand
+						sprite Climbing_X Climbing_Y 0
+						i := spr_arm
+						v0 := Climbing_Y
+						vF := 0b01110000
+						vF &= Climbing_Y
+						if vF == 0 then jump climbing_erase_3
+						if vF == 16 then jump climbing_erase_2
+						if vF == 32 then jump climbing_erase_1
+						return
+						: climbing_erase_3
+						v0 += 16
+						sprite Climbing_X v0 0
+						: climbing_erase_2
+						v0 += 16
+						sprite Climbing_X v0 0
+						: climbing_erase_1
+						v0 += 16
+						sprite Climbing_X v0 0
 
 
+					# Adjust x/y
+						Climbing_X += Climbing_DeltaX
+						Climbing_Y += Climbing_DeltaY
 
-### End Title Screen
+					# Draw limb
+						i := spr_lefthand
+						sprite Climbing_X Climbing_Y 0
+						i := spr_arm
+						v0 := Climbing_Y
+						vF := 0b01110000
+						vF &= Climbing_Y
+						if vF == 0 then jump climbing_draw_3
+						if vF == 16 then jump climbing_draw_2
+						if vF == 32 then jump climbing_draw_1
+						return
+						: climbing_draw_3
+						v0 += 16
+						sprite Climbing_X v0 0
+						: climbing_draw_2
+						v0 += 16
+						sprite Climbing_X v0 0
+						: climbing_draw_1
+						v0 += 16
+						sprite Climbing_X v0 0
+
+				# Check keys to see if we are finished moving
+					# If we are not debounced, don't allow switch
+					if Climbing_Debounce == 0 then jump climbing_check_debounce
+					if Climbing_Limb key then jump climbing_exit_movement	# Exit if they press the same limb key again
+
+					: climbing_check_debounce
+					if Climbing_Limb -key then Climbing_Debounce := 1		# Set debounced flag if the key was released
+			# Limb movement is over, determine if the move landed on a hold
+			: climbing_exit_movement
+
+			# Save limb data to ram
+			i := climbing_data
+			vF := Climbing_Limb
+			v0 := CLIMBING_DATA_BYTES
+			loop while vF != 0
+				i += v0
+				vF += -1
+			again
+			v0 := Climbing_X
+			v1 := Climbing_Y
+			save v1
+
+			# Delay and Continue with idle
+			: climbing_delay_loop
+			loop
+				vF := delay
+				while vF != 0
+			again
+			vF := CLIMBING_FRAME_DELAY
+			delay := vF
+		again
+		;
+
+	### End Climbing
+
+	####################
+	### Title Screen ###
+	####################
+	:const TITLE_CHAR_WIDTH 16
+
+	:const TITLE_H8_YOFFSET 17
+	:const TITLE_H8_SPACING 6
+	:calc TITLE_H8_XSKIP { TITLE_H8_SPACING + 16 }
+	:calc TITLE_H8_XOFFSET { 64 - ( ( TITLE_CHAR_WIDTH + TITLE_H8_XSKIP ) / 2 ) }
+
+	:calc TITLE_LH_XOFFSET { TITLE_H8_XOFFSET / 3 }
+	:calc TITLE_LH_YOFFSET { 64 - 6 }
+	:calc TITLE_RH_XOFFSET { TITLE_H8_XOFFSET + 19 }
+	:calc TITLE_RH_YOFFSET { TITLE_H8_YOFFSET + 27 }
+
+
+	:const TITLE_SUB_WIDTH 8
+	:const TITLE_SUB_HEIGHT 5
+	:const TITLE_SUB_TILES 10
+	:calc TITLE_SUB_TOTAL_WIDTH { ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) - 3 } # Subtract for empty cols at end
+	:calc TITLE_SUB_XOFFSET { 64 - ( TITLE_SUB_TOTAL_WIDTH / 2 ) }
+	:calc TITLE_SUB_YOFFSET { TITLE_H8_YOFFSET - 10 }
+	:calc TITLE_SUB_XEND { TITLE_SUB_XOFFSET + ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) }
+
+	: title_draw
+	:macro disable_title {
+		clear
+		v0 := TITLE_H8_XOFFSET
+		v1 := TITLE_H8_YOFFSET
+		draw title_htop v0 v1 0
+		v1 += 16
+		draw title_hbot v0 v1 0
+		v0 += TITLE_H8_XSKIP
+		draw title_8bot v0 v1 0
+		v1 += -16
+		draw title_8top v0 v1 0
+		lhx := TITLE_LH_XOFFSET
+		lhy := TITLE_LH_YOFFSET
+		draw_left_handarm
+		rhx := TITLE_RH_XOFFSET
+		rhy := TITLE_RH_YOFFSET
+		draw_right_handarm
+
+
+		v1 := TITLE_SUB_XOFFSET
+		v2 := TITLE_SUB_YOFFSET
+		v0 := TITLE_SUB_HEIGHT
+		i := title_sub_be
+		loop
+			sprite v1 v2 TITLE_SUB_HEIGHT
+			v1 += TITLE_SUB_WIDTH
+			i += v0
+			while v1 != TITLE_SUB_XEND
+		again
+	}
+		;
+	### End Title Screen
+
+	###############
+	### Sprites ###
+	###############
+	: spr_righthand
+	0x01 0x40 0x06 0xA0 0x02 0xA8 0x0A 0xA8
+	0x0B 0xF8 0x0F 0xF0 0x0F 0xF0 0x07 0xE0
+	0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
+	0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
+
+	: spr_lefthand
+	0x02 0x80 0x05 0x60 0x15 0x40 0x15 0x50
+	0x1F 0xD0 0x0F 0xF0 0x0F 0xF0 0x07 0xE0
+	0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
+	0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
+
+	: spr_arm
+	0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
+	0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
+	0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
+	0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
+
+	: spr_rightfoot
+	0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
+	0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
+	0x07 0xE0 0x07 0xE0 0x07 0xE0 0x03 0xE0
+	0x03 0xC0 0x07 0xFC 0x07 0xFE 0x03 0xFE
+
+	: spr_leftfoot
+	0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
+	0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
+	0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xC0
+	0x03 0xC0 0x3F 0xE0 0x7F 0xE0 0x7F 0xC0
+
+	: spr_leg
+	0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
+	0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
+	0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
+	0x07 0xE0 0x07 0xE0 0x07 0xE0 0x07 0xE0
+
+	# Some holds, these are 3 tall ellipses
+	: spr_hold_3x3 0x40 0xA0 0x40
+	: spr_hold_3x4 0x60 0x90 0x60
+	: spr_hold_3x5 0x70 0x88 0x70
+	: spr_hold_3x6 0x78 0x84 0x78
+	: spr_hold_3x7 0x7C 0x82 0x7C
+	: spr_hold_3x8 0x7E 0x81 0x7E
+
+	: spr_title_htop
+	0x00 0x00 0x60 0x06 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xFF 0xFF 0xFF 0xFF
+
+	: spr_title_hbot
+	0xFF 0xFF 0xFF 0xFF 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0x60 0x06
+
+	: spr_title_8top
+	0x30 0x0C 0x78 0x1E 0x78 0x1E 0x30 0x0C
+	0x07 0xE0 0x1F 0xF8 0x3F 0xFC 0x7F 0xFE
+	0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
+
+
+	: spr_title_8bot
+	0x3F 0xFC 0x1F 0xF8 0x1F 0xF8 0x3F 0xFC
+	0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
+	0x7F 0xFE 0x3F 0xFC 0x1F 0xF8 0x07 0xE0
+
+
+	# H8 - Bergsteigersimulator
+	: spr_title_sub_be	0xCE 0xA8 0xCC 0xA8 0xCE # BE
+	: spr_title_sub_rg	0xCE 0xA8 0xCA 0xAA 0xAE # RG
+	: spr_title_sub_st 	0xEE 0x84 0xE4 0x24 0xE4 # ST
+	: spr_title_sub_ei 	0xEB 0x8A 0xCA 0x8A 0xEB # EI 1/2 G
+	: spr_title_sub_ge 	0xBB 0x22 0xB3 0xA2 0xBA # GE 2 col R
+	: spr_title_sub_rsi 0xBA 0xA2 0x3A 0x8A 0xBA # 1 col R,SI
+	: spr_title_sub_m 	0x8A 0xDA 0xAA 0x8A 0x8B # M 1/2 U
+	: spr_title_sub_ula 0xA1 0xA2 0xA3 0xA2 0xBA # 1/2 u L 1/2A
+	: spr_title_sub_TO	0x3B 0x92 0x92 0x92 0x93 # 1/2 A, T, 1/2 O
+	: spr_title_sub_R 	0xB8 0xA8 0xB0 0xA8 0xA8 # 1/2 O, R
+
+
+
+	### Old?
+
+	# : draw_left_handarm
+	# 	draw left_hand lhx lhy 0
+	# 	i := arm
+	# 	v0 := lhy
+	# 	vF := 0b01110000
+	# 	vF &= lhy
+	# 	if vF == 0 then jump draw_left_handarm_3
+	# 	if vF == 16 then jump draw_left_handarm_2
+	# 	if vF == 32 then jump draw_left_handarm_1
+	# 	return
+	# 	: draw_left_handarm_3
+	# 	v0 += 16
+	# 	sprite lhx v0 0
+	# 	: draw_left_handarm_2
+	# 	v0 += 16
+	# 	sprite lhx v0 0
+	# 	: draw_left_handarm_1
+	# 	v0 += 16
+	# 	sprite lhx v0 0
+	# 	;
+	#
+	# : draw_right_handarm
+	# 	draw right_hand rhx rhy 0
+	# 	i := arm
+	# 	v0 := rhy
+	# 	vF := 0b01110000
+	# 	vF &= rhy
+	# 	if vF == 0 then jump draw_right_handarm_3
+	# 	if vF == 16 then jump draw_right_handarm_2
+	# 	if vF == 32 then jump draw_right_handarm_1
+	# 	return
+	# 	: draw_right_handarm_3
+	# 	v0 += 16
+	# 	sprite rhx v0 0
+	# 	: draw_right_handarm_2
+	# 	v0 += 16
+	# 	sprite rhx v0 0
+	# 	: draw_right_handarm_1
+	# 	v0 += 16
+	# 	sprite rhx v0 0
+	# 	;
+	#
+	# # TODO: Fix these, they act just like arms not legs!
+	# : draw_left_footleg
+	# 	draw left_foot lfx lfy 0
+	# 	i := leg
+	# 	v0 := lfy
+	# 	vF := 0b01110000
+	# 	vF &= lfy
+	# 	if vF == 0 then jump draw_left_footleg_1
+	# 	if vF == 16 then jump draw_left_footleg_2
+	# 	if vF == 32 then jump draw_left_footleg_3
+	# 	return
+	# 	: draw_left_footleg_3
+	# 	v0 += 16
+	# 	sprite lfx v0 0
+	# 	: draw_left_footleg_2
+	# 	v0 += 16
+	# 	sprite lfx v0 0
+	# 	: draw_left_footleg_1
+	# 	v0 += 16
+	# 	sprite lfx v0 0
+	# 	;
+	#
+	# : draw_right_footleg
+	# 	draw right_foot rfx rfy 0
+	# 	i := leg
+	# 	v0 := rfy
+	# 	vF := 0b01110000
+	# 	vF &= rfy
+	# 	if vF == 0 then jump draw_right_footleg_1
+	# 	if vF == 16 then jump draw_right_footleg_2
+	# 	if vF == 32 then jump draw_right_footleg_3
+	# 	return
+	# 	: draw_right_footleg_3
+	# 	v0 += 16
+	# 	sprite rfx v0 0
+	# 	: draw_right_footleg_2
+	# 	v0 += 16
+	# 	sprite rfx v0 0
+	# 	: draw_right_footleg_1
+	# 	v0 += 16
+	# 	sprite rfx v0 0
+	# 	;
+	#
+	#
+	# :macro update_lefthand {
+	# 	draw_left_handarm
+	# 	lhx += Climbing_DeltaX
+	# 	lhy += Climbing_DeltaY
+	# 	vF := LEFT_HAND_LIMIT
+	# 	vF -= lhx
+	# 	if vF != 0 then lhx := LEFT_HAND_LIMIT
+	# 	vF := RIGHT_HAND_LIMIT
+	# 	vF -= lhx
+	# 	if vF == 0 then lhx := RIGHT_HAND_LIMIT
+	# 	vF := 64
+	# 	vF -= lhy
+	# 	if vF == 0 then lhy := TOP_HAND_LIMIT
+	# 	vF := BOT_HAND_LIMIT
+	# 	vF -= lhy
+	# 	if vF == 0 then lhy := BOT_HAND_LIMIT
+	#
+	# 	draw_left_handarm
+	# 	Climbing_DeltaX := 0
+	# 	Climbing_DeltaY := 0
+	# }
+	#
+	# :macro update_righthand {
+	# 	draw_right_handarm
+	# 	rhx += Climbing_DeltaX
+	# 	rhy += Climbing_DeltaY
+	# 	vF := LEFT_HAND_LIMIT
+	# 	vF -= rhx
+	# 	if vF != 0 then rhx := LEFT_HAND_LIMIT
+	# 	vF := RIGHT_HAND_LIMIT
+	# 	vF -= rhx
+	# 	if vF == 0 then rhx := RIGHT_HAND_LIMIT
+	# 	vF := 64
+	# 	vF -= rhy
+	# 	if vF == 0 then rhy := TOP_HAND_LIMIT
+	# 	vF := BOT_HAND_LIMIT
+	# 	vF -= rhy
+	# 	if vF == 0 then rhy := BOT_HAND_LIMIT
+	#
+	# 	draw_right_handarm
+	# 	Climbing_DeltaX := 0
+	# 	Climbing_DeltaY := 0
+	# }
