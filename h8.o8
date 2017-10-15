@@ -102,10 +102,10 @@
 # Storage of limb coordinates, LH XY, RH XY, LF XY, RF XY
 :const CLIMBING_DATA_BYTES 2
 : climbing_data
-: climbing_data_lefthand 	0 0
-: climbing_data_righthand 0 0
-: climbing_data_leftfoot 	0 0
-: climbing_data_rightfoot	0 0
+: climbing_data_lefthand 		0 0
+: climbing_data_righthand		0 0
+: climbing_data_leftfoot 		0 0
+: climbing_data_rightfoot		0 0
 
 # This sets up the beginning of a climbing session
 #  - loads level data, sets limb locations etc
@@ -166,11 +166,32 @@
 		# Initialize before move loop
 		Climbing_Debounce := 0	# Clear debounce flag
 		Climbing_Moving := 1		# Moving = True
+		Climbing_DeltaX := 0
+		Climbing_DeltaY := 0
 
 		# Move a limb
 		: climbing_moving_limb
-			Climbing_DeltaX := 0
-			Climbing_DeltaY := 0
+
+			# Erase, update XY, and redraw the limb
+				: climbing_redraw_limb
+				# Erase limb
+					climbing_drawlimb
+				# Adjust x/y
+					Climbing_X += Climbing_DeltaX
+					Climbing_Y += Climbing_DeltaY
+				# Observe some limits to movement
+
+				# Draw limb
+					climbing_drawlimb
+
+			# Scan movement keys and adjust delta x/y
+				: climbing_scan_movement_keys
+				Climbing_DeltaX := 0
+				Climbing_DeltaY := 0
+				ifkey KEY_LEFT Climbing_DeltaX += CLIMBING_SPEED_REVERSE
+				ifkey KEY_RIGHT Climbing_DeltaX += CLIMBING_SPEED
+				ifkey KEY_UP Climbing_DeltaY += CLIMBING_SPEED_REVERSE
+				ifkey KEY_DOWN Climbing_DeltaY += CLIMBING_SPEED
 
 			# Add random jitter to the delta x/y
 				v0 := random 0b00001100
@@ -186,22 +207,9 @@
 				Climbing_DeltaY -= vF
 				: climbing_endrand
 
-			# Scan movement keys and adjust delta x/y
-				ifkey KEY_LEFT Climbing_DeltaX += CLIMBING_SPEED_REVERSE
-				ifkey KEY_RIGHT Climbing_DeltaX += CLIMBING_SPEED
-				ifkey KEY_UP Climbing_DeltaY += CLIMBING_SPEED_REVERSE
-				ifkey KEY_DOWN Climbing_DeltaY += CLIMBING_SPEED
-
-			# Erase, update XY, and redraw the limb
-				# Erase limb
-					climbing_drawlimb
-				# Adjust x/y
-					Climbing_X += Climbing_DeltaX
-					Climbing_Y += Climbing_DeltaY
-				# Draw limb
-					climbing_drawlimb
 
 			# Check keys to see if we are finished moving
+				: climbing_scan_moveend_keys
 				# If we are not debounced, don't allow switch
 				if Climbing_Debounce == 0 then jump climbing_check_debounce
 				if Climbing_Limb key then jump climbing_exit_movement	# Exit if they press the same limb key again
