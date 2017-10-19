@@ -86,8 +86,8 @@
 :const CLIMBING_FRAME_DELAY 2
 
 
-:alias Climbing_Limit_Top v4
-:alias Climbing_Limit_Bot v5
+:alias Climbing_Limit_Left v4
+:alias Climbing_Limit_Right v5
 :alias Climbing_View v6
 :alias Climbing_Moving v7
 :alias Climbing_Debounce v8
@@ -167,6 +167,8 @@
 		# At this point, a limb is selected (Climbing_Limb := LIMB_XXX)
 
 		# If the selection switchs between hand/foot, update screen appropriately
+			# Erase old limbs
+			# Draw new limbs
 
 		# Setup the limb drawing function to do the right thing and load Climbing X/Y
 		if Climbing_Limb == LIMB_LEFTHAND then climbing_setup_drawlimb_lefthand
@@ -183,9 +185,6 @@
 		Climbing_DeltaX := 0
 		Climbing_DeltaY := 0
 
-		# Set limb limits based on other limbs
-		climbing_set_limits
-
 		# Move a limb
 		: climbing_moving_limb
 
@@ -197,18 +196,23 @@
 					Climbing_X += Climbing_DeltaX
 					Climbing_Y += Climbing_DeltaY
 				# Apply limits
-
 					vF := 0x80
 					vF &= Climbing_Y
-					if vF != 0 then Climbing_Y := Climbing_Limit_Top
+					if vF != 0 then Climbing_Y := 1
 
-					vF := Climbing_Y
-					vF -= Climbing_Limit_Bot
-					if vF != 0 then Climbing_Y := Climbing_Limit_Bot
+					vF := 0x40
+					vF &= Climbing_Y
+					if vF != 0 then Climbing_Y := 63
 
-					vF := Climbing_Y
-					vF -= Climbing_Limit_Top
-					if vF == 0 then Climbing_Y := Climbing_Limit_Top
+					climbing_set_limits
+
+					vF := Climbing_X
+					vF -= Climbing_Limit_Left
+					if vF == 0 then Climbing_X := Climbing_Limit_Left
+
+					vF := Climbing_Limit_Right
+					vF -= Climbing_X
+					if vF == 0 then Climbing_X := Climbing_Limit_Right
 
 				# Observe some limits to movement
 
@@ -326,29 +330,13 @@
 # Sets the movement limits based on the current limb selection
 :	climbing_set_limits
 	# TODO: Expand to add left-right limits
-	if Climbing_Limb == LIMB_LEFTHAND then jump climbing_set_limits_hands
-	if Climbing_Limb == LIMB_RIGHTHAND then jump climbing_set_limits_hands
+	if Climbing_Limb == LIMB_LEFTHAND then jump climbing_set_limits_lefthand				# These return to caller
+	if Climbing_Limb == LIMB_RIGHTHAND then jump climbing_set_limits_righthand
+	if Climbing_Limb == LIMB_LEFTFOOT then jump climbing_set_limits_leftfoot
+	if Climbing_Limb == LIMB_RIGHTFOOT then jump climbing_set_limits_rightfoot
+	:breakpoint Climbing_Limb_Unknown!
+	;
 
-	: climbing_set_limits_feet
-		i := climbing_data_lefthand
-		load v3
-		vF := v1
-		vF -= v3
-		if vF == 0 then v1 := v3 # replace v1 if v3 is larger
-		Climbing_Limit_Bot := 64
-		Climbing_Limit_Bot -= v1
-		Climbing_Limit_Top := 0
-		;
-	: climbing_set_limits_hands
-		i := climbing_data_leftfoot
-		load v3
-		vF := v1
-		vF -= v3
-		if vF != 0 then v1 := v3 # replace v1 if v3 is smaller
-		Climbing_Limit_Top := 0
-		Climbing_Limit_Top += v1
-		Climbing_Limit_Bot := 63
-		;
 
 ### End Climbing
 
@@ -493,6 +481,136 @@
 : spr_title_sub_ula 0xA1 0xA2 0xA3 0xA2 0xBA # 1/2 u L 1/2A
 : spr_title_sub_TO	0x3B 0x92 0x92 0x92 0x93 # 1/2 A, T, 1/2 O
 : spr_title_sub_R 	0xB8 0xA8 0xB0 0xA8 0xA8 # 1/2 O, R
+
+
+### Climbing legal moves table
+# This is entirely from the perspective of the left arm
+:const climbing_leftright_offset 8				# Distance from limb 'root' to centroid
+:const climbing_limb_length 32						# Length of a limb
+:const climbing_hand_width 8
+:calc climbing_width { ( climbing_leftright_offset * 2 ) + ( climbing_limb_length * 2 ) }			# The full width of the visible play area
+:calc climbing_center { 64 }
+:calc climbing_left { climbing_center - ( climbing_width / 2 ) }
+:calc climbing_right { climbing_center + ( climbing_width / 2 ) }
+
+# Creates 1 line of the table, limits are adjusted by left-cut right-cut (not absolute)
+:macro climbing_table_entry left-cut right-cut {
+	:calc left-lim { climbing_left + left-cut }			# Calc limits
+	:calc right-lim { ( ( climbing_right - right-cut ) - ( climbing_leftright_offset * 3 ) ) - climbing_hand_width }
+	:byte left-lim :byte right-lim												# Output bytes
+}
+
+# In: v0 = y-coordinate
+# Out: v0 = left-limit, v1 = right limit
+:macro climbing_limit_lookup {
+	v0 <<= v0
+	i := climbing_limit_table
+	i += v0
+	load v1
+}
+
+: climbing_set_limits_lefthand
+	v0 := Climbing_Y
+	climbing_limit_lookup
+	Climbing_Limit_Left := v0
+	Climbing_Limit_Right := v1
+	;
+
+: climbing_set_limits_righthand
+	v0 := Climbing_Y
+	climbing_limit_lookup
+	:calc lim { 127 - ( climbing_hand_width * 2 ) }
+	Climbing_Limit_Left := lim
+	Climbing_Limit_Left -= v1
+	Climbing_Limit_Right := lim
+	Climbing_Limit_Right -= v0
+	;
+
+: climbing_set_limits_leftfoot
+	v0 := 63
+	v0 -= Climbing_Y
+	climbing_limit_lookup
+	Climbing_Limit_Left := v0
+	Climbing_Limit_Right := v1
+	;
+
+: climbing_set_limits_rightfoot
+	v0 := 63
+	v0 -= Climbing_Y
+	climbing_limit_lookup
+	Climbing_Limit_Left := 127
+	Climbing_Limit_Left -= v1
+	Climbing_Limit_Right := 127
+	Climbing_Limit_Right -= v0
+	;
+
+
+: climbing_limit_table
+# Given a Y coordinate, return the X limits
+	climbing_table_entry 10 10		#  0
+	climbing_table_entry  9  9		#  1
+	climbing_table_entry  9  9		#  2
+	climbing_table_entry  9  9		#  3
+	climbing_table_entry  8  8		#  4
+	climbing_table_entry  8  8		#  5
+	climbing_table_entry  7  7		#  6
+	climbing_table_entry  7  7		#  7
+	climbing_table_entry  6  6		#  8
+	climbing_table_entry  5  5		#  9
+	climbing_table_entry  4  4		# 10
+	climbing_table_entry  3  3		# 11
+	climbing_table_entry  3  3		# 12
+	climbing_table_entry  2  2		# 13
+	climbing_table_entry  2  2		# 14
+	climbing_table_entry  1  1		# 15
+	climbing_table_entry  1  1		# 16
+	climbing_table_entry  1  1		# 17
+	climbing_table_entry  0  0		# 18
+	climbing_table_entry  0  0		# 19
+	climbing_table_entry  0  0		# 20
+	climbing_table_entry  0  0		# 21
+	climbing_table_entry  0  0		# 22
+	climbing_table_entry  0  0		# 23
+	climbing_table_entry  0  0		# 24
+	climbing_table_entry  0  0		# 25
+	climbing_table_entry  0  0		# 26
+	climbing_table_entry  0  0		# 27
+	climbing_table_entry  0  0		# 28
+	climbing_table_entry  0  0		# 29
+	climbing_table_entry  0  0		# 30
+	climbing_table_entry  0  0		# 31
+	climbing_table_entry  0  0		# 32
+	climbing_table_entry  0  0		# 33
+	climbing_table_entry  0  0		# 34
+	climbing_table_entry  0  0		# 35
+	climbing_table_entry  0  0		# 36
+	climbing_table_entry  0  0		# 37
+	climbing_table_entry  0  0		# 38
+	climbing_table_entry  0  0		# 39
+	climbing_table_entry  0  0		# 40
+	climbing_table_entry  0  0		# 41
+	climbing_table_entry  0  0		# 42
+	climbing_table_entry  0  0		# 43
+	climbing_table_entry  0  0		# 44
+	climbing_table_entry  0  0		# 45
+	climbing_table_entry  0  0		# 46
+	climbing_table_entry  0  0		# 47
+	climbing_table_entry  0  0		# 48
+	climbing_table_entry  0  0		# 49
+	climbing_table_entry  0  0		# 50
+	climbing_table_entry  0  0		# 51
+	climbing_table_entry  0  0		# 52
+	climbing_table_entry  0  0		# 53
+	climbing_table_entry  0  0		# 54
+	climbing_table_entry  0  0		# 55
+	climbing_table_entry  0  0		# 56
+	climbing_table_entry  0  0		# 57
+	climbing_table_entry  1  1		# 58
+	climbing_table_entry  1  1		# 59
+	climbing_table_entry  2  2		# 60
+	climbing_table_entry  3  3		# 61
+	climbing_table_entry  4  4		# 62
+	climbing_table_entry  4  4		# 63
 
 
 ### Stuff that has to come after sprite declarations
