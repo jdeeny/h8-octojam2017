@@ -547,26 +547,27 @@
 
 : climbing_limit_table
 # Given a Y coordinate, return the X limits
-	climbing_table_entry 10 10		#  0
-	climbing_table_entry  9  9		#  1
-	climbing_table_entry  9  9		#  2
-	climbing_table_entry  9  9		#  3
-	climbing_table_entry  8  8		#  4
+	climbing_table_entry 17 17		#  0
+	climbing_table_entry 14 14		#  1
+	climbing_table_entry 12 12		#  2
+	climbing_table_entry 10 10		#  3
+	climbing_table_entry  9  9		#  4
 	climbing_table_entry  8  8		#  5
 	climbing_table_entry  7  7		#  6
-	climbing_table_entry  7  7		#  7
-	climbing_table_entry  6  6		#  8
-	climbing_table_entry  5  5		#  9
+	climbing_table_entry  6  6		#  7
+	climbing_table_entry  5  5		#  8
+	climbing_table_entry  4  4		#  9
 	climbing_table_entry  4  4		# 10
 	climbing_table_entry  3  3		# 11
 	climbing_table_entry  3  3		# 12
 	climbing_table_entry  2  2		# 13
 	climbing_table_entry  2  2		# 14
-	climbing_table_entry  1  1		# 15
+	climbing_table_entry  2  2		# 15
+
 	climbing_table_entry  1  1		# 16
 	climbing_table_entry  1  1		# 17
-	climbing_table_entry  0  0		# 18
-	climbing_table_entry  0  0		# 19
+	climbing_table_entry  1  1		# 18
+	climbing_table_entry  1  1		# 19
 	climbing_table_entry  0  0		# 20
 	climbing_table_entry  0  0		# 21
 	climbing_table_entry  0  0		# 22
@@ -602,15 +603,15 @@
 	climbing_table_entry  0  0		# 52
 	climbing_table_entry  0  0		# 53
 	climbing_table_entry  0  0		# 54
-	climbing_table_entry  0  0		# 55
-	climbing_table_entry  0  0		# 56
-	climbing_table_entry  0  0		# 57
-	climbing_table_entry  1  1		# 58
-	climbing_table_entry  1  1		# 59
-	climbing_table_entry  2  2		# 60
-	climbing_table_entry  3  3		# 61
-	climbing_table_entry  4  4		# 62
-	climbing_table_entry  4  4		# 63
+	climbing_table_entry  1  1		# 55
+	climbing_table_entry  1  1		# 56
+	climbing_table_entry  1  1		# 57
+	climbing_table_entry  2  2		# 58
+	climbing_table_entry  2  2		# 59
+	climbing_table_entry  3  3		# 60
+	climbing_table_entry  4  4		# 61
+	climbing_table_entry  6  6		# 62
+	climbing_table_entry  9  9		# 63
 
 
 ### Stuff that has to come after sprite declarations
