@@ -76,6 +76,16 @@
   save v1
 }
 
+:macro Trampoline-Set-jmp-Const label target {
+  hilo target
+  :calc hi { 0x10 | hi }
+  v0 := hi
+  v1 := lo
+  i := label
+  save v1
+}
+
+
 ### End Code Modification
 
 ################
@@ -173,6 +183,8 @@
 		# Setup the limb drawing function to do the right thing and load Climbing X/Y
 		if Climbing_Limb == LIMB_LEFTHAND then climbing_setup_drawlimb_lefthand
 		if Climbing_Limb == LIMB_RIGHTHAND then climbing_setup_drawlimb_righthand
+		if Climbing_Limb == LIMB_LEFTFOOT then climbing_setup_drawlimb_leftfoot
+		if Climbing_Limb == LIMB_RIGHTFOOT then climbing_setup_drawlimb_rightfoot
 
 		# i is set equal to the correct data area by the above setup functions
 		load v1
@@ -306,9 +318,13 @@
 
 
 : climbing_drawlimb
-	Trampoline: climbing_tramp_i:=handsprite
+	Trampoline: climbing_tramp_i:=handsprite					# To be replaced with `i := <sprite addr>`
 	sprite Climbing_X Climbing_Y 0
 	i := spr_armleg
+	Trampoline: climbing_tramp_jump_drawlimb_armleg		# To be replaced with `jump := climbing_drawlimb_[arm, leg]`
+	;
+
+: climbing_drawlimb_arm
 	v0 := Climbing_Y
 	vF := 0b01110000
 	vF &= Climbing_Y
@@ -326,6 +342,10 @@
 	v0 += 16
 	sprite Climbing_X v0 0
 	;
+
+: climbing_drawlimb_leg
+	;
+
 
 # Sets the movement limits based on the current limb selection
 :	climbing_set_limits
@@ -611,10 +631,24 @@
 ### Stuff that has to come after sprite declarations
 : climbing_setup_drawlimb_lefthand
 	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_lefthand
+	Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_arm
 	i := climbing_data_lefthand
 	;
 
 : climbing_setup_drawlimb_righthand
 	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_righthand
+	Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_arm
 	i := climbing_data_righthand
+	;
+
+: climbing_setup_drawlimb_leftfoot
+	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_leftfoot
+	Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_leg
+	i := climbing_data_leftfoot
+	;
+
+: climbing_setup_drawlimb_rightfoot
+	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_rightfoot
+	Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_leg
+	i := climbing_data_rightfoot
 	;
