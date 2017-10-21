@@ -312,17 +312,17 @@
 	v0 := Climbing_Y
 	vF := 0b01110000
 	vF &= Climbing_Y
-	if vF == 0 then jump climbing_erase_3
-	if vF == 16 then jump climbing_erase_2
-	if vF == 32 then jump climbing_erase_1
+	if vF == 0 then jump climbing_drawlimb_3
+	if vF == 16 then jump climbing_drawlimb_2
+	if vF == 32 then jump climbing_drawlimb_1
 	return
-	: climbing_erase_3
+	: climbing_drawlimb_3
 	v0 += 16
 	sprite Climbing_X v0 0
-	: climbing_erase_2
+	: climbing_drawlimb_2
 	v0 += 16
 	sprite Climbing_X v0 0
-	: climbing_erase_1
+	: climbing_drawlimb_1
 	v0 += 16
 	sprite Climbing_X v0 0
 	;
