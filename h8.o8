@@ -546,7 +546,8 @@
 
 
 : climbing_limit_table
-# Given a Y coordinate, return the X limits
+# Given a Y coordinate, return the X limits. Numbers given are the pixels 'cut out'
+# from the edge, but the table is actually filled with raw screen x coordinates
 	climbing_table_entry 17 17		#  0
 	climbing_table_entry 14 14		#  1
 	climbing_table_entry 12 12		#  2
@@ -563,7 +564,6 @@
 	climbing_table_entry  2  2		# 13
 	climbing_table_entry  2  2		# 14
 	climbing_table_entry  2  2		# 15
-
 	climbing_table_entry  1  1		# 16
 	climbing_table_entry  1  1		# 17
 	climbing_table_entry  1  1		# 18
