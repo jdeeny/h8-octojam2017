@@ -154,6 +154,9 @@
 	Climbing_Moving := 0
 	Climbing_View := CLIMBING_VIEW_HANDS
 
+	# Draw holds
+
+
 	# Draw the initial limbs
 	climbing_draw_lefthand
 	climbing_draw_righthand
@@ -225,8 +228,6 @@
 					vF := Climbing_Limit_Right
 					vF -= Climbing_X
 					if vF == 0 then Climbing_X := Climbing_Limit_Right
-
-				# Observe some limits to movement
 
 				# Draw limb
 					climbing_drawlimb
@@ -319,32 +320,44 @@
 
 : climbing_drawlimb
 	Trampoline: climbing_tramp_i:=handsprite					# To be replaced with `i := <sprite addr>`
-	sprite Climbing_X Climbing_Y 0
+	sprite Climbing_X Climbing_Y 8
 	i := spr_armleg
 	Trampoline: climbing_tramp_jump_drawlimb_armleg		# To be replaced with `jump := climbing_drawlimb_[arm, leg]`
 	;
 
 : climbing_drawlimb_arm
 	v0 := Climbing_Y
-	vF := 0b01110000
-	vF &= Climbing_Y
-	if vF == 0 then jump climbing_drawlimb_3
-	if vF == 16 then jump climbing_drawlimb_2
-	if vF == 32 then jump climbing_drawlimb_1
-	return
-	: climbing_drawlimb_3
-	v0 += 16
-	sprite Climbing_X v0 0
-	: climbing_drawlimb_2
-	v0 += 16
-	sprite Climbing_X v0 0
-	: climbing_drawlimb_1
-	v0 += 16
-	sprite Climbing_X v0 0
+	loop
+		v0 += 8
+		vF := 63
+		vF &= v0
+		while vF == v0
+		sprite Climbing_X v0 8
+	again
 	;
 
 : climbing_drawlimb_leg
-	;
+	v0 := Climbing_Y
+	loop
+		vF := 8
+		vF -= v0
+		while vF == 0
+		v0 += -8
+		sprite Climbing_X v0 8
+	again
+	v0 <<= v0
+	v0 <<= v0
+	vF := 0
+	jump0 climbing_drawlimb_leg_remainder
+	: climbing_drawlimb_leg_remainder
+		return return
+		sprite Climbing_X vF 1 return
+		sprite Climbing_X vF 2 return
+		sprite Climbing_X vF 3 return
+		sprite Climbing_X vF 4 return
+		sprite Climbing_X vF 5 return
+		sprite Climbing_X vF 6 return
+		sprite Climbing_X vF 7 return
 
 
 # Sets the movement limits based on the current limb selection
@@ -420,43 +433,38 @@
 ###############
 ### Sprites ###
 ###############
-: spr_righthand
-0x01 0x40 0x06 0xA0 0x02 0xA8 0x0A 0xA8
-0x0B 0xF8 0x0F 0xF0 0x0F 0xF0 0x07 0xE0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
+: spr_righthand			# 8x8 px version
+0x14 0x6A 0x2B 0xAB 0xBF 0xFF 0xFF 0x7E
 
 : spr_lefthand
-0x02 0x80 0x05 0x60 0x15 0x40 0x15 0x50
-0x1F 0xD0 0x0F 0xF0 0x0F 0xF0 0x07 0xE0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
+0x28 0x56 0xD4 0xD5 0xFD 0xFF 0xFF 0x7E
 
 : spr_armleg
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
-0x03 0xC0 0x03 0xC0 0x03 0xC0 0x03 0xC0
+0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C
 
 : spr_rightfoot
-0x07 0xFC 0x07 0xFE 0x03 0xFE 0x00 0x00
-0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
-0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
-0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
+0x7E 0x7F 0x00 0x00 0x00 0x00 0x00 0x00
 
 : spr_leftfoot
-0x3F 0xE0 0x7F 0xE0 0x7F 0xC0 0x00 0x00
-0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
-0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
-0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
+0x7E 0xFE 0x00 0x00 0x00 0x00 0x00 0x00
+
 
 # Some holds, these are 3 tall ellipses
-: spr_hold_3x3 0x40 0xA0 0x40
-: spr_hold_3x4 0x60 0x90 0x60
-: spr_hold_3x5 0x70 0x88 0x70
-: spr_hold_3x6 0x78 0x84 0x78
-: spr_hold_3x7 0x7C 0x82 0x7C
-: spr_hold_3x8 0x7E 0x81 0x7E
+:const Hold_Height 3
+
+:calc hold_acc { 0 }
+:macro define_hold id {
+	:calc id { hold_acc }
+	:calc hold_acc { hold_acc + Hold_Height }
+}
+: spr_holds
+define_hold HOLD_3X3 : spr_hold_3x3 0x40 0xA0 0x40
+define_hold HOLD_3X4 : spr_hold_3x4 0x60 0x90 0x60
+define_hold HOLD_3X5 : spr_hold_3x5 0x70 0x88 0x70
+define_hold HOLD_3X6 : spr_hold_3x6 0x78 0x84 0x78
+define_hold HOLD_3X7 : spr_hold_3x7 0x7C 0x82 0x7C
+define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
+:const HOLD_END 0xFF
 
 : spr_title_htop
 0x00 0x00 0x60 0x06 0xF0 0x0F 0xF0 0x0F
@@ -626,6 +634,152 @@
 	climbing_table_entry  4  4		# 61
 	climbing_table_entry  6  6		# 62
 	climbing_table_entry  9  9		# 63
+
+
+### Level Map
+
+:alias Climbing_TempX v1
+:alias Climbing_TempY v2
+
+:macro maptile-reset {
+	Climbing_TempX := 0
+	Climbing_TempX -= Climbing_X
+	Climbing_TempY := 0
+	Climbing_TempY -= Climbing_Y
+	:calc maptile-lastx { 0 }
+	:calc maptile-lasty { 0 }
+}
+
+:macro maptile-entry x y sprite-addr {
+	i := sprite-addr
+	:calc maptile-deltax { x - maptile-lastx }
+	:calc maptile-lastx { x }
+	:calc maptile-deltay { y - maptile-lasty }
+	:calc maptile-lasty { y }
+
+	Climbing_TempX += maptile-deltax
+	Climbing_TempY += maptile-deltay
+
+	climbing_map_check_limits_and_sprite
+}
+
+: climbing_map_check_limits_and_sprite
+	v0 := 0
+	# Check Y limit
+	vF := 0xC0
+	vF &= Climbing_TempY
+	if vF != 0 then return
+
+	# Check X limits
+	vF := 96
+	vF =- Climbing_TempX
+	if vF != 0 then return
+	vF := 16
+	vF =- Climbing_TempX
+	if vF != 0 then sprite Climbing_TempX Climbing_TempY Hold_Height
+	;
+
+## Index
+# Climbing_TileX, Climbing_TileY
+# Jumptable based on tile xy
+: maptile_index
+
+	;
+
+## Tiles
+# Tiles are 128x128
+# Climbing_X, Climbing_Y are the offset into the map
+#
+:const Map_Width 4
+:const Map_Height 4
+:const Minimap_Address 0x3E00
+
+:macro map_reset {
+}
+
+:macro map_begin x y {
+	:calc minimap_addr { Minimap_Address + ( Map_Width * y ) + x }
+	:calc map_x { 0 }
+	:calc map_y { 0 }
+}
+:macro map_entry spr_id x y {
+	:byte spr_id
+	:calc x-delta { x - map_x }
+	:byte x-delta
+	:calc map_x { x }
+	:calc y-delta { y - map_y }
+	:byte y-delta
+	:calc map_y { y }
+}
+
+map_reset
+: maptile_0_0
+	map_begin 0 0
+	map_entry HOLD_3X3 10 12
+	map_entry HOLD_3X5 30 30
+	map_entry HOLD_END  0  0
+
+: maptile_0_1
+	map_begin 0 1
+	map_entry HOLD_3X4 30 30
+	map_entry HOLD_3X3 50 50
+	map_entry HOLD_END  0  0
+
+: maptile_0_2
+	map_begin 0 2
+	map_entry HOLD_END  0  0
+
+: maptile_0_3
+	map_begin 0 3
+	map_entry HOLD_END  0  0
+
+: maptile_1_0
+	map_begin 1 0
+	map_entry HOLD_END  0  0
+
+: maptile_1_1
+	map_begin 1 1
+	map_entry HOLD_END  0  0
+
+: maptile_1_2
+	map_begin 1 2
+	map_entry HOLD_END  0  0
+
+: maptile_1_3
+	map_begin 1 3
+	map_entry HOLD_END  0  0
+
+: maptile_2_0
+	map_begin 2 0
+	map_entry HOLD_END  0  0
+
+: maptile_2_1
+	map_begin 2 1
+	map_entry HOLD_END  0  0
+
+: maptile_2_2
+	map_begin 2 2
+	map_entry HOLD_END  0  0
+
+: maptile_2_3
+	map_begin 2 3
+	map_entry HOLD_END  0  0
+
+: maptile_3_0
+	map_begin 3 0
+	map_entry HOLD_END  0  0
+
+: maptile_3_1
+	map_begin 3 1
+	map_entry HOLD_END  0  0
+
+: maptile_3_2
+	map_begin 3 2
+	map_entry HOLD_END  0  0
+
+: maptile_3_3
+	map_begin 3 3
+	map_entry HOLD_END  0  0
 
 
 ### Stuff that has to come after sprite declarations
