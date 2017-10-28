@@ -121,6 +121,14 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
   save v1
 }
 
+:macro Trampoline-Set-I-v0v1 label {
+	vF := 0xA0
+  v0 |= vF
+  i := label
+  save v1
+}
+
+
 :macro Trampoline-Set-jmp-Const label target {
   hilo target
   :calc hi { 0x10 | hi }
@@ -334,10 +342,9 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 
 # Draws all the holds in a map tile
 # The index to the map tile is set by modifying the code
-: climbing_draw_holds
-	climbing_setup_draw_holds
+: climbing_draw_tile_holds
 	Climbing_Draw_Idx := 0
-	Climbing_TempX := 0
+	Climbing_TempX := -30
 	Climbing_TempY := 0
 	loop
 		Trampoline: holds_tramp_i:=maptile
@@ -366,6 +373,31 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 		: climbing_draw_holds_skip
 		Climbing_Draw_Idx += Map_Entry_Bytes
 	again
+	;
+
+# Draws all the holds that go on the screen
+# Draws up to 4 tiles
+: climbing_draw_holds
+	v0 := 0 #Climbing_TileX
+	v1 := 0 #Climbing_TileY
+	climbing_setup_draw_holds		# Setup the tile trampoline
+	climbing_draw_tile_holds
+	v0 := 0 #Climbing_TileX
+	v1 := 0 #Climbing_TileY
+	v1 += 1
+	climbing_setup_draw_holds		# Setup the tile trampoline
+	climbing_draw_tile_holds
+	v0 := 0 #Climbing_TileX
+	v1 := 0 #Climbing_TileY
+	v0 += 1
+	climbing_setup_draw_holds		# Setup the tile trampoline
+	climbing_draw_tile_holds
+	v0 := 0 #Climbing_TileX
+	v1 := 0 #Climbing_TileY
+	v0 += 1
+	v1 += 1
+	climbing_setup_draw_holds		# Setup the tile trampoline
+	climbing_draw_tile_holds
 	;
 
 
@@ -747,8 +779,12 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 #
 :const Map_Width 4
 :const Map_Height 4
-:const Minimap_Address 0xF00
+:calc Map_Num_Tiles { Map_Width * Map_Height }
 :const Minimap_Bytes 16
+:calc Minimap_Total_Bytes { ( Minimap_Bytes * Map_Num_Tiles ) }
+:calc Map_Index_Bytes { 2 * Map_Num_Tiles }
+:calc Map_Index_Address { 0xFFF - ( Minimap_Total_Bytes + Map_Index_Bytes ) }
+:calc Minimap_Address { Map_Index_Address + Map_Index_Bytes }
 
 # Clears the minimap accumulator bytes
 :macro minimap_reset {
@@ -816,10 +852,24 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 		:org old-here
 }
 
-# Intended to reset any offsets/etc needed when creating the map
-:macro map_reset {
+# Emit the address of the current location in the map index
+# Call this at the address of each map tile
+:macro map_index_output tile-x tile-y {
+	:calc old-here { HERE }
+	hilo old-here
+	:calc addr { Map_Index_Address + ( tile-y * 2 * Map_Width ) + ( tile-x * 2 ) }
+	:org addr
+	:byte hi :byte lo
+	:org old-here
 }
 
+# Intended to reset any offsets/etc needed when creating the map
+:macro map_begin {
+}
+
+:macro map_end {
+
+}
 # Begin a new tile of the map
 :macro map_begintile x y {
 	minimap_reset
@@ -827,6 +877,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	:calc maptile_y { y }
 	:calc map_x { 0 }
 	:calc map_y { 0 }
+	map_index_output x y
 }
 
 # Add a hold to the map tile
@@ -855,8 +906,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 ######################
 ### Map Definition ###
 ######################
-map_reset
-
+map_begin
 : maptile_0_0
 	map_begintile 0 0
 	map_entry HOLD_3X3  0  0 3
@@ -950,7 +1000,7 @@ map_reset
 : maptile_3_3
 	map_begintile 3 3
 	map_endtile
-
+map_end
 ##########################
 ### End Map Definition ###
 ##########################
@@ -1005,6 +1055,11 @@ map_reset
 	i := climbing_data_rightfoot
 	;
 
+# Setup the hold drawing i:=maptile based on
+# v0: X tile
+# v1: Y tile
+# TODO: Inline this
 : climbing_setup_draw_holds
-	Trampoline-Set-I-Const holds_tramp_i:=maptile maptile_0_0
+	hilo maptile_0_0
+	Trampoline-Set-I-v0v1 holds_tramp_i:=maptile
 	;
