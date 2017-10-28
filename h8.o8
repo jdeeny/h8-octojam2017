@@ -46,41 +46,7 @@
 
 : main
 	hires
-
-	i := 0x800
-	v0 := 0
-	v1 := 0
-	loop
-		while v1 != 32
-		loop
-			while v0 != 32
-			sprite v0 v1 8
-			vF := 16
-			i += vF
-			v0 += 8
-		again
-		v0 := 0
-		v1 += 8
-	again
-
-:breakpoint a
-	i := 0x808
-	v0 := 64
-	v1 := 0
-	loop
-		while v1 != 32
-		loop
-			while v0 != 96
-			sprite v0 v1 8
-			vF := 16
-			i += vF
-			v0 += 8
-		again
-		v0 := 64
-		v1 += 8
-	again
-
-
+	minimap_draw
 :breakpoint test-end
 
 	title_draw
@@ -922,6 +888,34 @@ map_reset
 : maptile_3_3
 	map_begintile 3 3
 	map_endtile
+
+##########################
+### End Map Definition ###
+##########################
+
+# Draw the minimap to the screen
+# TODO: This doesn't take into account the current location on the map, just a test as is
+:calc Minimap_X_Offset { 128 - 32 }
+:calc Minimap_Y_Offset { 32 }
+: minimap_draw
+	i := Minimap_Address
+	v0 := Minimap_X_Offset
+	v1 := Minimap_Y_Offset
+	:calc minimap-x-end { Minimap_X_Offset + ( 8 * 4 ) }
+	:calc minimap-y-end { Minimap_Y_Offset + ( 8 * 4 ) }
+	loop
+		while v1 != minimap-y-end
+		loop
+			while v0 != minimap-x-end
+			sprite v0 v1 8
+			vF := Minimap_Bytes
+			i += vF
+			v0 += 8
+		again
+		v0 := Minimap_X_Offset
+		v1 += 8
+	again
+	;
 
 
 ### Stuff that has to come after sprite declarations
