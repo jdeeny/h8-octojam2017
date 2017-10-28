@@ -344,8 +344,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 # The index to the map tile is set by modifying the code
 : climbing_draw_tile_holds
 	Climbing_Draw_Idx := 0
-	Climbing_TempX := -30
-	Climbing_TempY := 0
 	loop
 		Trampoline: holds_tramp_i:=maptile
 		i += Climbing_Draw_Idx
@@ -353,6 +351,8 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	while Climbing_Draw_SprId != HOLD_END
 		Climbing_TempX += Climbing_Draw_DeltaX
 		Climbing_TempY += Climbing_Draw_DeltaY
+
+		#:breakpoint precheck
 
 		# Check Y
 		vF := 63
@@ -368,7 +368,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 
 		i := spr_holds
 		i += Climbing_Draw_SprId						# i += SPR_ID (aka offset into sprites)
-		:breakpoint presprite
+		#:breakpoint presprite
 		sprite Climbing_TempX Climbing_TempY Hold_Height
 		: climbing_draw_holds_skip
 		Climbing_Draw_Idx += Map_Entry_Bytes
@@ -381,23 +381,39 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	v0 := 0 #Climbing_TileX
 	v1 := 0 #Climbing_TileY
 	climbing_setup_draw_holds		# Setup the tile trampoline
+	Climbing_TempX := -90
+	Climbing_TempY := -90
 	climbing_draw_tile_holds
+
 	v0 := 0 #Climbing_TileX
 	v1 := 0 #Climbing_TileY
 	v1 += 1
 	climbing_setup_draw_holds		# Setup the tile trampoline
+	Climbing_TempX := -90
+	Climbing_TempY := 38
+	:breakpoint predraw2
 	climbing_draw_tile_holds
+
 	v0 := 0 #Climbing_TileX
 	v1 := 0 #Climbing_TileY
 	v0 += 1
 	climbing_setup_draw_holds		# Setup the tile trampoline
+	Climbing_TempX := 38
+	Climbing_TempY := -90
+:breakpoint predraw2
 	climbing_draw_tile_holds
+
 	v0 := 0 #Climbing_TileX
 	v1 := 0 #Climbing_TileY
 	v0 += 1
 	v1 += 1
 	climbing_setup_draw_holds		# Setup the tile trampoline
+	Climbing_TempX := 38
+	Climbing_TempY := 38
+
+	:breakpoint predraw2
 	climbing_draw_tile_holds
+
 	;
 
 
@@ -910,24 +926,42 @@ map_begin
 : maptile_0_0
 	map_begintile 0 0
 	map_entry HOLD_3X3  0  0 3
-	map_entry HOLD_3X7  0 10 7
-	map_entry HOLD_3X5 10 10 5
-	map_entry HOLD_3X5 10  0 5
-	map_entry HOLD_3X5 40 40 5
-	map_entry HOLD_3X5 40 60 5
-	map_entry HOLD_3X5 40 80 5
-	map_entry HOLD_3X5 80 40 5
-	map_entry HOLD_3X7 80 60 7
+	map_entry HOLD_3X3  0 10 3
+	map_entry HOLD_3X3 10 10 3
+	map_entry HOLD_3X3 10  0 3
+	map_entry HOLD_3X3 40 40 3
+	map_entry HOLD_3X3 40 60 3
+	map_entry HOLD_3X3 40 80 3
+	map_entry HOLD_3X3 80 40 3
+	map_entry HOLD_3X3 80 60 3
 	map_entry HOLD_3X3 80 90 3
-	map_entry HOLD_3X7 100 60 7
+	map_entry HOLD_3X3 100 60 3
 	map_entry HOLD_3X3 100 90 3
-	map_entry HOLD_3X5 100 40 5
+	map_entry HOLD_3X3 100 40 3
+	map_entry HOLD_3X3 120 0 3
+	map_entry HOLD_3X3 0 120 3
+	map_entry HOLD_3X3 120 120 3
+
 	map_endtile
 
 : maptile_0_1
 	map_begintile 0 1
-	map_entry HOLD_3X4 30 30 4
-	map_entry HOLD_3X3 50 50 3
+	map_entry HOLD_3X4  0  0 4
+	map_entry HOLD_3X4  0 10 4
+	map_entry HOLD_3X4 10 10 4
+	map_entry HOLD_3X4 10  0 4
+	map_entry HOLD_3X4 40 40 4
+	map_entry HOLD_3X4 40 60 4
+	map_entry HOLD_3X4 40 80 4
+	map_entry HOLD_3X4 80 40 4
+	map_entry HOLD_3X4 80 60 4
+	map_entry HOLD_3X4 80 90 4
+	map_entry HOLD_3X4 100 60 4
+	map_entry HOLD_3X4 100 90 4
+	map_entry HOLD_3X4 100 40 4
+	map_entry HOLD_3X4 120 0 4
+	map_entry HOLD_3X4 0 120 4
+	map_entry HOLD_3X4 120 120 4
 	map_endtile
 
 : maptile_0_2
@@ -949,16 +983,42 @@ map_begin
 
 : maptile_1_0
 	map_begintile 1 0
-	map_entry HOLD_3X4 10 10 4
-	map_entry HOLD_3X3 30 30 3
-	map_entry HOLD_3X3 40 30 3
-	map_entry HOLD_3X4 10 80 4
-	map_entry HOLD_3X3 30 100 3
-	map_entry HOLD_3X3 40 108 3
+	map_entry HOLD_3X5  0  0 5
+	map_entry HOLD_3X5  0 10 5
+	map_entry HOLD_3X5 10 10 5
+	map_entry HOLD_3X5 10  0 5
+	map_entry HOLD_3X5 40 40 5
+	map_entry HOLD_3X5 40 60 5
+	map_entry HOLD_3X5 40 80 5
+	map_entry HOLD_3X5 80 40 5
+	map_entry HOLD_3X5 80 60 5
+	map_entry HOLD_3X5 80 90 5
+	map_entry HOLD_3X5 100 60 5
+	map_entry HOLD_3X5 100 90 5
+	map_entry HOLD_3X5 100 40 5
+	map_entry HOLD_3X5 120 0 5
+	map_entry HOLD_3X5 0 120 5
+	map_entry HOLD_3X5 120 120 5
 	map_endtile
 
 : maptile_1_1
 	map_begintile 1 1
+	map_entry HOLD_3X6  0  0 6
+	map_entry HOLD_3X6  0 10 6
+	map_entry HOLD_3X6 10 10 6
+	map_entry HOLD_3X6 10  0 6
+	map_entry HOLD_3X6 40 40 6
+	map_entry HOLD_3X6 40 60 6
+	map_entry HOLD_3X6 40 80 6
+	map_entry HOLD_3X6 80 40 6
+	map_entry HOLD_3X6 80 60 6
+	map_entry HOLD_3X6 80 90 6
+	map_entry HOLD_3X6 100 60 6
+	map_entry HOLD_3X6 100 90 6
+	map_entry HOLD_3X6 100 40 6
+	map_entry HOLD_3X6 120 0 6
+	map_entry HOLD_3X6 0 120 6
+	map_entry HOLD_3X6 120 120 6
 	map_endtile
 
 : maptile_1_2
@@ -1060,6 +1120,16 @@ map_end
 # v1: Y tile
 # TODO: Inline this
 : climbing_setup_draw_holds
-	hilo maptile_0_0
+	i := Map_Index_Address
+	:calc mapindex-stride { 2 * Map_Width }
+	vF := mapindex-stride
+	loop
+	while v1 != 0
+		i += vF
+		v1 += -1
+	again
+	v0 <<= v0
+	i += v0
+	load v1
 	Trampoline-Set-I-v0v1 holds_tramp_i:=maptile
 	;
