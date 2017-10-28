@@ -46,6 +46,43 @@
 
 : main
 	hires
+
+	i := 0x800
+	v0 := 0
+	v1 := 0
+	loop
+		while v1 != 32
+		loop
+			while v0 != 32
+			sprite v0 v1 8
+			vF := 16
+			i += vF
+			v0 += 8
+		again
+		v0 := 0
+		v1 += 8
+	again
+
+:breakpoint a
+	i := 0x808
+	v0 := 64
+	v1 := 0
+	loop
+		while v1 != 32
+		loop
+			while v0 != 96
+			sprite v0 v1 8
+			vF := 16
+			i += vF
+			v0 += 8
+		again
+		v0 := 64
+		v1 += 8
+	again
+
+
+:breakpoint test-end
+
 	title_draw
 	vF := key
 	clear
@@ -684,6 +721,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 # Jumptable based on tile xy
 : maptile_index
 
+
 	;
 
 ## Tiles
@@ -692,17 +730,94 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 #
 :const Map_Width 4
 :const Map_Height 4
-:const Minimap_Address 0x3E00
+:const Minimap_Address 0x800
+:const Minimap_Bytes 16
 
+# Clears the minimap accumulator bytes
+:macro minimap_reset {
+	:calc minimap0 { 0 } :calc minimap1 { 0 } :calc minimap2 { 0 } :calc minimap3 { 0 }
+	:calc minimap4 { 0 } :calc minimap5 { 0 } :calc minimap6 { 0 } :calc minimap7 { 0 }
+}
+# Adds a dot to the minimap at the location of the hold
+# w is the width, used to offset the dot slightly (probably pointless really)
+:macro minimap_addpoint x y w {
+	:calc mm-x-offset { x + ( w / 2 ) }
+	:calc mm-y-offset { y + ( Hold_Height / 2 ) }
+	:calc mm-x { ( mm-x-offset + 7 ) / 16 }
+	:calc mm-y { ( mm-y-offset + 7 ) / 16 }
+	:calc mm-xbit { 1 << mm-x }
+	:calc mm-ybit { 1 << mm-y }
+	:calc mm0 { 0xFF * ( ( ( mm-ybit & ( 1 << 0 ) ) / ( 1 << 0 ) ) ) }
+	:calc mm1 { 0xFF * ( ( ( mm-ybit & ( 1 << 1 ) ) / ( 1 << 1 ) ) ) }
+	:calc mm2 { 0xFF * ( ( ( mm-ybit & ( 1 << 2 ) ) / ( 1 << 2 ) ) ) }
+	:calc mm3 { 0xFF * ( ( ( mm-ybit & ( 1 << 3 ) ) / ( 1 << 3 ) ) ) }
+	:calc mm4 { 0xFF * ( ( ( mm-ybit & ( 1 << 4 ) ) / ( 1 << 4 ) ) ) }
+	:calc mm5 { 0xFF * ( ( ( mm-ybit & ( 1 << 5 ) ) / ( 1 << 5 ) ) ) }
+	:calc mm6 { 0xFF * ( ( ( mm-ybit & ( 1 << 6 ) ) / ( 1 << 6 ) ) ) }
+	:calc mm7 { 0xFF * ( ( ( mm-ybit & ( 1 << 7 ) ) / ( 1 << 7 ) ) ) }
+	:calc minimap0 { minimap0 | ( mm-xbit & mm0 ) }
+	:calc minimap1 { minimap1 | ( mm-xbit & mm1 ) }
+	:calc minimap2 { minimap2 | ( mm-xbit & mm2 ) }
+	:calc minimap3 { minimap3 | ( mm-xbit & mm3 ) }
+	:calc minimap4 { minimap4 | ( mm-xbit & mm4 ) }
+	:calc minimap5 { minimap5 | ( mm-xbit & mm5 ) }
+	:calc minimap6 { minimap6 | ( mm-xbit & mm6 ) }
+	:calc minimap7 { minimap6 | ( mm-xbit & mm7 ) }
+}
+
+# Emits the bytes of the minimap to memory. This uses `:org` to place the data
+# in a predetermined location
+# `Minimap_Address` sets the base address of the minimap, tile-x and tile-y
+# are the tile ID #s of the minimap (to locate the correct place in memory)
+# Currently outputs a seconnd minimap tile with an 'X' superimposed to indicate
+# the current map tile, since I thought XORing would be awkward.
+# TODO: Try XORing a sprite onto the map at runtime
+:macro minimap_output tile-x tile-y {
+		:calc old-here { HERE }
+		:calc addr { Minimap_Address + ( tile-y * Minimap_Bytes * Map_Width ) + ( tile-x * Minimap_Bytes ) }
+		:org addr
+		:byte minimap0
+		:byte minimap1
+		:byte minimap2
+		:byte minimap3
+		:byte minimap4
+		:byte minimap5
+		:byte minimap6
+		:byte minimap7
+		:calc minimap2 { minimap2 | 0b00100100 }
+		:calc minimap3 { minimap3 | 0b00011000 }
+		:calc minimap4 { minimap4 | 0b00011000 }
+		:calc minimap5 { minimap5 | 0b00100100 }
+		:byte minimap0
+		:byte minimap1
+		:byte minimap2
+		:byte minimap3
+		:byte minimap4
+		:byte minimap5
+		:byte minimap6
+		:byte minimap7
+		:org old-here
+}
+
+# Intended to reset any offsets/etc needed when creating the map
 :macro map_reset {
 }
 
-:macro map_begin x y {
-	:calc minimap_addr { Minimap_Address + ( Map_Width * y ) + x }
+# Begin a new tile of the map
+:macro map_begintile x y {
+	minimap_reset
+	:calc maptile_x { x }
+	:calc maptile_y { y }
 	:calc map_x { 0 }
 	:calc map_y { 0 }
 }
-:macro map_entry spr_id x y {
+
+# Add a hold to the map tile
+# x, y are offsets into the tile,
+# w is the width of the tile
+# This fills the table with the delta between this hold and the previous
+# so that the sprite index registers can be incrementally changed, saving an instruction
+:macro map_entry spr_id x y w {
 	:byte spr_id
 	:calc x-delta { x - map_x }
 	:byte x-delta
@@ -710,76 +825,103 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	:calc y-delta { y - map_y }
 	:byte y-delta
 	:calc map_y { y }
+	minimap_addpoint x y w
 }
 
+# Finish this tile of the map.
+# Emits the END sigil and outputs the minimap.
+:macro map_endtile {
+	:byte HOLD_END
+	minimap_output maptile_x maptile_y
+}
+
+######################
+### Map Definition ###
+######################
 map_reset
+
 : maptile_0_0
-	map_begin 0 0
-	map_entry HOLD_3X3 10 12
-	map_entry HOLD_3X5 30 30
-	map_entry HOLD_END  0  0
+	map_begintile 0 0
+	map_entry HOLD_3X3 10 12 3
+	map_entry HOLD_3X5 30 30 5
+	map_endtile
 
 : maptile_0_1
-	map_begin 0 1
-	map_entry HOLD_3X4 30 30
-	map_entry HOLD_3X3 50 50
-	map_entry HOLD_END  0  0
+	map_begintile 0 1
+	map_entry HOLD_3X4 30 30 4
+	map_entry HOLD_3X3 50 50 3
+	map_endtile
 
 : maptile_0_2
-	map_begin 0 2
-	map_entry HOLD_END  0  0
+	map_begintile 0 2
+	map_entry HOLD_3X4 110 30 4
+	map_entry HOLD_3X3 110 80 3
+	map_entry HOLD_3X3 110 90 3
+	map_endtile
 
 : maptile_0_3
-	map_begin 0 3
-	map_entry HOLD_END  0  0
+	map_begintile 0 3
+	map_entry HOLD_3X4 10 50 4
+	map_entry HOLD_3X3 30 50 3
+	map_entry HOLD_3X3 40 50 3
+	map_entry HOLD_3X4 10 80 4
+	map_entry HOLD_3X3 30 80 3
+	map_entry HOLD_3X3 40 80 3
+	map_endtile
 
 : maptile_1_0
-	map_begin 1 0
-	map_entry HOLD_END  0  0
+	map_begintile 1 0
+	map_entry HOLD_3X4 10 10 4
+	map_entry HOLD_3X3 30 30 3
+	map_entry HOLD_3X3 40 30 3
+	map_entry HOLD_3X4 10 80 4
+	map_entry HOLD_3X3 30 100 3
+	map_entry HOLD_3X3 40 108 3
+	map_endtile
 
 : maptile_1_1
-	map_begin 1 1
-	map_entry HOLD_END  0  0
+	map_begintile 1 1
+	map_endtile
 
 : maptile_1_2
-	map_begin 1 2
-	map_entry HOLD_END  0  0
+	map_begintile 1 2
+	map_endtile
 
 : maptile_1_3
-	map_begin 1 3
-	map_entry HOLD_END  0  0
+	map_begintile 1 3
+	map_endtile
 
 : maptile_2_0
-	map_begin 2 0
-	map_entry HOLD_END  0  0
+	map_begintile 2 0
+	map_endtile
 
 : maptile_2_1
-	map_begin 2 1
-	map_entry HOLD_END  0  0
+	map_begintile 2 1
+	map_endtile
 
 : maptile_2_2
-	map_begin 2 2
-	map_entry HOLD_END  0  0
+	map_begintile 2 2
+	map_endtile
 
 : maptile_2_3
-	map_begin 2 3
-	map_entry HOLD_END  0  0
+	map_begintile 2 3
+	map_endtile
 
 : maptile_3_0
-	map_begin 3 0
-	map_entry HOLD_END  0  0
+	map_begintile 3 0
+	map_endtile
 
 : maptile_3_1
-	map_begin 3 1
-	map_entry HOLD_END  0  0
+	map_begintile 3 1
+	map_endtile
 
 : maptile_3_2
-	map_begin 3 2
-	map_entry HOLD_END  0  0
+	map_begintile 3 2
+	map_endtile
 
 : maptile_3_3
-	map_begin 3 3
-	map_entry HOLD_END  0  0
+	map_begintile 3 3
+	map_endtile
 
 
 ### Stuff that has to come after sprite declarations
