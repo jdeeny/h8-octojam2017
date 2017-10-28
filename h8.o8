@@ -61,8 +61,25 @@
 	loop
 	again
 
-:alias Climbing_TempX v1
-:alias Climbing_TempY v2
+:alias Climbing_Limit_Left v2
+:alias Climbing_Limit_Right v3
+:alias Climbing_TempX v4
+:alias Climbing_TempY v5
+:alias Climbing_View v6
+:alias Climbing_Moving v7
+:alias Climbing_Debounce v8
+:alias Climbing_X v9
+:alias Climbing_Y vA
+:alias Climbing_DeltaX vB
+:alias Climbing_DeltaY vC
+:alias Climbing_Limb vD
+
+:alias Climbing_Draw_Idx v3
+:alias Climbing_Draw_SprId v0
+:alias Climbing_Draw_DeltaX v1
+:alias Climbing_Draw_DeltaY v2
+
+
 
 :const Map_Entry_Bytes 3
 
@@ -124,16 +141,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 :const CLIMBING_FRAME_DELAY 2
 
 
-:alias Climbing_Limit_Left v4
-:alias Climbing_Limit_Right v5
-:alias Climbing_View v6
-:alias Climbing_Moving v7
-:alias Climbing_Debounce v8
-:alias Climbing_X v9
-:alias Climbing_Y vA
-:alias Climbing_DeltaX vB
-:alias Climbing_DeltaY vC
-:alias Climbing_Limb vD
 
 # Store the limb as the keycode so we can scan that key quickly
 :calc LIMB_NONE { 0xFF }
@@ -325,10 +332,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	;
 
 
-:alias Climbing_Draw_Idx v3
-:alias Climbing_Draw_SprId v0
-:alias Climbing_Draw_DeltaX v1
-:alias Climbing_Draw_DeltaY v2
 # Draws all the holds in a map tile
 # The index to the map tile is set by modifying the code
 : climbing_draw_holds
@@ -340,13 +343,27 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 		Trampoline: holds_tramp_i:=maptile
 		i += Climbing_Draw_Idx
 		load v2	# load sprite id, deltax, deltay
-		:breakpoint loaded
 	while Climbing_Draw_SprId != HOLD_END
-		i := spr_holds
-		i += Climbing_Draw_Idx						# i += SPR_ID (aka offset into sprites)
 		Climbing_TempX += Climbing_Draw_DeltaX
 		Climbing_TempY += Climbing_Draw_DeltaY
+
+		# Check Y
+		vF := 63
+		vF &= Climbing_TempY
+		if vF != Climbing_TempY then jump climbing_draw_holds_skip
+		# Check X
+		vF := 0x80
+		vF &= Climbing_TempX
+		if vF != 0 then jump climbing_draw_holds_skip
+		vF := 96
+		vF -= Climbing_TempX
+		if vF == 0 then jump climbing_draw_holds_skip
+
+		i := spr_holds
+		i += Climbing_Draw_SprId						# i += SPR_ID (aka offset into sprites)
+		:breakpoint presprite
 		sprite Climbing_TempX Climbing_TempY Hold_Height
+		: climbing_draw_holds_skip
 		Climbing_Draw_Idx += Map_Entry_Bytes
 	again
 	;
@@ -730,7 +747,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 #
 :const Map_Width 4
 :const Map_Height 4
-:const Minimap_Address 0x800
+:const Minimap_Address 0xF00
 :const Minimap_Bytes 16
 
 # Clears the minimap accumulator bytes
@@ -842,12 +859,19 @@ map_reset
 
 : maptile_0_0
 	map_begintile 0 0
-	map_entry HOLD_3X3 10 12 3
-	map_entry HOLD_3X5 30 30 5
-	map_entry HOLD_3X7 66 15 7
-	map_entry HOLD_3X5 43 60 5
-	map_entry HOLD_3X3 110 2 3
-	map_entry HOLD_3X5 35 45 5
+	map_entry HOLD_3X3  0  0 3
+	map_entry HOLD_3X7  0 10 7
+	map_entry HOLD_3X5 10 10 5
+	map_entry HOLD_3X5 10  0 5
+	map_entry HOLD_3X5 40 40 5
+	map_entry HOLD_3X5 40 60 5
+	map_entry HOLD_3X5 40 80 5
+	map_entry HOLD_3X5 80 40 5
+	map_entry HOLD_3X7 80 60 7
+	map_entry HOLD_3X3 80 90 3
+	map_entry HOLD_3X7 100 60 7
+	map_entry HOLD_3X3 100 90 3
+	map_entry HOLD_3X5 100 40 5
 	map_endtile
 
 : maptile_0_1
