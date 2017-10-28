@@ -47,7 +47,7 @@
 : main
 	hires
 	#minimap_draw
-	climbing_draw_holds
+	climbing_test_draw_holds
 :breakpoint test-end
 
 	title_draw
@@ -352,8 +352,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 		Climbing_TempX += Climbing_Draw_DeltaX
 		Climbing_TempY += Climbing_Draw_DeltaY
 
-		#:breakpoint precheck
-
 		# Check Y
 		vF := 63
 		vF &= Climbing_TempY
@@ -368,7 +366,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 
 		i := spr_holds
 		i += Climbing_Draw_SprId						# i += SPR_ID (aka offset into sprites)
-		#:breakpoint presprite
 		sprite Climbing_TempX Climbing_TempY Hold_Height
 		: climbing_draw_holds_skip
 		Climbing_Draw_Idx += Map_Entry_Bytes
@@ -381,26 +378,26 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	v0 := 0 #Climbing_TileX
 	v1 := 0 #Climbing_TileY
 	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := -90
-	Climbing_TempY := -90
+	Climbing_TempX := vD
+	Climbing_TempY := vE
 	climbing_draw_tile_holds
 
 	v0 := 0 #Climbing_TileX
 	v1 := 0 #Climbing_TileY
 	v1 += 1
 	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := -90
-	Climbing_TempY := 38
-	:breakpoint predraw2
+	Climbing_TempX := vD
+	Climbing_TempY := vE
+	Climbing_TempY += 128
 	climbing_draw_tile_holds
 
 	v0 := 0 #Climbing_TileX
 	v1 := 0 #Climbing_TileY
 	v0 += 1
 	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := 38
-	Climbing_TempY := -90
-:breakpoint predraw2
+	Climbing_TempX := vD
+	Climbing_TempY := vE
+	Climbing_TempX += 128
 	climbing_draw_tile_holds
 
 	v0 := 0 #Climbing_TileX
@@ -408,14 +405,43 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	v0 += 1
 	v1 += 1
 	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := 38
-	Climbing_TempY := 38
+	Climbing_TempX := vD
+	Climbing_TempY := vE
+	Climbing_TempX += 128
+	Climbing_TempY += 128
 
-	:breakpoint predraw2
 	climbing_draw_tile_holds
 
 	;
 
+: climbing_test_draw_holds
+	vD := 0
+	vE := 0
+	loop
+	vF := 5
+	delay := vF
+
+	v0 := KEY_UP
+	if v0 key then vE += -4
+	v0 := KEY_DOWN
+	if v0 key then vE += 4
+	v0 := KEY_LEFT
+	if v0 key then vD += -4
+	v0 := KEY_RIGHT
+	if v0 key then vD += 4
+
+
+
+	climbing_draw_holds
+	loop
+	vF := delay
+	while vF != 0
+	again
+	clear
+
+	again
+
+	;
 
 
 # Does everything needed to draw the left hand/arm cold (ie not in the climbing move loop)
