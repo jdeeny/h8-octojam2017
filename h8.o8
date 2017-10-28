@@ -46,7 +46,8 @@
 
 : main
 	hires
-	minimap_draw
+	#minimap_draw
+	climbing_draw_holds
 :breakpoint test-end
 
 	title_draw
@@ -59,6 +60,30 @@
 	: main_loop
 	loop
 	again
+
+:alias Climbing_TempX v1
+:alias Climbing_TempY v2
+
+:const Map_Entry_Bytes 3
+
+
+# Some holds, these are 3 tall ellipses
+:const Hold_Height 3
+
+:calc hold_acc { 0 }
+:macro define_hold id {
+	:calc id { hold_acc }
+	:calc hold_acc { hold_acc + Hold_Height }
+}
+
+: spr_holds
+define_hold HOLD_3X3 : spr_hold_3x3 0x40 0xA0 0x40
+define_hold HOLD_3X4 : spr_hold_3x4 0x60 0x90 0x60
+define_hold HOLD_3X5 : spr_hold_3x5 0x70 0x88 0x70
+define_hold HOLD_3X6 : spr_hold_3x6 0x78 0x84 0x78
+define_hold HOLD_3X7 : spr_hold_3x7 0x7C 0x82 0x7C
+define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
+:const HOLD_END 0xFF
 
 #########################
 ### Code Modification ###
@@ -300,6 +325,34 @@
 	;
 
 
+:alias Climbing_Draw_Idx v3
+:alias Climbing_Draw_SprId v0
+:alias Climbing_Draw_DeltaX v1
+:alias Climbing_Draw_DeltaY v2
+# Draws all the holds in a map tile
+# The index to the map tile is set by modifying the code
+: climbing_draw_holds
+	climbing_setup_draw_holds
+	Climbing_Draw_Idx := 0
+	Climbing_TempX := 0
+	Climbing_TempY := 0
+	loop
+		Trampoline: holds_tramp_i:=maptile
+		i += Climbing_Draw_Idx
+		load v2	# load sprite id, deltax, deltay
+		:breakpoint loaded
+	while Climbing_Draw_SprId != HOLD_END
+		i := spr_holds
+		i += Climbing_Draw_Idx						# i += SPR_ID (aka offset into sprites)
+		Climbing_TempX += Climbing_Draw_DeltaX
+		Climbing_TempY += Climbing_Draw_DeltaY
+		sprite Climbing_TempX Climbing_TempY Hold_Height
+		Climbing_Draw_Idx += Map_Entry_Bytes
+	again
+	;
+
+
+
 # Does everything needed to draw the left hand/arm cold (ie not in the climbing move loop)
 # TODO: Could surely be made more compact
 : climbing_draw_lefthand
@@ -452,22 +505,6 @@
 0x7E 0xFE 0x00 0x00 0x00 0x00 0x00 0x00
 
 
-# Some holds, these are 3 tall ellipses
-:const Hold_Height 3
-
-:calc hold_acc { 0 }
-:macro define_hold id {
-	:calc id { hold_acc }
-	:calc hold_acc { hold_acc + Hold_Height }
-}
-: spr_holds
-define_hold HOLD_3X3 : spr_hold_3x3 0x40 0xA0 0x40
-define_hold HOLD_3X4 : spr_hold_3x4 0x60 0x90 0x60
-define_hold HOLD_3X5 : spr_hold_3x5 0x70 0x88 0x70
-define_hold HOLD_3X6 : spr_hold_3x6 0x78 0x84 0x78
-define_hold HOLD_3X7 : spr_hold_3x7 0x7C 0x82 0x7C
-define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
-:const HOLD_END 0xFF
 
 : spr_title_htop
 0x00 0x00 0x60 0x06 0xF0 0x0F 0xF0 0x0F
@@ -641,9 +678,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 
 ### Level Map
 
-:alias Climbing_TempX v1
-:alias Climbing_TempY v2
-
 :macro maptile-reset {
 	Climbing_TempX := 0
 	Climbing_TempX -= Climbing_X
@@ -810,6 +844,10 @@ map_reset
 	map_begintile 0 0
 	map_entry HOLD_3X3 10 12 3
 	map_entry HOLD_3X5 30 30 5
+	map_entry HOLD_3X7 66 15 7
+	map_entry HOLD_3X5 43 60 5
+	map_entry HOLD_3X3 110 2 3
+	map_entry HOLD_3X5 35 45 5
 	map_endtile
 
 : maptile_0_1
@@ -893,6 +931,7 @@ map_reset
 ### End Map Definition ###
 ##########################
 
+
 # Draw the minimap to the screen
 # TODO: This doesn't take into account the current location on the map, just a test as is
 :calc Minimap_X_Offset { 128 - 32 }
@@ -917,7 +956,6 @@ map_reset
 	again
 	;
 
-
 ### Stuff that has to come after sprite declarations
 : climbing_setup_drawlimb_lefthand
 	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_lefthand
@@ -941,4 +979,8 @@ map_reset
 	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_rightfoot
 	Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_leg
 	i := climbing_data_rightfoot
+	;
+
+: climbing_setup_draw_holds
+	Trampoline-Set-I-Const holds_tramp_i:=maptile maptile_0_0
 	;
