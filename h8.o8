@@ -46,10 +46,6 @@
 
 : main
 	hires
-	#minimap_draw
-	climbing_test_draw_holds
-:breakpoint test-end
-
 	title_draw
 	vF := key
 	clear
@@ -198,7 +194,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	Climbing_View := CLIMBING_VIEW_HANDS
 
 	# Draw holds
-
+	climbing_draw_holds
 
 	# Draw the initial limbs
 	climbing_draw_lefthand
@@ -411,35 +407,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	Climbing_TempY += 128
 
 	climbing_draw_tile_holds
-
-	;
-
-: climbing_test_draw_holds
-	vD := 0
-	vE := 0
-	loop
-	vF := 5
-	delay := vF
-
-	v0 := KEY_UP
-	if v0 key then vE += -4
-	v0 := KEY_DOWN
-	if v0 key then vE += 4
-	v0 := KEY_LEFT
-	if v0 key then vD += -4
-	v0 := KEY_RIGHT
-	if v0 key then vD += 4
-
-
-
-	climbing_draw_holds
-	loop
-	vF := delay
-	while vF != 0
-	again
-	clear
-
-	again
 
 	;
 
