@@ -680,42 +680,42 @@ define_hold HOLD_GROUNDC : spr_hold_groundC 0x40 0x27 0xAF
 
 
 
-# Intersitial Text
-:const Intersitial_Height 5
-:calc inter_acc { 0 }
-:macro define_inter id {
-	:calc id { inter_acc }
-	:calc inter_acc { inter_acc + Intersitial_Height }
+# Intro/Outro Text
+:const Text_Height 5
+:calc text_acc { 0 }
+:macro define_text id {
+	:calc id { text_acc }
+	:calc text_acc { text_acc + Text_Height }
 }
 
-: spr_inters
-define_inter SPR_INTER_PITCH_0 : spr_inter_pitch_0 0xEB 0xA9 0xE9 0x89 0x89		# "PITCH"
-define_inter SPR_INTER_PITCH_1 : spr_inter_pitch_1 0xB5 0x25 0x27 0x25 0x35
+: spr_texts
+define_text SPR_TEXT_PITCH_0 : spr_text_pitch_0 0xEB 0xA9 0xE9 0x89 0x89		# "PITCH"
+define_text SPR_TEXT_PITCH_1 : spr_text_pitch_1 0xB5 0x25 0x27 0x25 0x35
 
-define_inter SPR_INTER_PAR_0 : spr_inter_par_0 0xE4 0xAA 0xEE 0x8A 0x8A			# "PAR"
-define_inter SPR_INTER_PAR_1 : spr_inter_par_1 0xE0 0xA0 0xE0 0xC0 0xA0
+define_text SPR_TEXT_PAR_0 : spr_text_par_0 0xE4 0xAA 0xEE 0x8A 0x8A			# "PAR"
+define_text SPR_TEXT_PAR_1 : spr_text_par_1 0xE0 0xA0 0xE0 0xC0 0xA0
 
-define_inter SPR_INTER_GRADE_0 : spr_inter_grade_0 0xEE 0x8A 0xAE 0xAC 0xEA		# "GRAD"
-define_inter SPR_INTER_GRADE_1 : spr_inter_grade_1 0x4C 0xAA 0xAA 0xEA 0xAC
+define_text SPR_TEXT_GRADE_0 : spr_text_grade_0 0xEE 0x8A 0xAE 0xAC 0xEA		# "GRAD"
+define_text SPR_TEXT_GRADE_1 : spr_text_grade_1 0x4C 0xAA 0xAA 0xEA 0xAC
 
-define_inter SPR_INTER_COLON : spr_inter_colon 0x00 0x80 0x00 0x80 0x00			# ":"
+define_text SPR_TEXT_COLON : spr_text_colon 0x00 0x80 0x00 0x80 0x00			# ":"
 
-define_inter SPR_INTER_V : spr_inter_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
-define_inter SPR_INTER_I : spr_inter_I 0x80 0x80 0x80 0x80 0x80					# "I"
-define_inter SPR_INTER_- : spr_inter_- 0x00 0x00 0xE0 0x00 0x00					# "-"
-define_inter SPR_INTER_+ : spr_inter_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
-define_inter SPR_INTER_X : spr_inter_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
+define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
+define_text SPR_TEXT_I : spr_text_I 0x80 0x80 0x80 0x80 0x80					# "I"
+define_text SPR_TEXT_- : spr_text_- 0x00 0x00 0xE0 0x00 0x00					# "-"
+define_text SPR_TEXT_+ : spr_text_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
+define_text SPR_TEXT_X : spr_text_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
 
-define_inter SPR_INTER_DRUCKE_0 : spr_inter_drucke_0 0xCE 0xAA 0xAE 0xAC 0xCA  # "DRUCKE EINE TASTE"
-define_inter SPR_INTER_DRUCKE_1 : spr_inter_drucke_1 0xAD 0x09 0xA9 0xA9 0xED
-define_inter SPR_INTER_DRUCKE_2 : spr_inter_drucke_2 0x5C 0x90 0x18 0x90 0x5C
-define_inter SPR_INTER_DRUCKE_3 : spr_inter_drucke_3 0xEA 0x8A 0xCB 0x8A 0xEA
-define_inter SPR_INTER_DRUCKE_4 : spr_inter_drucke_4 0x5C 0x50 0x58 0xD0 0x5C
-define_inter SPR_INTER_DRUCKE_5 : spr_inter_drucke_5 0xE4 0x4A 0x4E 0x4A 0x4A
-define_inter SPR_INTER_DRUCKE_6 : spr_inter_drucke_6 0xEE 0x84 0xE4 0x24 0xE4
-define_inter SPR_INTER_DRUCKE_7 : spr_inter_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
+define_text SPR_TEXT_DRUCKE_0 : spr_text_drucke_0 0xCE 0xAA 0xAE 0xAC 0xCA  # "DRUCKE EINE TASTE"
+define_text SPR_TEXT_DRUCKE_1 : spr_text_drucke_1 0xAD 0x09 0xA9 0xA9 0xED
+define_text SPR_TEXT_DRUCKE_2 : spr_text_drucke_2 0x5C 0x90 0x18 0x90 0x5C
+define_text SPR_TEXT_DRUCKE_3 : spr_text_drucke_3 0xEA 0x8A 0xCB 0x8A 0xEA
+define_text SPR_TEXT_DRUCKE_4 : spr_text_drucke_4 0x5C 0x50 0x58 0xD0 0x5C
+define_text SPR_TEXT_DRUCKE_5 : spr_text_drucke_5 0xE4 0x4A 0x4E 0x4A 0x4A
+define_text SPR_TEXT_DRUCKE_6 : spr_text_drucke_6 0xEE 0x84 0xE4 0x24 0xE4
+define_text SPR_TEXT_DRUCKE_7 : spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
 
-:const SPR_INTER_END 0xFF
+:const SPR_TEXT_END 0xFF
 
 ### Climbing legal moves table
 # This is entirely from the perspective of the left arm
@@ -1216,59 +1216,59 @@ map_end
 :calc Inter_PressKey_Y { 55 }
 :calc Inter_PressKey_X { 12 }
 :calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-:macro interstitial_entry spr-id x y {
+:macro text_entry spr-id x y {
 	:byte spr-id :byte x :byte y
 }
 
-: intersitial_all
-	interstitial_entry SPR_INTER_PITCH_0  6  Inter_Pitch_Y
-	interstitial_entry SPR_INTER_PITCH_1 14  Inter_Pitch_Y
-	interstitial_entry SPR_INTER_GRADE_0  6  Inter_Grade_Y
-	interstitial_entry SPR_INTER_GRADE_1 14  Inter_Grade_Y
-	interstitial_entry SPR_INTER_COLON   22  Inter_Grade_Y
-	interstitial_entry SPR_INTER_PAR_0		 6 Inter_Par_Y
-	interstitial_entry SPR_INTER_PAR_1		14 Inter_Par_Y
-	interstitial_entry SPR_INTER_COLON   18 Inter_Par_Y
-	interstitial_entry SPR_INTER_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
+: intro_all
+	text_entry SPR_TEXT_PITCH_0  6  Inter_Pitch_Y
+	text_entry SPR_TEXT_PITCH_1 14  Inter_Pitch_Y
+	text_entry SPR_TEXT_GRADE_0  6  Inter_Grade_Y
+	text_entry SPR_TEXT_GRADE_1 14  Inter_Grade_Y
+	text_entry SPR_TEXT_COLON   22  Inter_Grade_Y
+	text_entry SPR_TEXT_PAR_0		 6 Inter_Par_Y
+	text_entry SPR_TEXT_PAR_1		14 Inter_Par_Y
+	text_entry SPR_TEXT_COLON   18 Inter_Par_Y
+	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
 	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	interstitial_entry SPR_INTER_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
+	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
 	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	interstitial_entry SPR_INTER_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
+	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
 	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	interstitial_entry SPR_INTER_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
+	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
 	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	interstitial_entry SPR_INTER_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
+	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
 	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	interstitial_entry SPR_INTER_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
+	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
 	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	interstitial_entry SPR_INTER_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
+	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
 	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	interstitial_entry SPR_INTER_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
-	:byte SPR_INTER_END
+	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
+	:byte SPR_TEXT_END
 	;
 
-: interstitial_0
-	:byte SPR_INTER_END
+# Intro text specific to pitch 0
+: intro_0
+	:byte SPR_TEXT_END
 	;
 
 
-# Draw all the items in the list for this intersitial screen
-: intersitial_draw
+# Draw all the items in the list for this intro screen
+: intro_draw
 	clear
 	v3 := 0
 	loop
-		i := intersitial_all
+		i := intro_all
 		i += v3
 		load v2
-	while v0 != SPR_INTER_END
-		i := spr_inters
+	while v0 != SPR_TEXT_END
+		i := spr_texts
 		i += v0
-		sprite v1 v2 Intersitial_Height
+		sprite v1 v2 Text_Height
 		v3 += 3
 	again
 	minimap_draw
 	;
-
 
 # Waits for a keypress, then waits until no keys are pressed
 : wait_any_key_plus_debounce
