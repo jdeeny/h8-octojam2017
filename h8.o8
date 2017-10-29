@@ -1087,6 +1087,12 @@ map_begin
 	map_entry HOLD_3X6 120 120 6
 	map_endtile
 
+: maptile_3_3
+	map_begintile 3 3
+	map_entry HOLD_3X3 30 30 3
+	map_endtile
+
+
 : maptile_0_0  # Ground
 	map_begintile 0 0
 	:calc map_ground_y { 63 - 3 }
@@ -1119,9 +1125,9 @@ map_end
 
 # Draw the minimap to the screen
 # TODO: This doesn't take into account the current location on the map, just a test as is
-# TODO: This doesn't wrap correctly when map width != draw width
 :calc Minimap_X_Offset { 128 - 32 }
 :calc Minimap_Y_Offset { 32 }
+:calc Minimap_Stride { ( Minimap_Bytes * Map_Width ) - ( Minimap_Bytes * 4 ) }
 : minimap_draw
 	i := Minimap_Address
 	v0 := Minimap_X_Offset
@@ -1137,6 +1143,8 @@ map_end
 			i += vF
 			v0 += 8
 		again
+		vF := Minimap_Stride
+		i += vF
 		v0 := Minimap_X_Offset
 		v1 += 8
 	again
