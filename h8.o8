@@ -46,6 +46,8 @@
 
 : main
 	hires
+	intersitial_draw
+	:breakpoint drawn
 	title_draw
 	vF := key
 	clear
@@ -676,6 +678,34 @@ define_hold HOLD_GROUNDC : spr_hold_groundC 0x40 0x27 0xAF
 : spr_title_sub_R 	0xB8 0xA8 0xB0 0xA8 0xA8 # 1/2 O, R
 
 
+
+# Intersitial Text
+:const Intersitial_Height 5
+:calc inter_acc { 0 }
+:macro define_inter id {
+	:calc id { inter_acc }
+	:calc inter_acc { inter_acc + Intersitial_Height }
+}
+
+: spr_inters
+define_inter SPR_INTER_PITCH_0 : spr_inter_pitch_0 0xEB 0xA9 0xE9 0x89 0x89		# "PITCH"
+define_inter SPR_INTER_PITCH_1 : spr_inter_pitch_1 0xB5 0x25 0x27 0x25 0x35
+
+define_inter SPR_INTER_PAR_0 : spr_inter_par_0 0xE4 0xAA 0xEE 0x8A 0x8A			# "PAR"
+define_inter SPR_INTER_PAR_1 : spr_inter_par_1 0xE0 0xA0 0xE0 0xC0 0xA0
+
+define_inter SPR_INTER_GRADE_0 : spr_inter_grade_0 0xEE 0x8A 0xAE 0xAC 0xEA		# "GRAD"
+define_inter SPR_INTER_GRADE_1 : spr_inter_grade_1 0x4C 0xAA 0xAA 0xEA 0xAC
+
+define_inter SPR_INTER_COLON : spr_inter_colon 0x00 0x80 0x00 0x80 0x00			# ":"
+
+define_inter SPR_INTER_V : spr_inter_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
+define_inter SPR_INTER_I : spr_inter_I 0x80 0x80 0x80 0x80 0x80					# "I"
+define_inter SPR_INTER_- : spr_inter_- 0x00 0x00 0xE0 0x00 0x00					# "-"
+define_inter SPR_INTER_+ : spr_inter_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
+define_inter SPR_INTER_X : spr_inter_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
+:const SPR_INTER_END 0xFF
+
 ### Climbing legal moves table
 # This is entirely from the perspective of the left arm
 :const climbing_leftright_offset 8				# Distance from limb 'root' to centroid
@@ -1167,6 +1197,43 @@ map_end
 0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
 0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
 0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
+
+
+: intersitial_all
+	:byte SPR_INTER_PITCH_0  2  2
+	:byte SPR_INTER_PITCH_1 10  2
+	:byte SPR_INTER_GRADE_0  2  8
+	:byte SPR_INTER_GRADE_1 10  8
+	:byte SPR_INTER_COLON   18  8
+	:byte SPR_INTER_PAR_0		 2 14
+	:byte SPR_INTER_PAR_1		10 14
+	:byte SPR_INTER_COLON   14 14
+	:byte SPR_INTER_END
+	;
+
+: interstitial_0
+	:byte SPR_INTER_END
+	;
+
+
+# Draw all the items in the list for this intersitial screen
+: intersitial_draw
+	clear
+	v3 := 0
+	loop
+		i := intersitial_all
+		i += v3
+		load v2
+	while v0 != SPR_INTER_END
+		i := spr_inters
+		i += v0
+		sprite v1 v2 Intersitial_Height
+		v3 += 3
+	again
+	;
+
+
+
 
 ### Stuff that has to come after sprite declarations
 : climbing_setup_drawlimb_lefthand
