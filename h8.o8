@@ -193,6 +193,22 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	Climbing_Moving := 0
 	Climbing_View := CLIMBING_VIEW_HANDS
 
+	# Draw score or something
+	i := spr_placeholder
+	v0 := 96
+	v1 := 0
+	sprite v0 v1 0
+	v0 += 16
+	sprite v0 v1 0
+	v0 := 96
+	v1 := 16
+	sprite v0 v1 0
+	v0 += 16
+	sprite v0 v1 0
+
+	# Draw Minimap
+	minimap_draw
+
 	# Draw holds
 	climbing_draw_holds
 
@@ -1082,6 +1098,12 @@ map_end
 		v1 += 8
 	again
 	;
+
+: spr_placeholder
+0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
+0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
+0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
+0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
 
 ### Stuff that has to come after sprite declarations
 : climbing_setup_drawlimb_lefthand
