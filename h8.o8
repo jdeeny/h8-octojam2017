@@ -1337,8 +1337,8 @@ map_end
 	scroll-right
 	;
 
-:const Clock_X 80
-:const Clock_Y 20
+:const Clock_X 100
+:const Clock_Y 2
 :const Clock_Width 6
 : clock_draw
 	v0 := vE
@@ -1385,6 +1385,8 @@ map_end
 		vD += 1
 		if vD == 60 then vE += 1
 		if vD == 60 then vD := 0
+		if vE == 100 then vD := 59
+		if vE == 100 then VE := 99
 	again
 	;
 
