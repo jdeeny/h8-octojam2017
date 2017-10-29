@@ -213,8 +213,10 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 		# At this point, a limb is selected (Climbing_Limb := LIMB_XXX)
 
 		# If the selection switchs between hand/foot, update screen appropriately
-			# Erase old limbs
-			# Draw new limbs
+		if Climbing_Limb == LIMB_LEFTHAND then climbing_draw_scene_hands
+		if Climbing_Limb == LIMB_RIGHTHAND then climbing_draw_scene_hands
+		if Climbing_Limb == LIMB_LEFTFOOT then climbing_draw_scene_feet
+		if Climbing_Limb == LIMB_RIGHTFOOT then climbing_draw_scene_feet
 
 		# Setup the limb drawing function to do the right thing and load Climbing X/Y
 		if Climbing_Limb == LIMB_LEFTHAND then climbing_setup_drawlimb_lefthand
@@ -331,6 +333,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 
 
 : climbing_draw_scene_hands
+	clear
 # Draw score or something
 	i := spr_placeholder
 	v0 := 96
@@ -356,6 +359,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	;
 
 : climbing_draw_scene_feet
+	clear
 # Draw score or something
 	i := spr_placeholder
 	v0 := 96
