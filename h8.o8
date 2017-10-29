@@ -46,12 +46,13 @@
 
 : main
 	hires
-	intersitial_draw
-	:breakpoint drawn
 	title_draw
-	vF := key
-	clear
+	wait_any_key_plus_debounce
 
+	intersitial_draw
+	wait_any_key_plus_debounce
+
+	clear
 	climbing_init
 	climbing_run
 
@@ -1266,6 +1267,27 @@ map_end
 		v3 += 3
 	again
 	minimap_draw
+	;
+
+
+# Waits for a keypress, then waits until no keys are pressed
+: wait_any_key_plus_debounce
+	v0 := 0
+	loop
+		while v0 -key
+		v0 += 1
+		if v0 == 16 then v0 := 0
+	again
+	loop
+		v0 := 0
+		v1 := 0
+		loop
+			while v0 != 16
+			if v0 key then v1 := 1
+			v0 += 1
+		again
+	while v1 != 0
+	again
 	;
 
 
