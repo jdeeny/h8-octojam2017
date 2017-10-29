@@ -292,6 +292,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 
 
 			# Check keys to see if we are finished moving
+				if v1 == 0 then jump climbing_delay_loop	# skip ending keys if there wasnt a collision with the hand/foot
 				: climbing_scan_moveend_keys
 				# If we are not debounced, don't allow switch
 				if Climbing_Debounce == 0 then jump climbing_check_debounce
@@ -503,6 +504,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 : climbing_drawlimb
 	Trampoline: climbing_tramp_i:=handsprite					# To be replaced with `i := <sprite addr>`
 	sprite Climbing_X Climbing_Y 8
+	v1 := vF
 	i := spr_armleg
 	Trampoline: climbing_tramp_jump_drawlimb_armleg		# To be replaced with `jump := climbing_drawlimb_[arm, leg]`
 	;
