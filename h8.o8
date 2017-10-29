@@ -706,7 +706,7 @@ define_inter SPR_INTER_+ : spr_inter_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
 define_inter SPR_INTER_X : spr_inter_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
 
 define_inter SPR_INTER_DRUCKE_0 : spr_inter_drucke_0 0xCE 0xAA 0xAE 0xAC 0xCA  # "DRUCKE EINE TASTE"
-define_inter SPR_INTER_DRUCKE_1 : spr_inter_drucke_1 0xAD 0xA9 0xA9 0xA9 0xED
+define_inter SPR_INTER_DRUCKE_1 : spr_inter_drucke_1 0xAD 0x09 0xA9 0xA9 0xED
 define_inter SPR_INTER_DRUCKE_2 : spr_inter_drucke_2 0x5C 0x90 0x18 0x90 0x5C
 define_inter SPR_INTER_DRUCKE_3 : spr_inter_drucke_3 0xEA 0x8A 0xCB 0x8A 0xEA
 define_inter SPR_INTER_DRUCKE_4 : spr_inter_drucke_4 0x5C 0x50 0x58 0xD0 0x5C
@@ -1209,22 +1209,25 @@ map_end
 0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
 
 
+:calc Inter_Pitch_Y { 10 }
+:calc Inter_Grade_Y { 20 }
+:calc Inter_Par_Y { 30 }
 :calc Inter_PressKey_Y { 55 }
-:calc Inter_PressKey_X { 25 }
+:calc Inter_PressKey_X { 12 }
 :calc Inter_PressKey_X { Inter_PressKey_X + 8 }
 :macro interstitial_entry spr-id x y {
 	:byte spr-id :byte x :byte y
 }
 
 : intersitial_all
-	interstitial_entry SPR_INTER_PITCH_0  2  2
-	interstitial_entry SPR_INTER_PITCH_1 10  2
-	interstitial_entry SPR_INTER_GRADE_0  2  8
-	interstitial_entry SPR_INTER_GRADE_1 10  8
-	interstitial_entry SPR_INTER_COLON   18  8
-	interstitial_entry SPR_INTER_PAR_0		 2 14
-	interstitial_entry SPR_INTER_PAR_1		10 14
-	interstitial_entry SPR_INTER_COLON   14 14
+	interstitial_entry SPR_INTER_PITCH_0  6  Inter_Pitch_Y
+	interstitial_entry SPR_INTER_PITCH_1 14  Inter_Pitch_Y
+	interstitial_entry SPR_INTER_GRADE_0  6  Inter_Grade_Y
+	interstitial_entry SPR_INTER_GRADE_1 14  Inter_Grade_Y
+	interstitial_entry SPR_INTER_COLON   22  Inter_Grade_Y
+	interstitial_entry SPR_INTER_PAR_0		 6 Inter_Par_Y
+	interstitial_entry SPR_INTER_PAR_1		14 Inter_Par_Y
+	interstitial_entry SPR_INTER_COLON   18 Inter_Par_Y
 	interstitial_entry SPR_INTER_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
 	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
 	interstitial_entry SPR_INTER_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
@@ -1262,6 +1265,7 @@ map_end
 		sprite v1 v2 Intersitial_Height
 		v3 += 3
 	again
+	minimap_draw
 	;
 
 
