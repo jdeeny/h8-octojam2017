@@ -49,7 +49,7 @@
 	title_draw
 	wait_any_key_plus_debounce
 
-	intersitial_draw
+	intro_draw
 	wait_any_key_plus_debounce
 
 	clear
@@ -903,7 +903,7 @@ define_text SPR_TEXT_DRUCKE_7 : spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
 :const Map_Width 6
 :const Map_Height 12
 :calc Map_Num_Tiles { Map_Width * Map_Height }
-:const Minimap_Bytes 16
+:const Minimap_Bytes 8
 :calc Minimap_Total_Bytes { ( Minimap_Bytes * Map_Num_Tiles ) }
 :calc Map_Index_Bytes { 2 * Map_Num_Tiles }
 :calc Map_Index_Address { 0xFFF - ( Minimap_Total_Bytes + Map_Index_Bytes ) }
@@ -960,18 +960,18 @@ define_text SPR_TEXT_DRUCKE_7 : spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
 		:byte minimap5
 		:byte minimap6
 		:byte minimap7
-		:calc minimap2 { minimap2 | 0b00100100 }
-		:calc minimap3 { minimap3 | 0b00011000 }
-		:calc minimap4 { minimap4 | 0b00011000 }
-		:calc minimap5 { minimap5 | 0b00100100 }
-		:byte minimap0
-		:byte minimap1
-		:byte minimap2
-		:byte minimap3
-		:byte minimap4
-		:byte minimap5
-		:byte minimap6
-		:byte minimap7
+#		:calc minimap2 { minimap2 | 0b00100100 }
+#		:calc minimap3 { minimap3 | 0b00011000 }
+#		:calc minimap4 { minimap4 | 0b00011000 }
+#		:calc minimap5 { minimap5 | 0b00100100 }
+#		:byte minimap0
+#		:byte minimap1
+#		:byte minimap2
+#		:byte minimap3
+#		:byte minimap4
+#		:byte minimap5
+#		:byte minimap6
+#		:byte minimap7
 		:org old-here
 }
 
