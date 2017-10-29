@@ -988,6 +988,18 @@ define_hold HOLD_GROUNDC : spr_hold_groundC 0x40 0x27 0xAF
 ######################
 ### Map Definition ###
 ######################
+
+:const Player_Start_TileX 4
+:const Player_Start_TileY 4
+:const Player_Start_LeftHand_X 10
+:const Player_Start_LeftHand_Y 50
+:const Player_Start_RightHand_X 50
+:const Player_Start_RightHand_Y 50
+:const Player_Start_LeftFoot_X 10
+:const Player_Start_LeftFoot_Y 5
+:const Player_Start_RightFoot_X 50
+:const Player_Start_RightFoot_Y 5
+
 map_begin
 : maptile_0_4
 	map_begintile 0 4
