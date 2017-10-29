@@ -46,6 +46,8 @@
 
 : main
 	hires
+	clock_test
+	:breakpoint clk
 	title_draw
 	wait_any_key_plus_debounce
 	wipe
@@ -1335,6 +1337,56 @@ map_end
 	scroll-right
 	;
 
+:const Clock_X 80
+:const Clock_Y 20
+:const Clock_Width 6
+: clock_draw
+	v0 := vE
+	v3 := Clock_X
+	v4 := Clock_Y
+	draw_decimal
+	v3 += 6
+	i := spr_text_colon
+	sprite v3 v4 5
+	v3 += 3
+	v0 := vD
+	draw_decimal
+	;
+
+# In:
+# v0 = value
+# v3 = x
+# v4 = y
+: bcd_dest 0 0 0
+: draw_decimal
+	i := bcd_dest
+	bcd v0
+	load v2
+	i := hex v1
+	sprite v3 v4 5
+	i := hex v2
+	v3 += 6
+	sprite v3 v4 5
+	;
+
+
+: clock_test
+	vE := 0
+	vD := 0
+	loop
+		vF := 1
+		delay := vF
+		clear
+		clock_draw
+		loop
+			vF := delay
+		while vF != 0
+		again
+		vD += 1
+		if vD == 60 then vE += 1
+		if vD == 60 then vD := 0
+	again
+	;
 
 ### Stuff that has to come after sprite declarations
 : climbing_setup_drawlimb_lefthand
