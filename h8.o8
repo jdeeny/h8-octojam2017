@@ -76,7 +76,6 @@
 :alias Climbing_Draw_DeltaY v2
 
 
-
 :const Map_Entry_Bytes 3
 
 
@@ -193,28 +192,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	Climbing_Moving := 0
 	Climbing_View := CLIMBING_VIEW_HANDS
 
-	# Draw score or something
-	i := spr_placeholder
-	v0 := 96
-	v1 := 0
-	sprite v0 v1 0
-	v0 += 16
-	sprite v0 v1 0
-	v0 := 96
-	v1 := 16
-	sprite v0 v1 0
-	v0 += 16
-	sprite v0 v1 0
-
-	# Draw Minimap
-	minimap_draw
-
-	# Draw holds
-	climbing_draw_holds
-
-	# Draw the initial limbs
-	climbing_draw_lefthand
-	climbing_draw_righthand
+	climbing_draw_scene_feet
 
 	: climbing_main_loop
 	loop
@@ -352,6 +330,57 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	;
 
 
+: climbing_draw_scene_hands
+# Draw score or something
+	i := spr_placeholder
+	v0 := 96
+	v1 := 0
+	sprite v0 v1 0
+	v0 += 16
+	sprite v0 v1 0
+	v0 := 96
+	v1 := 16
+	sprite v0 v1 0
+	v0 += 16
+	sprite v0 v1 0
+
+	# Draw Minimap
+	minimap_draw
+
+	# Draw holds
+	climbing_draw_holds
+
+	# Draw the initial limbs
+	climbing_draw_lefthand
+	climbing_draw_righthand
+	;
+
+: climbing_draw_scene_feet
+# Draw score or something
+	i := spr_placeholder
+	v0 := 96
+	v1 := 0
+	sprite v0 v1 0
+	v0 += 16
+	sprite v0 v1 0
+	v0 := 96
+	v1 := 16
+	sprite v0 v1 0
+	v0 += 16
+	sprite v0 v1 0
+
+	# Draw Minimap
+	minimap_draw
+
+	# Draw holds
+	climbing_draw_holds
+
+	# Draw the initial limbs
+	climbing_draw_leftfoot
+	climbing_draw_rightfoot
+	;
+
+
 # Draws all the holds in a map tile
 # The index to the map tile is set by modifying the code
 : climbing_draw_tile_holds
@@ -446,6 +475,25 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	climbing_setup_drawlimb_righthand
 	climbing_drawlimb
 	;
+
+: climbing_draw_leftfoot
+	i := climbing_data_leftfoot
+	load v1
+	Climbing_X := v0
+	Climbing_Y := v1
+	climbing_setup_drawlimb_leftfoot
+	climbing_drawlimb
+	;
+
+: climbing_draw_rightfoot
+	i := climbing_data_rightfoot
+	load v1
+	Climbing_X := v0
+	Climbing_Y := v1
+	climbing_setup_drawlimb_rightfoot
+	climbing_drawlimb
+	;
+
 
 
 : climbing_drawlimb
