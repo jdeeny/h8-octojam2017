@@ -1064,8 +1064,8 @@ map_begin
 	map_entry HOLD_3X5 120 120 5
 	map_endtile
 
-: maptile_1_1
-	map_begintile 1 1
+: maptile_1_2
+	map_begintile 1 2
 	map_entry HOLD_3X6  0  0 6
 	map_entry HOLD_3X6  0 10 6
 	map_entry HOLD_3X6 10 10 6
@@ -1084,46 +1084,12 @@ map_begin
 	map_entry HOLD_3X6 120 120 6
 	map_endtile
 
-: maptile_1_2
-	map_begintile 1 2
-	map_endtile
-
-: maptile_1_3
-	map_begintile 1 3
-	map_endtile
-
-: maptile_2_0
-	map_begintile 2 0
-	map_endtile
-
-: maptile_2_1
-	map_begintile 2 1
-	map_endtile
-
-: maptile_2_2
-	map_begintile 2 2
-	map_endtile
-
-: maptile_2_3
-	map_begintile 2 3
-	map_endtile
-
-: maptile_3_0
-	map_begintile 3 0
-	map_endtile
-
-: maptile_3_1
-	map_begintile 3 1
-	map_endtile
-
-: maptile_3_2
-	map_begintile 3 2
-	map_endtile
-
-: maptile_3_3
-	map_begintile 3 3
-	map_endtile
 map_end
+
+# Special empty tile for uninitialized map tiles
+: maptile_empty
+	:byte HOLD_END
+
 ##########################
 ### End Map Definition ###
 ##########################
@@ -1200,5 +1166,11 @@ map_end
 	v0 <<= v0
 	i += v0
 	load v1
+	vF := v0
+	vF |= v1
+	if vF == 0 then jump climbing_setup_draw_holds_none
 	Trampoline-Set-I-v0v1 holds_tramp_i:=maptile
+	;
+: climbing_setup_draw_holds_none
+	Trampoline-Set-I-Const holds_tramp_i:=maptile maptile_empty
 	;
