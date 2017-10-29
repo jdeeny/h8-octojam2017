@@ -48,9 +48,11 @@
 	hires
 	title_draw
 	wait_any_key_plus_debounce
+	wipe
 
 	intro_draw
 	wait_any_key_plus_debounce
+	wipe
 
 	clear
 	climbing_init
@@ -1291,6 +1293,35 @@ map_end
 	;
 
 
+:const Wipe_Delay 1
+: wipe
+	v0 := 0
+	v1 := random 1
+	loop
+		vF := Wipe_Delay
+		delay := vF
+		if v1 == 0 then wipe_left
+		if v1 != 0 then wipe_right
+		v0 += 12
+	while v0 != 128
+		loop
+			vF := delay
+		while vF != 0
+		again
+	again
+	;
+
+: wipe_left
+	scroll-left
+	scroll-left
+	scroll-left
+	;
+
+: wipe_right
+	scroll-right
+	scroll-right
+	scroll-right
+	;
 
 
 ### Stuff that has to come after sprite declarations
