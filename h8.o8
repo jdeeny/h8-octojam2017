@@ -717,6 +717,10 @@ define_text SPR_TEXT_DRUCKE_5 : spr_text_drucke_5 0xE4 0x4A 0x4E 0x4A 0x4A
 define_text SPR_TEXT_DRUCKE_6 : spr_text_drucke_6 0xEE 0x84 0xE4 0x24 0xE4
 define_text SPR_TEXT_DRUCKE_7 : spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
 
+define_text SPR_TEXT_ERFOLG_0 : spr_text_erfolg_0 0xEE 0x8A 0xCE 0x8C 0xEA # "ERFOLG!"
+define_text SPR_TEXT_ERFOLG_1 : spr_text_erfolg_1 0xEE 0x8A 0xCA 0x8A 0x8E
+define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
+
 :const SPR_TEXT_END 0xFF
 
 ### Climbing legal moves table
@@ -1217,7 +1221,6 @@ map_end
 :calc Inter_Par_Y { 30 }
 :calc Inter_PressKey_Y { 55 }
 :calc Inter_PressKey_X { 12 }
-:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
 :macro text_entry spr-id x y {
 	:byte spr-id :byte x :byte y
 }
@@ -1247,7 +1250,16 @@ map_end
 	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
 	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
 	:byte SPR_TEXT_END
-	;
+
+:calc Outro_Erfolg_X { 35 }
+:calc Outro_Erfolg_Y { 12 }
+: outro_all
+	text_entry SPR_TEXT_ERFOLG_0 Outro_Erfolg_X Outro_Erfolg_Y
+	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
+	text_entry SPR_TEXT_ERFOLG_1 Outro_Erfolg_X Outro_Erfolg_Y
+	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
+	text_entry SPR_TEXT_ERFOLG_2 Outro_Erfolg_X Outro_Erfolg_Y
+	:byte SPR_TEXT_END
 
 # Intro text specific to pitch 0
 : intro_0
@@ -1260,7 +1272,7 @@ map_end
 	clear
 	v3 := 0
 	loop
-		i := intro_all
+		i := outro_all
 		i += v3
 		load v2
 	while v0 != SPR_TEXT_END
