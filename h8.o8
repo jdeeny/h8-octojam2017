@@ -308,11 +308,11 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 		Climbing_State := Climbing_State_DebounceMove
 		jump climbing_main_loop_continue
 	: climbing_runstate_idle_setlimb_leftfoot
-		Climbing_Limb := LIMB_LEFTHAND
+		Climbing_Limb := LIMB_LEFTFOOT
 		Climbing_State := Climbing_State_DebounceMove
 		jump climbing_main_loop_continue
 	: climbing_runstate_idle_setlimb_rightfoot
-		Climbing_Limb := LIMB_RIGHTHAND
+		Climbing_Limb := LIMB_RIGHTFOOT
 		Climbing_State := Climbing_State_DebounceMove
 		jump climbing_main_loop_continue
 
