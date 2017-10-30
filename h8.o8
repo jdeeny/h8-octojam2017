@@ -1,1471 +1,1376 @@
-                      ###############################
-                      ##                           ##
-                      ##   BERGSTEIGERSIMULATOR    ##
-                      ##                           ##
-                      ##   d8b    d8b  88    88    ##
-                      ##   888    888  .d8888b.    ##
-                      ##   888    888 d88P  Y88b   ##
-                      ##   8888888888 Y88b. d88P   ##
-                      ##   8888888888  "Y88888"    ##
-                      ##   888    888 .d8P""Y8b.   ##
-                      ##   888    888 888    888   ##
-                      ##   888    888 Y88b  d88P   ##
-                      ##   Y8P    Y8P  "Y8888P"    ##
-                      ##                           ##
-                      ###############################
+	                      ###############################
+	                      ##                           ##
+	                      ##   BERGSTEIGERSIMULATOR    ##
+	                      ##                           ##
+	                      ##   d8b    d8b  88    88    ##
+	                      ##   888    888  .d8888b.    ##
+	                      ##   888    888 d88P  Y88b   ##
+	                      ##   8888888888 Y88b. d88P   ##
+	                      ##   8888888888  "Y88888"    ##
+	                      ##   888    888 .d8P""Y8b.   ##
+	                      ##   888    888 888    888   ##
+	                      ##   888    888 Y88b  d88P   ##
+	                      ##   Y8P    Y8P  "Y8888P"    ##
+	                      ##                           ##
+	                      ###############################
 
-# A mountaineering simulator and entry for `Octojam IV`.
-#
-# This program is designed to target a bug-fixed version of the SuperChip
-# emulator `SCHIP` running on an HP48 GX calculator, as well as the Octo
-# emulator. It has not been tested on other platforms.
-#
-# This program uses instructions from the SuperChip instruction set extension.
-# It assumes sprites are clipped to the screen edge, but otherwise assumes the
-# emulator does not have the classic SCHIP emulation bugs.
-#
+	# A mountaineering simulator and entry for `Octojam IV`.
+	#
+	# This program is designed to target a bug-fixed version of the SuperChip
+	# emulator `SCHIP` running on an HP48 GX calculator, as well as the Octo
+	# emulator. It has not been tested on other platforms.
+	#
+	# This program uses instructions from the SuperChip instruction set extension.
+	# It assumes sprites are clipped to the screen edge, but otherwise assumes the
+	# emulator does not have the classic SCHIP emulation bugs.
+	#
 
-:const KB_1 0x1 :const KB_2 0x2 :const KB_3 0x3 :const KB_4 0xC
-:const KB_Q 0x4 :const KB_W 0x5 :const KB_E 0x6 :const KB_R 0xD
-:const KB_A 0x7 :const KB_S 0x8 :const KB_D 0x9 :const KB_F 0xE
-:const KB_Z 0xA :const KB_X 0x0 :const KB_C 0xB :const KB_V 0xF
+	:const KB_1 0x1 :const KB_2 0x2 :const KB_3 0x3 :const KB_4 0xC
+	:const KB_Q 0x4 :const KB_W 0x5 :const KB_E 0x6 :const KB_R 0xD
+	:const KB_A 0x7 :const KB_S 0x8 :const KB_D 0x9 :const KB_F 0xE
+	:const KB_Z 0xA :const KB_X 0x0 :const KB_C 0xB :const KB_V 0xF
 
-:calc KEY_LEFT { KB_A }
-:calc KEY_RIGHT { KB_D }
-:calc KEY_UP { KB_W }
-:calc KEY_DOWN { KB_S }
+	:calc KEY_LEFT { KB_A }
+	:calc KEY_RIGHT { KB_D }
+	:calc KEY_UP { KB_W }
+	:calc KEY_DOWN { KB_S }
 
-# This could be switch instead of a dedicated key for each
-:calc KEY_LH { KB_Q }
-:calc KEY_RH { KB_E }
-:calc KEY_LF { KB_Z }
-:calc KEY_RF { KB_C }
+	# This could be switch instead of a dedicated key for each
+	:calc KEY_LH { KB_Q }
+	:calc KEY_RH { KB_E }
+	:calc KEY_LF { KB_Z }
+	:calc KEY_RF { KB_C }
 
-:macro draw label x y h { i := label sprite x y h }
-:macro ifkey keynum { vF := keynum if vF key then }
+	:macro draw label x y h { i := label sprite x y h }
+	:macro ifkey keynum { vF := keynum if vF key then }
 
-: main
-	hires
-	title_draw
-	wait_any_key_plus_debounce
-	wipe
+	: main
+		hires
+		title_draw
+		wait_any_key_plus_debounce
+		wipe
 
-	intro_draw
-	wait_any_key_plus_debounce
-	wipe
+		intro_draw
+		wait_any_key_plus_debounce
+		wipe
 
-	clear
-	climbing_init
-	climbing_run
+		clear
+		climbing_init
+		climbing_run
 
-	: main_loop
-	loop
-	again
-
-
-:const Climbing_State_Idle 0
-:const Climbing_State_MoveArm 2
-:const Climbing_State_MoveLeg 4
-:const Climbing_State_MovingLimb 6
-:const Climbing_State_Debounce 8
-
-: climbing_state_jumptable
-	jump climbing_runstate_idle
-	jump climbing_runstate_movearm
-	jump climbing_runstate_moveleg
-	jump climbing_runstate_movinglimb
-	jump climbing_runstate_debounce
-
-
-
-:alias Climbing_Limit_Left v2
-:alias Climbing_Limit_Right v3
-:alias Climbing_TempX v4
-:alias Climbing_TempY v5
-:alias Climbing_TileX v6
-:alias Climbing_TileY v7
-:alias Climbing_State v8
-:alias Climbing_X v9
-:alias Climbing_Y vA
-:alias Climbing_DeltaX vB
-:alias Climbing_DeltaY vC
-:alias Climbing_Limb vD
-
-:alias Climbing_Draw_Idx v3
-:alias Climbing_Draw_SprId v0
-:alias Climbing_Draw_DeltaX v1
-:alias Climbing_Draw_DeltaY v2
-
-
-:const Map_Entry_Bytes 3
-# Some holds, these are 3 tall ellipses
-:const Hold_Height 3
-
-
-:const Map_Width 6
-:const Map_Height 16
-
-
-:calc Map_Num_Tiles { Map_Width * Map_Height }
-:const Minimap_Bytes 8
-:calc Minimap_Total_Bytes { ( Minimap_Bytes * Map_Num_Tiles ) }
-:calc Map_Index_Bytes { 2 * Map_Num_Tiles }
-
-
-
-
-:calc hold_acc { 0 }
-:macro define_hold id {
-	:calc id { hold_acc }
-	:calc hold_acc { hold_acc + Hold_Height }
-}
-
-: spr_holds
-define_hold HOLD_3X3 : spr_hold_3x3 0x40 0xA0 0x40
-define_hold HOLD_3X4 : spr_hold_3x4 0x60 0x90 0x60
-define_hold HOLD_3X5 : spr_hold_3x5 0x70 0x88 0x70
-define_hold HOLD_3X6 : spr_hold_3x6 0x78 0x84 0x78
-define_hold HOLD_3X7 : spr_hold_3x7 0x7C 0x82 0x7C
-define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
-#define_hold HOLD_GROUNDA : spr_hold_groundA 0x22 0x13 0x97
-#define_hold HOLD_GROUNDB : spr_hold_groundB 0x50 0x21 0xAC
-#define_hold HOLD_GROUNDC : spr_hold_groundC 0x40 0x27 0xAF
-:const HOLD_END 0xFF
-
-
-## Map Index
-: maptile_index
-:calc maptile_index_end { HERE + Map_Index_Bytes }
-:org maptile_index_end
-
-: minimap_data
-:calc minimap_end { HERE + Minimap_Total_Bytes }
-:org minimap_end
-
-:calc Map_Index_Address { maptile_index }
-:calc Minimap_Address { minimap_data }
-
-
-#########################
-### Code Modification ###
-#########################
-:macro hilo value { :calc hi { value >> 8 } :calc lo { value & 0xFF } }	# Convenience macro, splits a 16-bit const value into 2 8-bit values
-
-# Allocates space for a trampoline
-:macro Trampoline: label {
-  : label jump label
-}
-
-:macro Trampoline-Set-I-Const label target {
-  hilo target
-  :calc hi { 0xA0 | hi }
-  v0 := hi
-  v1 := lo
-  i := label
-  save v1
-}
-
-:macro Trampoline-Set-I-v0v1 label {
-	vF := 0xA0
-  v0 |= vF
-  i := label
-  save v1
-}
-
-
-:macro Trampoline-Set-jmp-Const label target {
-  hilo target
-  :calc hi { 0x10 | hi }
-  v0 := hi
-  v1 := lo
-  i := label
-  save v1
-}
-
-
-### End Code Modification
-
-################
-### Climbing ###
-################
-:calc CLIMBING_SPEED { 2 }
-:calc CLIMBING_SPEED_REVERSE { 0 - CLIMBING_SPEED }
-:const CLIMBING_FRAME_DELAY 2
-
-
-
-# Store the limb as the keycode so we can scan that key quickly
-:calc LIMB_NONE { 0xFF }
-:calc LIMB_LEFTHAND { KEY_LH }
-:calc LIMB_RIGHTHAND { KEY_RH }
-:calc LIMB_LEFTFOOT { KEY_LF }
-:calc LIMB_RIGHTFOOT { KEY_RF }
-
-:const LEFT_HAND_LIMIT 16
-:const RIGHT_HAND_LIMIT 96
-:const TOP_HAND_LIMIT 0
-:const BOT_HAND_LIMIT 48
-
-# Storage of limb coordinates, LH XY, RH XY, LF XY, RF XY
-:const CLIMBING_DATA_BYTES 2
-: climbing_data
-: climbing_data_lefthand 		0 0
-: climbing_data_righthand		0 0
-: climbing_data_leftfoot 		0 0
-: climbing_data_rightfoot		0 0
-
-# This sets up the beginning of a climbing session
-#  - loads level data, sets limb locations etc
-: climbing_init
-	# Setup some initial XY coords for the limbs
-	i := climbing_data
-	v0 := 40
-	v1 := 30
-	save v1
-	v0 := 80
-	save v1
-	v0 := 40
-	v1 := 10
-	save v1
-	v0 := 80
-	save v1
-
-	Climbing_TileY := 15
-	Climbing_TileX := 2
-	;
-
-# This loops around idling, waiting for limb select and moving a limb onto a hold
-: climbing_run
-	# Setup
-	Climbing_Limb := LIMB_NONE
-	Climbing_State := Climbing_State_Idle
-	climbing_draw_scene_hands
-
-	: climbing_main_loop
-	loop
-		v0 := Climbing_State
-		jump0 climbing_state_jumptable
-		: climbing_main_loop_continue
+		: main_loop
 		loop
-			vF := delay
-			while vF != 0
 		again
-		vF := CLIMBING_FRAME_DELAY
-		delay := vF
-	again
-	;
 
 
-: climbing_runstate_idle
-	# Scan limb selection keys
-	ifkey KEY_LH jump climbing_runstate_idle_setlimb_lefthand
-	ifkey KEY_RH jump climbing_runstate_idle_setlimb_righthand
-	ifkey KEY_LF jump climbing_runstate_idle_setlimb_leftfoot
-	ifkey KEY_RF jump climbing_runstate_idle_setlimb_rightfoot
-	jump climbing_main_loop_continue
-	: climbing_runstate_idle_setlimb_lefthand
-		Climbing_Limb := LIMB_LEFTHAND
-		Climbing_State := Climbing_State_MoveArm
+	:const Climbing_State_Idle 0
+	:const Climbing_State_MoveArm 2
+	:const Climbing_State_MoveLeg 4
+	:const Climbing_State_MovingLimb 6
+	:const Climbing_State_Debounce 8
+
+	: climbing_state_jumptable
+		jump climbing_runstate_idle
+		jump climbing_runstate_movearm
+		jump climbing_runstate_moveleg
+		jump climbing_runstate_movinglimb
+		jump climbing_runstate_debounce
+
+
+
+	:alias Climbing_Limit_Left v2
+	:alias Climbing_Limit_Right v3
+	:alias Climbing_TempX v4
+	:alias Climbing_TempY v5
+	:alias Climbing_TileX v6
+	:alias Climbing_TileY v7
+	:alias Climbing_State v8
+	:alias Climbing_X v9
+	:alias Climbing_Y vA
+	:alias Climbing_DeltaX vB
+	:alias Climbing_DeltaY vC
+	:alias Climbing_Limb vD
+
+	:alias Climbing_Draw_Idx v3
+	:alias Climbing_Draw_SprId v0
+	:alias Climbing_Draw_DeltaX v1
+	:alias Climbing_Draw_DeltaY v2
+
+
+	:const Map_Entry_Bytes 3
+	# Some holds, these are 3 tall ellipses
+	:const Hold_Height 3
+
+
+	:const Map_Width 4
+	:const Map_Height 4
+
+
+	:const Player_Start_TileX 2
+	:const Player_Start_TileY 2
+	:const Player_Start_LeftHand_X 10
+	:const Player_Start_LeftHand_Y 50
+	:const Player_Start_RightHand_X 50
+	:const Player_Start_RightHand_Y 50
+	:const Player_Start_LeftFoot_X 10
+	:const Player_Start_LeftFoot_Y 5
+	:const Player_Start_RightFoot_X 50
+	:const Player_Start_RightFoot_Y 5
+
+
+
+	:calc Map_Num_Tiles { Map_Width * Map_Height }
+	:const Minimap_Bytes 8
+	:calc Minimap_Total_Bytes { ( Minimap_Bytes * Map_Num_Tiles ) }
+	:calc Map_Index_Bytes { 2 * Map_Num_Tiles }
+
+
+
+
+	:calc hold_acc { 0 }
+	:macro define_hold id {
+		:calc id { hold_acc }
+		:calc hold_acc { hold_acc + Hold_Height }
+	}
+
+	: spr_holds
+	define_hold HOLD_3X3 : spr_hold_3x3 0x40 0xA0 0x40
+	define_hold HOLD_3X4 : spr_hold_3x4 0x60 0x90 0x60
+	define_hold HOLD_3X5 : spr_hold_3x5 0x70 0x88 0x70
+	define_hold HOLD_3X6 : spr_hold_3x6 0x78 0x84 0x78
+	define_hold HOLD_3X7 : spr_hold_3x7 0x7C 0x82 0x7C
+	define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
+	#define_hold HOLD_GROUNDA : spr_hold_groundA 0x22 0x13 0x97
+	#define_hold HOLD_GROUNDB : spr_hold_groundB 0x50 0x21 0xAC
+	#define_hold HOLD_GROUNDC : spr_hold_groundC 0x40 0x27 0xAF
+	:const HOLD_END 0xFF
+
+
+	## Map Index
+	: maptile_index
+	:calc maptile_index_end { HERE + Map_Index_Bytes }
+	:org maptile_index_end
+
+	: minimap_data
+	:calc minimap_end { HERE + Minimap_Total_Bytes }
+	:org minimap_end
+
+	:calc Map_Index_Address { maptile_index }
+	:calc Minimap_Address { minimap_data }
+
+
+	#########################
+	### Code Modification ###
+	#########################
+	:macro hilo value { :calc hi { value >> 8 } :calc lo { value & 0xFF } }	# Convenience macro, splits a 16-bit const value into 2 8-bit values
+
+	# Allocates space for a trampoline
+	:macro Trampoline: label {
+	  : label jump label
+	}
+
+	:macro Trampoline-Set-I-Const label target {
+	  hilo target
+	  :calc hi { 0xA0 | hi }
+	  v0 := hi
+	  v1 := lo
+	  i := label
+	  save v1
+	}
+
+	:macro Trampoline-Set-I-v0v1 label {
+		vF := 0xA0
+	  v0 |= vF
+	  i := label
+	  save v1
+	}
+
+
+	:macro Trampoline-Set-jmp-Const label target {
+	  hilo target
+	  :calc hi { 0x10 | hi }
+	  v0 := hi
+	  v1 := lo
+	  i := label
+	  save v1
+	}
+
+
+	### End Code Modification
+
+	################
+	### Climbing ###
+	################
+	:calc CLIMBING_SPEED { 2 }
+	:calc CLIMBING_SPEED_REVERSE { 0 - CLIMBING_SPEED }
+	:const CLIMBING_FRAME_DELAY 2
+
+
+
+	# Store the limb as the keycode so we can scan that key quickly
+	:calc LIMB_NONE { 0xFF }
+	:calc LIMB_LEFTHAND { KEY_LH }
+	:calc LIMB_RIGHTHAND { KEY_RH }
+	:calc LIMB_LEFTFOOT { KEY_LF }
+	:calc LIMB_RIGHTFOOT { KEY_RF }
+
+	:const LEFT_HAND_LIMIT 16
+	:const RIGHT_HAND_LIMIT 96
+	:const TOP_HAND_LIMIT 0
+	:const BOT_HAND_LIMIT 48
+
+	# Storage of limb coordinates, LH XY, RH XY, LF XY, RF XY
+	:const CLIMBING_DATA_BYTES 2
+	: climbing_data
+	: climbing_data_lefthand 		0 0
+	: climbing_data_righthand		0 0
+	: climbing_data_leftfoot 		0 0
+	: climbing_data_rightfoot		0 0
+
+	# This sets up the beginning of a climbing session
+	#  - loads level data, sets limb locations etc
+	: climbing_init
+		# Setup some initial XY coords for the limbs
+		i := climbing_data
+		v0 := Player_Start_LeftHand_X
+		v1 := Player_Start_LeftHand_Y
+		save v1
+		v0 := Player_Start_RightHand_X
+		v1 := Player_Start_RightHand_Y
+		save v1
+		v0 := Player_Start_LeftFoot_X
+		v1 := Player_Start_LeftFoot_Y
+		save v1
+		v0 := Player_Start_RightFoot_X
+		v1 := Player_Start_RightFoot_Y
+		save v1
+
+		Climbing_TileX := Player_Start_TileX
+		Climbing_TileY := Player_Start_TileY
+		;
+
+	# This loops around idling, waiting for limb select and moving a limb onto a hold
+	: climbing_run
+		# Setup
+		Climbing_Limb := LIMB_NONE
+		Climbing_State := Climbing_State_Idle
+		climbing_draw_scene_hands
+
+		: climbing_main_loop
+		loop
+			v0 := Climbing_State
+			jump0 climbing_state_jumptable
+			: climbing_main_loop_continue
+			loop
+				vF := delay
+				while vF != 0
+			again
+			vF := CLIMBING_FRAME_DELAY
+			delay := vF
+		again
+		;
+
+
+	: climbing_runstate_idle
+		# Scan limb selection keys
+		ifkey KEY_LH jump climbing_runstate_idle_setlimb_lefthand
+		ifkey KEY_RH jump climbing_runstate_idle_setlimb_righthand
+		ifkey KEY_LF jump climbing_runstate_idle_setlimb_leftfoot
+		ifkey KEY_RF jump climbing_runstate_idle_setlimb_rightfoot
 		jump climbing_main_loop_continue
-	: climbing_runstate_idle_setlimb_righthand
-		Climbing_Limb := LIMB_RIGHTHAND
-		Climbing_State := Climbing_State_MoveArm
-		jump climbing_main_loop_continue
-	: climbing_runstate_idle_setlimb_leftfoot
-		Climbing_Limb := LIMB_LEFTHAND
-		Climbing_State := Climbing_State_MoveLeg
-		jump climbing_main_loop_continue
-	: climbing_runstate_idle_setlimb_rightfoot
-		Climbing_Limb := LIMB_RIGHTHAND
-		Climbing_State := Climbing_State_MoveLeg
-		jump climbing_main_loop_continue
+		: climbing_runstate_idle_setlimb_lefthand
+			Climbing_Limb := LIMB_LEFTHAND
+			Climbing_State := Climbing_State_MoveArm
+			jump climbing_main_loop_continue
+		: climbing_runstate_idle_setlimb_righthand
+			Climbing_Limb := LIMB_RIGHTHAND
+			Climbing_State := Climbing_State_MoveArm
+			jump climbing_main_loop_continue
+		: climbing_runstate_idle_setlimb_leftfoot
+			Climbing_Limb := LIMB_LEFTHAND
+			Climbing_State := Climbing_State_MoveLeg
+			jump climbing_main_loop_continue
+		: climbing_runstate_idle_setlimb_rightfoot
+			Climbing_Limb := LIMB_RIGHTHAND
+			Climbing_State := Climbing_State_MoveLeg
+			jump climbing_main_loop_continue
 
-: climbing_runstate_movearm
-	climbing_draw_scene_hands
-	if Climbing_Limb == LIMB_LEFTHAND then climbing_setup_drawlimb_lefthand
-	if Climbing_Limb == LIMB_RIGHTHAND then climbing_setup_drawlimb_righthand
-	# i is set equal to the correct data area by the above setup functions
-	load v1
-	Climbing_X := v0
-	Climbing_Y := v1
+	: climbing_runstate_movearm
+		climbing_draw_scene_hands
+		if Climbing_Limb == LIMB_LEFTHAND then climbing_setup_drawlimb_lefthand
+		if Climbing_Limb == LIMB_RIGHTHAND then climbing_setup_drawlimb_righthand
+		# i is set equal to the correct data area by the above setup functions
+		load v1
+		Climbing_X := v0
+		Climbing_Y := v1
 
-	# Initialize before move loop
-	Climbing_DeltaX := 0
-	Climbing_DeltaY := 0
-	Climbing_State := Climbing_State_MovingLimb
-	jump climbing_main_loop_continue
-
-
-: climbing_runstate_moveleg
-	climbing_draw_scene_feet
-	if Climbing_Limb == LIMB_LEFTFOOT then climbing_setup_drawlimb_leftfoot
-	if Climbing_Limb == LIMB_RIGHTFOOT then climbing_setup_drawlimb_rightfoot
-	# i is set equal to the correct data area by the above setup functions
-	load v1
-	Climbing_X := v0
-	Climbing_Y := v1
-
-	# Initialize before move loop
-	Climbing_DeltaX := 0
-	Climbing_DeltaY := 0
-	Climbing_State := Climbing_State_MovingLimb
-	jump climbing_main_loop_continue
-
-
-: climbing_runstate_movinglimb
-	# Erase limb
-		climbing_drawlimb
-	# Adjust x/y
-		Climbing_X += Climbing_DeltaX
-		Climbing_Y += Climbing_DeltaY
-	# Apply limits
-		vF := 0x80
-		vF &= Climbing_Y
-		if vF != 0 then Climbing_Y := 1
-
-		vF := 0x40
-		vF &= Climbing_Y
-		if vF != 0 then Climbing_Y := 63
-
-		climbing_set_limits
-
-		vF := Climbing_X
-		vF -= Climbing_Limit_Left
-		if vF == 0 then Climbing_X := Climbing_Limit_Left
-
-		vF := Climbing_Limit_Right
-		vF -= Climbing_X
-		if vF == 0 then Climbing_X := Climbing_Limit_Right
-
-	# Draw limb
-		climbing_drawlimb
-
-	# Scan movement keys and adjust delta x/y
+		# Initialize before move loop
 		Climbing_DeltaX := 0
 		Climbing_DeltaY := 0
-		ifkey KEY_LEFT Climbing_DeltaX += CLIMBING_SPEED_REVERSE
-		ifkey KEY_RIGHT Climbing_DeltaX += CLIMBING_SPEED
-		ifkey KEY_UP Climbing_DeltaY += CLIMBING_SPEED_REVERSE
-		ifkey KEY_DOWN Climbing_DeltaY += CLIMBING_SPEED
-
-	# Add random jitter to the delta x/y
-		v0 := random 0b00001100
-		vF := random 0b00000001
-		jump0 climbing_randtable
-		: climbing_randtable
-		Climbing_DeltaX += vF
-		jump climbing_endrand
-		Climbing_DeltaX -= vF
-		jump climbing_endrand
-		Climbing_DeltaY += vF
-		jump climbing_endrand
-		Climbing_DeltaY -= vF
-		: climbing_endrand
-
-	# Check key to see if we are finished moving
-	if v1 == 0 then jump climbing_main_loop_continue	# skip ending keys if there wasnt a collision with the hand/foot
-	if Climbing_Limb key then Climbing_State := Climbing_State_Debounce
-
-	jump climbing_main_loop_continue
-
-
-: climbing_runstate_debounce
-	if Climbing_Limb key then jump climbing_main_loop_continue
-
-	# Save limb data to ram
-	if Climbing_Limb == LIMB_LEFTHAND then i := climbing_data_lefthand
-	if Climbing_Limb == LIMB_RIGHTHAND then i := climbing_data_righthand
-	if Climbing_Limb == LIMB_LEFTFOOT then i := climbing_data_leftfoot
-	if Climbing_Limb == LIMB_RIGHTFOOT then i := climbing_data_rightfoot
-	v0 := Climbing_X
-	v1 := Climbing_Y
-	save v1
-
-	# Clear limb
-	Climbing_Limb := LIMB_NONE
-	Climbing_State := Climbing_State_Idle
-	jump climbing_main_loop_continue
-
-
-
-
-
-
-
-: climbing_draw_scene_hands
-	clear
-# Draw score or something
-	i := spr_placeholder
-	v0 := 96
-	v1 := 0
-	sprite v0 v1 0
-	v0 += 16
-	sprite v0 v1 0
-	v0 := 96
-	v1 := 16
-	sprite v0 v1 0
-	v0 += 16
-	sprite v0 v1 0
-
-	# Draw Minimap
-	minimap_draw
-
-	# Draw holds
-	climbing_draw_holds
-
-	# Draw the initial limbs
-	climbing_draw_lefthand
-	climbing_draw_righthand
-	;
-
-: climbing_draw_scene_feet
-	clear
-# Draw score or something
-	i := spr_placeholder
-	v0 := 96
-	v1 := 0
-	sprite v0 v1 0
-	v0 += 16
-	sprite v0 v1 0
-	v0 := 96
-	v1 := 16
-	sprite v0 v1 0
-	v0 += 16
-	sprite v0 v1 0
-
-	# Draw Minimap
-	minimap_draw
-
-	# Draw holds
-	climbing_draw_holds
-
-	# Draw the initial limbs
-	climbing_draw_leftfoot
-	climbing_draw_rightfoot
-	;
-
-
-# Draws all the holds in a map tile
-# The index to the map tile is set by modifying the code
-: climbing_draw_tile_holds
-	Climbing_Draw_Idx := 0
-	loop
-		Trampoline: holds_tramp_i:=maptile
-		i += Climbing_Draw_Idx
-		load v2	# load sprite id, deltax, deltay
-	while Climbing_Draw_SprId != HOLD_END
-		Climbing_TempX += Climbing_Draw_DeltaX
-		Climbing_TempY += Climbing_Draw_DeltaY
-
-		# Check Y
-		vF := 63
-		vF &= Climbing_TempY
-		if vF != Climbing_TempY then jump climbing_draw_holds_skip
-		# Check X
-		vF := 0x80
-		vF &= Climbing_TempX
-		if vF != 0 then jump climbing_draw_holds_skip
-		vF := 96
-		vF -= Climbing_TempX
-		if vF == 0 then jump climbing_draw_holds_skip
-
-		i := spr_holds
-		i += Climbing_Draw_SprId						# i += SPR_ID (aka offset into sprites)
-		sprite Climbing_TempX Climbing_TempY Hold_Height
-		: climbing_draw_holds_skip
-		Climbing_Draw_Idx += Map_Entry_Bytes
-	again
-	;
-
-# Draws all the holds that go on the screen
-# Draws up to 4 tiles
-: climbing_draw_holds
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := vD
-	Climbing_TempY := vE
-	climbing_draw_tile_holds
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v1 += 1
-	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := vD
-	Climbing_TempY := vE
-	Climbing_TempY += 128
-	climbing_draw_tile_holds
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v0 += 1
-	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := vD
-	Climbing_TempY := vE
-	Climbing_TempX += 128
-	climbing_draw_tile_holds
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v0 += 1
-	v1 += 1
-	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := vD
-	Climbing_TempY := vE
-	Climbing_TempX += 128
-	Climbing_TempY += 128
-
-	climbing_draw_tile_holds
-
-	;
-
-
-# Does everything needed to draw the left hand/arm cold (ie not in the climbing move loop)
-# TODO: Could surely be made more compact
-: climbing_draw_lefthand
-	i := climbing_data_lefthand
-	load v1
-	Climbing_X := v0
-	Climbing_Y := v1
-	climbing_setup_drawlimb_lefthand
-	climbing_drawlimb
-	;
-
-: climbing_draw_righthand
-	i := climbing_data_righthand
-	load v1
-	Climbing_X := v0
-	Climbing_Y := v1
-	climbing_setup_drawlimb_righthand
-	climbing_drawlimb
-	;
-
-: climbing_draw_leftfoot
-	i := climbing_data_leftfoot
-	load v1
-	Climbing_X := v0
-	Climbing_Y := v1
-	climbing_setup_drawlimb_leftfoot
-	climbing_drawlimb
-	;
-
-: climbing_draw_rightfoot
-	i := climbing_data_rightfoot
-	load v1
-	Climbing_X := v0
-	Climbing_Y := v1
-	climbing_setup_drawlimb_rightfoot
-	climbing_drawlimb
-	;
-
-
-
-: climbing_drawlimb
-	Trampoline: climbing_tramp_i:=handsprite					# To be replaced with `i := <sprite addr>`
-	sprite Climbing_X Climbing_Y 8
-	v1 := vF
-	i := spr_armleg
-	Trampoline: climbing_tramp_jump_drawlimb_armleg		# To be replaced with `jump := climbing_drawlimb_[arm, leg]`
-	;
-
-: climbing_drawlimb_arm
-	v0 := Climbing_Y
-	loop
-		v0 += 8
-		vF := 63
-		vF &= v0
-		while vF == v0
-		sprite Climbing_X v0 8
-	again
-	;
-
-: climbing_drawlimb_leg
-	v0 := Climbing_Y
-	loop
-		vF := 8
-		vF -= v0
-		while vF == 0
-		v0 += -8
-		sprite Climbing_X v0 8
-	again
-	v0 <<= v0
-	v0 <<= v0
-	vF := 0
-	jump0 climbing_drawlimb_leg_remainder
-	: climbing_drawlimb_leg_remainder
-		return return
-		sprite Climbing_X vF 1 return
-		sprite Climbing_X vF 2 return
-		sprite Climbing_X vF 3 return
-		sprite Climbing_X vF 4 return
-		sprite Climbing_X vF 5 return
-		sprite Climbing_X vF 6 return
-		sprite Climbing_X vF 7 return
-
-
-# Sets the movement limits based on the current limb selection
-:	climbing_set_limits
-	# TODO: Expand to add left-right limits
-	if Climbing_Limb == LIMB_LEFTHAND then jump climbing_set_limits_lefthand				# These return to caller
-	if Climbing_Limb == LIMB_RIGHTHAND then jump climbing_set_limits_righthand
-	if Climbing_Limb == LIMB_LEFTFOOT then jump climbing_set_limits_leftfoot
-	if Climbing_Limb == LIMB_RIGHTFOOT then jump climbing_set_limits_rightfoot
-	:breakpoint Climbing_Limb_Unknown!
-	;
-
-
-### End Climbing
-
-####################
-### Title Screen ###
-####################
-:const TITLE_CHAR_WIDTH 16
-
-:const TITLE_H8_YOFFSET 17
-:const TITLE_H8_SPACING 6
-:calc TITLE_H8_XSKIP { TITLE_H8_SPACING + 16 }
-:calc TITLE_H8_XOFFSET { 64 - ( ( TITLE_CHAR_WIDTH + TITLE_H8_XSKIP ) / 2 ) }
-
-:calc TITLE_LH_XOFFSET { TITLE_H8_XOFFSET / 3 }
-:calc TITLE_LH_YOFFSET { 64 - 6 }
-:calc TITLE_RH_XOFFSET { TITLE_H8_XOFFSET + 19 }
-:calc TITLE_RH_YOFFSET { TITLE_H8_YOFFSET + 27 }
-
-
-:const TITLE_SUB_WIDTH 8
-:const TITLE_SUB_HEIGHT 5
-:const TITLE_SUB_TILES 10
-:calc TITLE_SUB_TOTAL_WIDTH { ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) - 3 } # Subtract for empty cols at end
-:calc TITLE_SUB_XOFFSET { 64 - ( TITLE_SUB_TOTAL_WIDTH / 2 ) }
-:calc TITLE_SUB_YOFFSET { TITLE_H8_YOFFSET - 10 }
-:calc TITLE_SUB_XEND { TITLE_SUB_XOFFSET + ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) }
-
-: title_draw
-	clear
-	v0 := TITLE_H8_XOFFSET
-	v1 := TITLE_H8_YOFFSET
-	draw spr_title_htop v0 v1 0
-	v1 += 16
-	draw spr_title_hbot v0 v1 0
-	v0 += TITLE_H8_XSKIP
-	draw spr_title_8bot v0 v1 0
-	v1 += -16
-	draw spr_title_8top v0 v1 0
-	Climbing_X := TITLE_LH_XOFFSET
-	Climbing_Y := TITLE_LH_YOFFSET
-	climbing_setup_drawlimb_lefthand
-	climbing_drawlimb
-	Climbing_X := TITLE_RH_XOFFSET
-	Climbing_Y := TITLE_RH_YOFFSET
-	climbing_setup_drawlimb_righthand
-	climbing_drawlimb
-
-	v1 := TITLE_SUB_XOFFSET
-	v2 := TITLE_SUB_YOFFSET
-	v0 := TITLE_SUB_HEIGHT
-	i := spr_title_sub_be
-	loop
-		sprite v1 v2 TITLE_SUB_HEIGHT
-		v1 += TITLE_SUB_WIDTH
-		i += v0
-		while v1 != TITLE_SUB_XEND
-	again
-	;
-### End Title Screen
-
-###############
-### Sprites ###
-###############
-: spr_righthand			# 8x8 px version
-0x14 0x6A 0x2B 0xAB 0xBF 0xFF 0xFF 0x7E
-
-: spr_lefthand
-0x28 0x56 0xD4 0xD5 0xFD 0xFF 0xFF 0x7E
-
-: spr_armleg
-0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C
-
-: spr_rightfoot
-0x7E 0x7F 0x00 0x00 0x00 0x00 0x00 0x00
-
-: spr_leftfoot
-0x7E 0xFE 0x00 0x00 0x00 0x00 0x00 0x00
-
-
-
-: spr_title_htop
-0x00 0x00 0x60 0x06 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xFF 0xFF 0xFF 0xFF
-
-: spr_title_hbot
-0xFF 0xFF 0xFF 0xFF 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0x60 0x06
-
-: spr_title_8top
-0x30 0x0C 0x78 0x1E 0x78 0x1E 0x30 0x0C
-0x07 0xE0 0x1F 0xF8 0x3F 0xFC 0x7F 0xFE
-0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
-
-
-: spr_title_8bot
-0x3F 0xFC 0x1F 0xF8 0x1F 0xF8 0x3F 0xFC
-0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
-0x7F 0xFE 0x3F 0xFC 0x1F 0xF8 0x07 0xE0
-
-
-# H8 - Bergsteigersimulator
-: spr_title_sub_be	0xCE 0xA8 0xCC 0xA8 0xCE # BE
-: spr_title_sub_rg	0xCE 0xA8 0xCA 0xAA 0xAE # RG
-: spr_title_sub_st 	0xEE 0x84 0xE4 0x24 0xE4 # ST
-: spr_title_sub_ei 	0xEB 0x8A 0xCA 0x8A 0xEB # EI 1/2 G
-: spr_title_sub_ge 	0xBB 0x22 0xB3 0xA2 0xBA # GE 2 col R
-: spr_title_sub_rsi 0xBA 0xA2 0x3A 0x8A 0xBA # 1 col R,SI
-: spr_title_sub_m 	0x8A 0xDA 0xAA 0x8A 0x8B # M 1/2 U
-: spr_title_sub_ula 0xA1 0xA2 0xA3 0xA2 0xBA # 1/2 u L 1/2A
-: spr_title_sub_TO	0x3B 0x92 0x92 0x92 0x93 # 1/2 A, T, 1/2 O
-: spr_title_sub_R 	0xB8 0xA8 0xB0 0xA8 0xA8 # 1/2 O, R
-
-
-
-# Intro/Outro Text
-:const Text_Height 5
-:calc text_acc { 0 }
-:macro define_text id {
-	:calc id { text_acc }
-	:calc text_acc { text_acc + Text_Height }
-}
-
-: spr_texts
-define_text SPR_TEXT_PITCH_0 : spr_text_pitch_0 0xEB 0xA9 0xE9 0x89 0x89		# "PITCH"
-define_text SPR_TEXT_PITCH_1 : spr_text_pitch_1 0xB5 0x25 0x27 0x25 0x35
-
-define_text SPR_TEXT_PAR_0 : spr_text_par_0 0xE4 0xAA 0xEE 0x8A 0x8A			# "PAR"
-define_text SPR_TEXT_PAR_1 : spr_text_par_1 0xE0 0xA0 0xE0 0xC0 0xA0
-
-define_text SPR_TEXT_GRADE_0 : spr_text_grade_0 0xEE 0x8A 0xAE 0xAC 0xEA		# "GRAD"
-define_text SPR_TEXT_GRADE_1 : spr_text_grade_1 0x4C 0xAA 0xAA 0xEA 0xAC
-
-define_text SPR_TEXT_COLON : spr_text_colon 0x00 0x80 0x00 0x80 0x00			# ":"
-
-define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
-define_text SPR_TEXT_I : spr_text_I 0x80 0x80 0x80 0x80 0x80					# "I"
-define_text SPR_TEXT_- : spr_text_- 0x00 0x00 0xE0 0x00 0x00					# "-"
-define_text SPR_TEXT_+ : spr_text_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
-define_text SPR_TEXT_X : spr_text_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
-
-define_text SPR_TEXT_DRUCKE_0 : spr_text_drucke_0 0xCE 0xAA 0xAE 0xAC 0xCA  # "DRUCKE EINE TASTE"
-define_text SPR_TEXT_DRUCKE_1 : spr_text_drucke_1 0xAD 0x09 0xA9 0xA9 0xED
-define_text SPR_TEXT_DRUCKE_2 : spr_text_drucke_2 0x5C 0x90 0x18 0x90 0x5C
-define_text SPR_TEXT_DRUCKE_3 : spr_text_drucke_3 0xEA 0x8A 0xCB 0x8A 0xEA
-define_text SPR_TEXT_DRUCKE_4 : spr_text_drucke_4 0x5C 0x50 0x58 0xD0 0x5C
-define_text SPR_TEXT_DRUCKE_5 : spr_text_drucke_5 0xE4 0x4A 0x4E 0x4A 0x4A
-define_text SPR_TEXT_DRUCKE_6 : spr_text_drucke_6 0xEE 0x84 0xE4 0x24 0xE4
-define_text SPR_TEXT_DRUCKE_7 : spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
-
-define_text SPR_TEXT_ERFOLG_0 : spr_text_erfolg_0 0xEE 0x8A 0xCE 0x8C 0xEA # "ERFOLG!"
-define_text SPR_TEXT_ERFOLG_1 : spr_text_erfolg_1 0xEE 0x8A 0xCA 0x8A 0x8E
-define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
-
-:const SPR_TEXT_END 0xFF
-
-### Climbing legal moves table
-# This is entirely from the perspective of the left arm
-:const climbing_leftright_offset 8				# Distance from limb 'root' to centroid
-:const climbing_limb_length 32						# Length of a limb
-:const climbing_hand_width 8
-:calc climbing_width { ( climbing_leftright_offset * 2 ) + ( climbing_limb_length * 2 ) }			# The full width of the visible play area
-:calc climbing_center { ( climbing_width / 2 ) + 10 }
-:calc climbing_left { climbing_center - ( climbing_width / 2 ) }
-:calc climbing_right { climbing_center + ( climbing_width / 2 ) }
-
-# Creates 1 line of the table, limits are adjusted by left-cut right-cut (not absolute)
-:macro climbing_table_entry left-cut right-cut {
-	:calc left-lim { climbing_left + left-cut }			# Calc limits
-	:calc right-lim { ( ( climbing_right - right-cut ) - ( climbing_leftright_offset * 3 ) ) - climbing_hand_width }
-	:byte left-lim :byte right-lim												# Output bytes
-}
-
-# In: v0 = y-coordinate
-# Out: v0 = left-limit, v1 = right limit
-:macro climbing_limit_lookup {
-	v0 <<= v0
-	i := climbing_limit_table
-	i += v0
-	load v1
-}
-
-: climbing_set_limits_lefthand
-	v0 := Climbing_Y
-	climbing_limit_lookup
-	Climbing_Limit_Left := v0
-	Climbing_Limit_Right := v1
-	;
-
-: climbing_set_limits_righthand
-	v0 := Climbing_Y
-	climbing_limit_lookup
-	:calc lim { 127 - ( climbing_hand_width * 2 ) }
-	Climbing_Limit_Left := lim
-	Climbing_Limit_Left -= v1
-	Climbing_Limit_Right := lim
-	Climbing_Limit_Right -= v0
-	;
-
-: climbing_set_limits_leftfoot
-	v0 := 63
-	v0 -= Climbing_Y
-	climbing_limit_lookup
-	Climbing_Limit_Left := v0
-	Climbing_Limit_Right := v1
-	;
-
-: climbing_set_limits_rightfoot
-	v0 := 63
-	v0 -= Climbing_Y
-	climbing_limit_lookup
-	Climbing_Limit_Left := 127
-	Climbing_Limit_Left -= v1
-	Climbing_Limit_Right := 127
-	Climbing_Limit_Right -= v0
-	;
-
-
-: climbing_limit_table
-# Given a Y coordinate, return the X limits. Numbers given are the pixels 'cut out'
-# from the edge, but the table is actually filled with raw screen x coordinates
-	climbing_table_entry 17 17		#  0
-	climbing_table_entry 14 14		#  1
-	climbing_table_entry 12 12		#  2
-	climbing_table_entry 10 10		#  3
-	climbing_table_entry  9  9		#  4
-	climbing_table_entry  8  8		#  5
-	climbing_table_entry  7  7		#  6
-	climbing_table_entry  6  6		#  7
-	climbing_table_entry  5  5		#  8
-	climbing_table_entry  4  4		#  9
-	climbing_table_entry  4  4		# 10
-	climbing_table_entry  3  3		# 11
-	climbing_table_entry  3  3		# 12
-	climbing_table_entry  2  2		# 13
-	climbing_table_entry  2  2		# 14
-	climbing_table_entry  2  2		# 15
-	climbing_table_entry  1  1		# 16
-	climbing_table_entry  1  1		# 17
-	climbing_table_entry  1  1		# 18
-	climbing_table_entry  1  1		# 19
-	climbing_table_entry  0  0		# 20
-	climbing_table_entry  0  0		# 21
-	climbing_table_entry  0  0		# 22
-	climbing_table_entry  0  0		# 23
-	climbing_table_entry  0  0		# 24
-	climbing_table_entry  0  0		# 25
-	climbing_table_entry  0  0		# 26
-	climbing_table_entry  0  0		# 27
-	climbing_table_entry  0  0		# 28
-	climbing_table_entry  0  0		# 29
-	climbing_table_entry  0  0		# 30
-	climbing_table_entry  0  0		# 31
-	climbing_table_entry  0  0		# 32
-	climbing_table_entry  0  0		# 33
-	climbing_table_entry  0  0		# 34
-	climbing_table_entry  0  0		# 35
-	climbing_table_entry  0  0		# 36
-	climbing_table_entry  0  0		# 37
-	climbing_table_entry  0  0		# 38
-	climbing_table_entry  0  0		# 39
-	climbing_table_entry  0  0		# 40
-	climbing_table_entry  0  0		# 41
-	climbing_table_entry  0  0		# 42
-	climbing_table_entry  0  0		# 43
-	climbing_table_entry  0  0		# 44
-	climbing_table_entry  0  0		# 45
-	climbing_table_entry  0  0		# 46
-	climbing_table_entry  0  0		# 47
-	climbing_table_entry  0  0		# 48
-	climbing_table_entry  0  0		# 49
-	climbing_table_entry  0  0		# 50
-	climbing_table_entry  0  0		# 51
-	climbing_table_entry  0  0		# 52
-	climbing_table_entry  0  0		# 53
-	climbing_table_entry  0  0		# 54
-	climbing_table_entry  1  1		# 55
-	climbing_table_entry  1  1		# 56
-	climbing_table_entry  1  1		# 57
-	climbing_table_entry  2  2		# 58
-	climbing_table_entry  2  2		# 59
-	climbing_table_entry  3  3		# 60
-	climbing_table_entry  4  4		# 61
-	climbing_table_entry  6  6		# 62
-	climbing_table_entry  9  9		# 63
-
-
-### Level Map
-
-:macro maptile-reset {
-	Climbing_TempX := 0
-	Climbing_TempX -= Climbing_X
-	Climbing_TempY := 0
-	Climbing_TempY -= Climbing_Y
-	:calc maptile-lastx { 0 }
-	:calc maptile-lasty { 0 }
-}
-
-:macro maptile-entry x y sprite-addr {
-	i := sprite-addr
-	:calc maptile-deltax { x - maptile-lastx }
-	:calc maptile-lastx { x }
-	:calc maptile-deltay { y - maptile-lasty }
-	:calc maptile-lasty { y }
-
-	Climbing_TempX += maptile-deltax
-	Climbing_TempY += maptile-deltay
-
-	climbing_map_check_limits_and_sprite
-}
-
-: climbing_map_check_limits_and_sprite
-	v0 := 0
-	# Check Y limit
-	vF := 0xC0
-	vF &= Climbing_TempY
-	if vF != 0 then return
-
-	# Check X limits
-	vF := 96
-	vF =- Climbing_TempX
-	if vF != 0 then return
-	vF := 16
-	vF =- Climbing_TempX
-	if vF != 0 then sprite Climbing_TempX Climbing_TempY Hold_Height
-	;
-
-
-## Tiles
-# Tiles are 128x128
-# Climbing_X, Climbing_Y are the offset into the map
-#
-
-# Clears the minimap accumulator bytes
-:macro minimap_reset {
-	:calc minimap0 { 0 } :calc minimap1 { 0 } :calc minimap2 { 0 } :calc minimap3 { 0 }
-	:calc minimap4 { 0 } :calc minimap5 { 0 } :calc minimap6 { 0 } :calc minimap7 { 0 }
-}
-# Adds a dot to the minimap at the location of the hold
-# w is the width, used to offset the dot slightly (probably pointless really)
-:macro minimap_addpoint x y w {
-	:calc mm-x-offset { x + ( w / 2 ) }
-	:calc mm-y-offset { y + ( Hold_Height / 2 ) }
-	:calc mm-x { ( mm-x-offset + 7 ) / 16 }
-	:calc mm-y { ( mm-y-offset + 7 ) / 16 }
-	:calc mm-xbit { 1 << mm-x }
-	:calc mm-ybit { 1 << mm-y }
-	:calc mm0 { 0xFF * ( ( ( mm-ybit & ( 1 << 0 ) ) / ( 1 << 0 ) ) ) }
-	:calc mm1 { 0xFF * ( ( ( mm-ybit & ( 1 << 1 ) ) / ( 1 << 1 ) ) ) }
-	:calc mm2 { 0xFF * ( ( ( mm-ybit & ( 1 << 2 ) ) / ( 1 << 2 ) ) ) }
-	:calc mm3 { 0xFF * ( ( ( mm-ybit & ( 1 << 3 ) ) / ( 1 << 3 ) ) ) }
-	:calc mm4 { 0xFF * ( ( ( mm-ybit & ( 1 << 4 ) ) / ( 1 << 4 ) ) ) }
-	:calc mm5 { 0xFF * ( ( ( mm-ybit & ( 1 << 5 ) ) / ( 1 << 5 ) ) ) }
-	:calc mm6 { 0xFF * ( ( ( mm-ybit & ( 1 << 6 ) ) / ( 1 << 6 ) ) ) }
-	:calc mm7 { 0xFF * ( ( ( mm-ybit & ( 1 << 7 ) ) / ( 1 << 7 ) ) ) }
-	:calc minimap0 { minimap0 | ( mm-xbit & mm0 ) }
-	:calc minimap1 { minimap1 | ( mm-xbit & mm1 ) }
-	:calc minimap2 { minimap2 | ( mm-xbit & mm2 ) }
-	:calc minimap3 { minimap3 | ( mm-xbit & mm3 ) }
-	:calc minimap4 { minimap4 | ( mm-xbit & mm4 ) }
-	:calc minimap5 { minimap5 | ( mm-xbit & mm5 ) }
-	:calc minimap6 { minimap6 | ( mm-xbit & mm6 ) }
-	:calc minimap7 { minimap6 | ( mm-xbit & mm7 ) }
-}
-
-# Emits the bytes of the minimap to memory. This uses `:org` to place the data
-# in a predetermined location
-# `Minimap_Address` sets the base address of the minimap, tile-x and tile-y
-# are the tile ID #s of the minimap (to locate the correct place in memory)
-# Currently outputs a seconnd minimap tile with an 'X' superimposed to indicate
-# the current map tile, since I thought XORing would be awkward.
-# TODO: Try XORing a sprite onto the map at runtime
-:macro minimap_output tile-x tile-y {
-		:calc old-here { HERE }
-		:calc addr { Minimap_Address + ( tile-y * Minimap_Bytes * Map_Width ) + ( tile-x * Minimap_Bytes ) }
-		:org addr
-		:byte minimap0
-		:byte minimap1
-		:byte minimap2
-		:byte minimap3
-		:byte minimap4
-		:byte minimap5
-		:byte minimap6
-		:byte minimap7
-#		:calc minimap2 { minimap2 | 0b00100100 }
-#		:calc minimap3 { minimap3 | 0b00011000 }
-#		:calc minimap4 { minimap4 | 0b00011000 }
-#		:calc minimap5 { minimap5 | 0b00100100 }
-#		:byte minimap0
-#		:byte minimap1
-#		:byte minimap2
-#		:byte minimap3
-#		:byte minimap4
-#		:byte minimap5
-#		:byte minimap6
-#		:byte minimap7
-		:org old-here
-}
-
-# Emit the address of the current location in the map index
-# Call this at the address of each map tile
-:macro map_index_output tile-x tile-y {
-	:calc old-here { HERE }
-	hilo old-here
-	:calc addr { Map_Index_Address + ( tile-y * 2 * Map_Width ) + ( tile-x * 2 ) }
-	:org addr
-	:byte hi :byte lo
-	:org old-here
-}
-
-# Intended to reset any offsets/etc needed when creating the map
-:macro map_begin {
-}
-
-:macro map_end {
-
-}
-# Begin a new tile of the map
-:macro map_begintile x y {
-	minimap_reset
-	:calc maptile_x { x }
-	:calc maptile_y { y }
-	:calc map_x { 0 }
-	:calc map_y { 0 }
-	map_index_output x y
-}
-
-# Add a hold to the map tile
-# x, y are offsets into the tile,
-# w is the width of the tile
-# This fills the table with the delta between this hold and the previous
-# so that the sprite index registers can be incrementally changed, saving an instruction
-:macro map_entry spr_id x y w {
-	:byte spr_id
-	:calc x-delta { x - map_x }
-	:byte x-delta
-	:calc map_x { x }
-	:calc y-delta { y - map_y }
-	:byte y-delta
-	:calc map_y { y }
-	minimap_addpoint x y w
-}
-
-# Finish this tile of the map.
-# Emits the END sigil and outputs the minimap.
-:macro map_endtile {
-	:byte HOLD_END
-	minimap_output maptile_x maptile_y
-}
-
-######################
-### Map Definition ###
-######################
-
-:const Player_Start_TileX 4
-:const Player_Start_TileY 4
-:const Player_Start_LeftHand_X 10
-:const Player_Start_LeftHand_Y 50
-:const Player_Start_RightHand_X 50
-:const Player_Start_RightHand_Y 50
-:const Player_Start_LeftFoot_X 10
-:const Player_Start_LeftFoot_Y 5
-:const Player_Start_RightFoot_X 50
-:const Player_Start_RightFoot_Y 5
-
-map_begin
-: maptile_0_4
-	map_begintile 0 4
-	map_entry HOLD_3X3  0  0 3
-	map_entry HOLD_3X3  0 10 3
-	map_entry HOLD_3X3 10 10 3
-	map_entry HOLD_3X3 10  0 3
-	map_entry HOLD_3X3 40 40 3
-	map_entry HOLD_3X3 40 60 3
-	map_entry HOLD_3X3 40 80 3
-	map_entry HOLD_3X3 80 40 3
-	map_entry HOLD_3X3 80 60 3
-	map_entry HOLD_3X3 80 90 3
-	map_entry HOLD_3X3 100 60 3
-	map_entry HOLD_3X3 100 90 3
-	map_entry HOLD_3X3 100 40 3
-	map_entry HOLD_3X3 120 0 3
-	map_entry HOLD_3X3 0 120 3
-	map_entry HOLD_3X3 120 120 3
-
-	map_endtile
-
-: maptile_0_1
-	map_begintile 0 1
-	map_entry HOLD_3X4  0  0 4
-	map_entry HOLD_3X4  0 10 4
-	map_entry HOLD_3X4 10 10 4
-	map_entry HOLD_3X4 10  0 4
-	map_entry HOLD_3X4 40 40 4
-	map_entry HOLD_3X4 40 60 4
-	map_entry HOLD_3X4 40 80 4
-	map_entry HOLD_3X4 80 40 4
-	map_entry HOLD_3X4 80 60 4
-	map_entry HOLD_3X4 80 90 4
-	map_entry HOLD_3X4 100 60 4
-	map_entry HOLD_3X4 100 90 4
-	map_entry HOLD_3X4 100 40 4
-	map_entry HOLD_3X4 120 0 4
-	map_entry HOLD_3X4 0 120 4
-	map_entry HOLD_3X4 120 120 4
-	map_endtile
-
-: maptile_0_2
-	map_begintile 0 2
-	map_entry HOLD_3X4 110 30 4
-	map_entry HOLD_3X3 110 80 3
-	map_entry HOLD_3X3 110 90 3
-	map_endtile
-
-: maptile_0_3
-	map_begintile 0 3
-	map_entry HOLD_3X4 10 50 4
-	map_entry HOLD_3X3 30 50 3
-	map_entry HOLD_3X3 40 50 3
-	map_entry HOLD_3X4 10 80 4
-	map_entry HOLD_3X3 30 80 3
-	map_entry HOLD_3X3 40 80 3
-	map_endtile
-
-: maptile_1_0
-	map_begintile 1 0
-	map_entry HOLD_3X5  0  0 5
-	map_entry HOLD_3X5  0 10 5
-	map_entry HOLD_3X5 10 10 5
-	map_entry HOLD_3X5 10  0 5
-	map_entry HOLD_3X5 40 40 5
-	map_entry HOLD_3X5 40 60 5
-	map_entry HOLD_3X5 40 80 5
-	map_entry HOLD_3X5 80 40 5
-	map_entry HOLD_3X5 80 60 5
-	map_entry HOLD_3X5 80 90 5
-	map_entry HOLD_3X5 100 60 5
-	map_entry HOLD_3X5 100 90 5
-	map_entry HOLD_3X5 100 40 5
-	map_entry HOLD_3X5 120 0 5
-	map_entry HOLD_3X5 0 120 5
-	map_entry HOLD_3X5 120 120 5
-	map_endtile
-
-: maptile_1_2
-	map_begintile 1 2
-	map_entry HOLD_3X6  0  0 6
-	map_entry HOLD_3X6  0 10 6
-	map_entry HOLD_3X6 10 10 6
-	map_entry HOLD_3X6 10  0 6
-	map_entry HOLD_3X6 40 40 6
-	map_entry HOLD_3X6 40 60 6
-	map_entry HOLD_3X6 40 80 6
-	map_entry HOLD_3X6 80 40 6
-	map_entry HOLD_3X6 80 60 6
-	map_entry HOLD_3X6 80 90 6
-	map_entry HOLD_3X6 100 60 6
-	map_entry HOLD_3X6 100 90 6
-	map_entry HOLD_3X6 100 40 6
-	map_entry HOLD_3X6 120 0 6
-	map_entry HOLD_3X6 0 120 6
-	map_entry HOLD_3X6 120 120 6
-	map_endtile
-
-: maptile_3_3
-	map_begintile 3 3
-	map_entry HOLD_3X3 30 30 3
-	map_endtile
-
-: maptile_2_15
-	map_begintile 2 15
-	map_entry HOLD_3X5 30 30 5
-	map_entry HOLD_3X5 30 60 5
-	map_entry HOLD_3X6 60 30 6
-	map_entry HOLD_3X6 60 60 6
-	map_entry HOLD_3X7 90 30 7
-	map_entry HOLD_3X7 90 60 7
-	map_entry HOLD_3X8 120 30 8
-	map_entry HOLD_3X8 120 60 8
-
-	map_endtile
-
-: maptile_0_0  # Ground
-	map_begintile 0 0
-	map_endtile
-map_end
-
-# Special empty tile for uninitialized map tiles
-: maptile_empty
-	:byte HOLD_END
-
-##########################
-### End Map Definition ###
-##########################
-
-
-# Draw the minimap to the screen
-# TODO: This doesn't take into account the current location on the map, just a test as is
-:calc Minimap_X_Offset { 128 - 32 }
-:calc Minimap_Y_Offset { 32 }
-:calc Minimap_Stride { ( Minimap_Bytes * Map_Width ) - ( Minimap_Bytes * 4 ) }
-: minimap_draw
-	i := Minimap_Address
-	v0 := Minimap_X_Offset
-	v1 := Minimap_Y_Offset
-	:calc minimap-x-end { Minimap_X_Offset + ( 8 * 4 ) }
-	:calc minimap-y-end { Minimap_Y_Offset + ( 8 * 4 ) }
-	loop
-		while v1 != minimap-y-end
-		loop
-			while v0 != minimap-x-end
-			sprite v0 v1 8
-			vF := Minimap_Bytes
-			i += vF
-			v0 += 8
-		again
-		vF := Minimap_Stride
-		i += vF
-		v0 := Minimap_X_Offset
-		v1 += 8
-	again
-	;
-
-: spr_placeholder
-0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
-0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
-0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
-0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
-
-
-:calc Inter_Pitch_Y { 10 }
-:calc Inter_Grade_Y { 20 }
-:calc Inter_Par_Y { 30 }
-:calc Inter_PressKey_Y { 55 }
-:calc Inter_PressKey_X { 12 }
-:macro text_entry spr-id x y {
-	:byte spr-id :byte x :byte y
-}
-
-: intro_all
-	text_entry SPR_TEXT_PITCH_0  6  Inter_Pitch_Y
-	text_entry SPR_TEXT_PITCH_1 14  Inter_Pitch_Y
-	text_entry SPR_TEXT_GRADE_0  6  Inter_Grade_Y
-	text_entry SPR_TEXT_GRADE_1 14  Inter_Grade_Y
-	text_entry SPR_TEXT_COLON   22  Inter_Grade_Y
-	text_entry SPR_TEXT_PAR_0		 6 Inter_Par_Y
-	text_entry SPR_TEXT_PAR_1		14 Inter_Par_Y
-	text_entry SPR_TEXT_COLON   18 Inter_Par_Y
-	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
-	:byte SPR_TEXT_END
-
-:calc Outro_Erfolg_X { 35 }
-:calc Outro_Erfolg_Y { 12 }
-: outro_all
-	text_entry SPR_TEXT_ERFOLG_0 Outro_Erfolg_X Outro_Erfolg_Y
-	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
-	text_entry SPR_TEXT_ERFOLG_1 Outro_Erfolg_X Outro_Erfolg_Y
-	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
-	text_entry SPR_TEXT_ERFOLG_2 Outro_Erfolg_X Outro_Erfolg_Y
-	:byte SPR_TEXT_END
-
-# Intro text specific to pitch 0
-: intro_0
-	:byte SPR_TEXT_END
-	;
-
-
-# Draw all the items in the list for this intro screen
-: intro_draw
-	clear
-	v3 := 0
-	loop
-		i := outro_all
-		i += v3
-		load v2
-	while v0 != SPR_TEXT_END
-		i := spr_texts
-		i += v0
-		sprite v1 v2 Text_Height
-		v3 += 3
-	again
-	minimap_draw
-	;
-
-# Waits for a keypress, then waits until no keys are pressed
-: wait_any_key_plus_debounce
-	v0 := 0
-	loop
-		while v0 -key
-		v0 += 1
-		if v0 == 16 then v0 := 0
-	again
-	loop
-		v0 := 0
-		v1 := 0
-		loop
-			while v0 != 16
-			if v0 key then v1 := 1
-			v0 += 1
-		again
-	while v1 != 0
-	again
-	;
-
-
-:const Wipe_Delay 1
-: wipe
-	v0 := 0
-	v1 := random 1
-	loop
-		vF := Wipe_Delay
-		delay := vF
-		if v1 == 0 then wipe_left
-		if v1 != 0 then wipe_right
-		v0 += 12
-	while v0 != 128
-		loop
-			vF := delay
-		while vF != 0
-		again
-	again
-	;
-
-: wipe_left
-	scroll-left
-	scroll-left
-	scroll-left
-	;
-
-: wipe_right
-	scroll-right
-	scroll-right
-	scroll-right
-	;
-
-:const Clock_X 100
-:const Clock_Y 2
-:const Clock_Width 6
-: clock_draw
-	v0 := vE
-	v3 := Clock_X
-	v4 := Clock_Y
-	draw_decimal
-	v3 += 6
-	i := spr_text_colon
-	sprite v3 v4 5
-	v3 += 3
-	v0 := vD
-	draw_decimal
-	;
-
-# In:
-# v0 = value
-# v3 = x
-# v4 = y
-: bcd_dest 0 0 0
-: draw_decimal
-	i := bcd_dest
-	bcd v0
-	load v2
-	i := hex v1
-	sprite v3 v4 5
-	i := hex v2
-	v3 += 6
-	sprite v3 v4 5
-	;
-
-
-: clock_test
-	vE := 0
-	vD := 0
-	loop
-		vF := 60
-		delay := vF
+		Climbing_State := Climbing_State_MovingLimb
+		jump climbing_main_loop_continue
+
+
+	: climbing_runstate_moveleg
+		climbing_draw_scene_feet
+		if Climbing_Limb == LIMB_LEFTFOOT then climbing_setup_drawlimb_leftfoot
+		if Climbing_Limb == LIMB_RIGHTFOOT then climbing_setup_drawlimb_rightfoot
+		# i is set equal to the correct data area by the above setup functions
+		load v1
+		Climbing_X := v0
+		Climbing_Y := v1
+
+		# Initialize before move loop
+		Climbing_DeltaX := 0
+		Climbing_DeltaY := 0
+		Climbing_State := Climbing_State_MovingLimb
+		jump climbing_main_loop_continue
+
+
+	: climbing_runstate_movinglimb
+		# Erase limb
+			climbing_drawlimb
+		# Adjust x/y
+			Climbing_X += Climbing_DeltaX
+			Climbing_Y += Climbing_DeltaY
+		# Apply limits
+			vF := 0x80
+			vF &= Climbing_Y
+			if vF != 0 then Climbing_Y := 1
+
+			vF := 0x40
+			vF &= Climbing_Y
+			if vF != 0 then Climbing_Y := 63
+
+			climbing_set_limits
+
+			vF := Climbing_X
+			vF -= Climbing_Limit_Left
+			if vF == 0 then Climbing_X := Climbing_Limit_Left
+
+			vF := Climbing_Limit_Right
+			vF -= Climbing_X
+			if vF == 0 then Climbing_X := Climbing_Limit_Right
+
+		# Draw limb
+			climbing_drawlimb
+
+		# Scan movement keys and adjust delta x/y
+			Climbing_DeltaX := 0
+			Climbing_DeltaY := 0
+			ifkey KEY_LEFT Climbing_DeltaX += CLIMBING_SPEED_REVERSE
+			ifkey KEY_RIGHT Climbing_DeltaX += CLIMBING_SPEED
+			ifkey KEY_UP Climbing_DeltaY += CLIMBING_SPEED_REVERSE
+			ifkey KEY_DOWN Climbing_DeltaY += CLIMBING_SPEED
+
+		# Add random jitter to the delta x/y
+			v0 := random 0b00001100
+			vF := random 0b00000001
+			jump0 climbing_randtable
+			: climbing_randtable
+			Climbing_DeltaX += vF
+			jump climbing_endrand
+			Climbing_DeltaX -= vF
+			jump climbing_endrand
+			Climbing_DeltaY += vF
+			jump climbing_endrand
+			Climbing_DeltaY -= vF
+			: climbing_endrand
+
+		# Check key to see if we are finished moving
+		if v1 == 0 then jump climbing_main_loop_continue	# skip ending keys if there wasnt a collision with the hand/foot
+		if Climbing_Limb key then Climbing_State := Climbing_State_Debounce
+
+		jump climbing_main_loop_continue
+
+
+	: climbing_runstate_debounce
+		if Climbing_Limb key then jump climbing_main_loop_continue
+
+		# Save limb data to ram
+		if Climbing_Limb == LIMB_LEFTHAND then i := climbing_data_lefthand
+		if Climbing_Limb == LIMB_RIGHTHAND then i := climbing_data_righthand
+		if Climbing_Limb == LIMB_LEFTFOOT then i := climbing_data_leftfoot
+		if Climbing_Limb == LIMB_RIGHTFOOT then i := climbing_data_rightfoot
+		v0 := Climbing_X
+		v1 := Climbing_Y
+		save v1
+
+		# Clear limb
+		Climbing_Limb := LIMB_NONE
+		Climbing_State := Climbing_State_Idle
+		jump climbing_main_loop_continue
+
+
+
+
+
+
+
+	: climbing_draw_scene_hands
 		clear
-		clock_draw
+	# Draw score or something
+		i := spr_placeholder
+		v0 := 96
+		v1 := 0
+		sprite v0 v1 0
+		v0 += 16
+		sprite v0 v1 0
+		v0 := 96
+		v1 := 16
+		sprite v0 v1 0
+		v0 += 16
+		sprite v0 v1 0
+
+		# Draw Minimap
+		minimap_draw
+
+		# Draw holds
+		climbing_draw_holds
+
+		# Draw the initial limbs
+		climbing_draw_lefthand
+		climbing_draw_righthand
+		;
+
+	: climbing_draw_scene_feet
+		clear
+	# Draw score or something
+		i := spr_placeholder
+		v0 := 96
+		v1 := 0
+		sprite v0 v1 0
+		v0 += 16
+		sprite v0 v1 0
+		v0 := 96
+		v1 := 16
+		sprite v0 v1 0
+		v0 += 16
+		sprite v0 v1 0
+
+		# Draw Minimap
+		minimap_draw
+
+		# Draw holds
+		climbing_draw_holds
+
+		# Draw the initial limbs
+		climbing_draw_leftfoot
+		climbing_draw_rightfoot
+		;
+
+
+	# Draws all the holds in a map tile
+	# The index to the map tile is set by modifying the code
+	: climbing_draw_tile_holds
+		Climbing_Draw_Idx := 0
 		loop
-			vF := delay
-		while vF != 0
+			Trampoline: holds_tramp_i:=maptile
+			i += Climbing_Draw_Idx
+			load v2	# load sprite id, deltax, deltay
+		while Climbing_Draw_SprId != HOLD_END
+			Climbing_TempX += Climbing_Draw_DeltaX
+			Climbing_TempY += Climbing_Draw_DeltaY
+
+			# Check Y
+			vF := 63
+			vF &= Climbing_TempY
+			if vF != Climbing_TempY then jump climbing_draw_holds_skip
+			# Check X
+			vF := 0x80
+			vF &= Climbing_TempX
+			if vF != 0 then jump climbing_draw_holds_skip
+			vF := 96
+			vF -= Climbing_TempX
+			if vF == 0 then jump climbing_draw_holds_skip
+
+			i := spr_holds
+			i += Climbing_Draw_SprId						# i += SPR_ID (aka offset into sprites)
+			sprite Climbing_TempX Climbing_TempY Hold_Height
+			: climbing_draw_holds_skip
+			Climbing_Draw_Idx += Map_Entry_Bytes
 		again
-		vD += 1
-		if vD == 60 then vE += 1
-		if vD == 60 then vD := 0
-		if vE == 100 then vD := 59
-		if vE == 100 then VE := 99
-	again
-	;
+		;
 
-### Stuff that has to come after sprite declarations
-: climbing_setup_drawlimb_lefthand
-	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_lefthand
-	Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_arm
-	i := climbing_data_lefthand
-	;
+	# Draws all the holds that go on the screen
+	# Draws up to 4 tiles
+	: climbing_draw_holds
+		v0 := Climbing_TileX
+		v1 := Climbing_TileY
+		climbing_setup_draw_holds		# Setup the tile trampoline
+		Climbing_TempX := 0
+		Climbing_TempX -= Climbing_X
+		Climbing_TempY := 0
+		Climbing_TempY -= Climbing_Y
+		climbing_draw_tile_holds
 
-: climbing_setup_drawlimb_righthand
-	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_righthand
-	Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_arm
-	i := climbing_data_righthand
-	;
+		v0 := Climbing_TileX
+		v1 := Climbing_TileY
+		v1 += 1
+		climbing_setup_draw_holds		# Setup the tile trampoline
+		Climbing_TempX := 0
+		Climbing_TempX -= Climbing_X
+		Climbing_TempY := 0
+		Climbing_TempY -= Climbing_Y
+		Climbing_TempY += 128
+		climbing_draw_tile_holds
 
-: climbing_setup_drawlimb_leftfoot
-	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_leftfoot
-	Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_leg
-	i := climbing_data_leftfoot
-	;
+		v0 := Climbing_TileX
+		v1 := Climbing_TileY
+		v0 += 1
+		climbing_setup_draw_holds		# Setup the tile trampoline
+		Climbing_TempX := 0
+		Climbing_TempX -= Climbing_X
+		Climbing_TempY := 0
+		Climbing_TempY -= Climbing_Y
+		Climbing_TempX += 128
+		climbing_draw_tile_holds
 
-: climbing_setup_drawlimb_rightfoot
-	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_rightfoot
-	Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_leg
-	i := climbing_data_rightfoot
-	;
+		v0 := Climbing_TileX
+		v1 := Climbing_TileY
+		v0 += 1
+		v1 += 1
+		climbing_setup_draw_holds		# Setup the tile trampoline
+		Climbing_TempX := 0
+		Climbing_TempX -= Climbing_X
+		Climbing_TempY := 0
+		Climbing_TempY -= Climbing_Y
+		Climbing_TempX += 128
+		Climbing_TempY += 128
 
-# Setup the hold drawing i:=maptile based on
-# v0: X tile
-# v1: Y tile
-# TODO: Inline this
-: climbing_setup_draw_holds
-	i := Map_Index_Address
-	:calc mapindex-stride { 2 * Map_Width }
-	vF := mapindex-stride
-	loop
-	while v1 != 0
-		i += vF
-		v1 += -1
-	again
-	v0 <<= v0
-	i += v0
-	load v1
-	vF := v0
-	vF |= v1
-	if vF == 0 then jump climbing_setup_draw_holds_none
-	Trampoline-Set-I-v0v1 holds_tramp_i:=maptile
-	;
-: climbing_setup_draw_holds_none
-	Trampoline-Set-I-Const holds_tramp_i:=maptile maptile_empty
-	;
+		climbing_draw_tile_holds
+
+		;
+
+
+	# Does everything needed to draw the left hand/arm cold (ie not in the climbing move loop)
+	# TODO: Could surely be made more compact
+	: climbing_draw_lefthand
+		i := climbing_data_lefthand
+		load v1
+		Climbing_X := v0
+		Climbing_Y := v1
+		climbing_setup_drawlimb_lefthand
+		climbing_drawlimb
+		;
+
+	: climbing_draw_righthand
+		i := climbing_data_righthand
+		load v1
+		Climbing_X := v0
+		Climbing_Y := v1
+		climbing_setup_drawlimb_righthand
+		climbing_drawlimb
+		;
+
+	: climbing_draw_leftfoot
+		i := climbing_data_leftfoot
+		load v1
+		Climbing_X := v0
+		Climbing_Y := v1
+		climbing_setup_drawlimb_leftfoot
+		climbing_drawlimb
+		;
+
+	: climbing_draw_rightfoot
+		i := climbing_data_rightfoot
+		load v1
+		Climbing_X := v0
+		Climbing_Y := v1
+		climbing_setup_drawlimb_rightfoot
+		climbing_drawlimb
+		;
+
+
+
+	: climbing_drawlimb
+		Trampoline: climbing_tramp_i:=handsprite					# To be replaced with `i := <sprite addr>`
+		sprite Climbing_X Climbing_Y 8
+		v1 := vF
+		i := spr_armleg
+		Trampoline: climbing_tramp_jump_drawlimb_armleg		# To be replaced with `jump := climbing_drawlimb_[arm, leg]`
+		;
+
+	: climbing_drawlimb_arm
+		v0 := Climbing_Y
+		loop
+			v0 += 8
+			vF := 63
+			vF &= v0
+			while vF == v0
+			sprite Climbing_X v0 8
+		again
+		;
+
+	: climbing_drawlimb_leg
+		v0 := Climbing_Y
+		loop
+			vF := 8
+			vF -= v0
+			while vF == 0
+			v0 += -8
+			sprite Climbing_X v0 8
+		again
+		v0 <<= v0
+		v0 <<= v0
+		vF := 0
+		jump0 climbing_drawlimb_leg_remainder
+		: climbing_drawlimb_leg_remainder
+			return return
+			sprite Climbing_X vF 1 return
+			sprite Climbing_X vF 2 return
+			sprite Climbing_X vF 3 return
+			sprite Climbing_X vF 4 return
+			sprite Climbing_X vF 5 return
+			sprite Climbing_X vF 6 return
+			sprite Climbing_X vF 7 return
+
+
+	# Sets the movement limits based on the current limb selection
+	:	climbing_set_limits
+		# TODO: Expand to add left-right limits
+		if Climbing_Limb == LIMB_LEFTHAND then jump climbing_set_limits_lefthand				# These return to caller
+		if Climbing_Limb == LIMB_RIGHTHAND then jump climbing_set_limits_righthand
+		if Climbing_Limb == LIMB_LEFTFOOT then jump climbing_set_limits_leftfoot
+		if Climbing_Limb == LIMB_RIGHTFOOT then jump climbing_set_limits_rightfoot
+		:breakpoint Climbing_Limb_Unknown!
+		;
+
+
+	### End Climbing
+
+	####################
+	### Title Screen ###
+	####################
+	:const TITLE_CHAR_WIDTH 16
+
+	:const TITLE_H8_YOFFSET 17
+	:const TITLE_H8_SPACING 6
+	:calc TITLE_H8_XSKIP { TITLE_H8_SPACING + 16 }
+	:calc TITLE_H8_XOFFSET { 64 - ( ( TITLE_CHAR_WIDTH + TITLE_H8_XSKIP ) / 2 ) }
+
+	:calc TITLE_LH_XOFFSET { TITLE_H8_XOFFSET / 3 }
+	:calc TITLE_LH_YOFFSET { 64 - 6 }
+	:calc TITLE_RH_XOFFSET { TITLE_H8_XOFFSET + 19 }
+	:calc TITLE_RH_YOFFSET { TITLE_H8_YOFFSET + 27 }
+
+
+	:const TITLE_SUB_WIDTH 8
+	:const TITLE_SUB_HEIGHT 5
+	:const TITLE_SUB_TILES 10
+	:calc TITLE_SUB_TOTAL_WIDTH { ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) - 3 } # Subtract for empty cols at end
+	:calc TITLE_SUB_XOFFSET { 64 - ( TITLE_SUB_TOTAL_WIDTH / 2 ) }
+	:calc TITLE_SUB_YOFFSET { TITLE_H8_YOFFSET - 10 }
+	:calc TITLE_SUB_XEND { TITLE_SUB_XOFFSET + ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) }
+
+	: title_draw
+		clear
+		v0 := TITLE_H8_XOFFSET
+		v1 := TITLE_H8_YOFFSET
+		draw spr_title_htop v0 v1 0
+		v1 += 16
+		draw spr_title_hbot v0 v1 0
+		v0 += TITLE_H8_XSKIP
+		draw spr_title_8bot v0 v1 0
+		v1 += -16
+		draw spr_title_8top v0 v1 0
+		Climbing_X := TITLE_LH_XOFFSET
+		Climbing_Y := TITLE_LH_YOFFSET
+		climbing_setup_drawlimb_lefthand
+		climbing_drawlimb
+		Climbing_X := TITLE_RH_XOFFSET
+		Climbing_Y := TITLE_RH_YOFFSET
+		climbing_setup_drawlimb_righthand
+		climbing_drawlimb
+
+		v1 := TITLE_SUB_XOFFSET
+		v2 := TITLE_SUB_YOFFSET
+		v0 := TITLE_SUB_HEIGHT
+		i := spr_title_sub_be
+		loop
+			sprite v1 v2 TITLE_SUB_HEIGHT
+			v1 += TITLE_SUB_WIDTH
+			i += v0
+			while v1 != TITLE_SUB_XEND
+		again
+		;
+	### End Title Screen
+
+	###############
+	### Sprites ###
+	###############
+	: spr_righthand			# 8x8 px version
+	0x14 0x6A 0x2B 0xAB 0xBF 0xFF 0xFF 0x7E
+
+	: spr_lefthand
+	0x28 0x56 0xD4 0xD5 0xFD 0xFF 0xFF 0x7E
+
+	: spr_armleg
+	0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C
+
+	: spr_rightfoot
+	0x7E 0x7F 0x00 0x00 0x00 0x00 0x00 0x00
+
+	: spr_leftfoot
+	0x7E 0xFE 0x00 0x00 0x00 0x00 0x00 0x00
+
+
+
+	: spr_title_htop
+	0x00 0x00 0x60 0x06 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xFF 0xFF 0xFF 0xFF
+
+	: spr_title_hbot
+	0xFF 0xFF 0xFF 0xFF 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0x60 0x06
+
+	: spr_title_8top
+	0x30 0x0C 0x78 0x1E 0x78 0x1E 0x30 0x0C
+	0x07 0xE0 0x1F 0xF8 0x3F 0xFC 0x7F 0xFE
+	0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
+
+
+	: spr_title_8bot
+	0x3F 0xFC 0x1F 0xF8 0x1F 0xF8 0x3F 0xFC
+	0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
+	0x7F 0xFE 0x3F 0xFC 0x1F 0xF8 0x07 0xE0
+
+
+	# H8 - Bergsteigersimulator
+	: spr_title_sub_be	0xCE 0xA8 0xCC 0xA8 0xCE # BE
+	: spr_title_sub_rg	0xCE 0xA8 0xCA 0xAA 0xAE # RG
+	: spr_title_sub_st 	0xEE 0x84 0xE4 0x24 0xE4 # ST
+	: spr_title_sub_ei 	0xEB 0x8A 0xCA 0x8A 0xEB # EI 1/2 G
+	: spr_title_sub_ge 	0xBB 0x22 0xB3 0xA2 0xBA # GE 2 col R
+	: spr_title_sub_rsi 0xBA 0xA2 0x3A 0x8A 0xBA # 1 col R,SI
+	: spr_title_sub_m 	0x8A 0xDA 0xAA 0x8A 0x8B # M 1/2 U
+	: spr_title_sub_ula 0xA1 0xA2 0xA3 0xA2 0xBA # 1/2 u L 1/2A
+	: spr_title_sub_TO	0x3B 0x92 0x92 0x92 0x93 # 1/2 A, T, 1/2 O
+	: spr_title_sub_R 	0xB8 0xA8 0xB0 0xA8 0xA8 # 1/2 O, R
+
+
+
+	# Intro/Outro Text
+	:const Text_Height 5
+	:calc text_acc { 0 }
+	:macro define_text id {
+		:calc id { text_acc }
+		:calc text_acc { text_acc + Text_Height }
+	}
+
+	: spr_texts
+	define_text SPR_TEXT_PITCH_0 : spr_text_pitch_0 0xEB 0xA9 0xE9 0x89 0x89		# "PITCH"
+	define_text SPR_TEXT_PITCH_1 : spr_text_pitch_1 0xB5 0x25 0x27 0x25 0x35
+
+	define_text SPR_TEXT_PAR_0 : spr_text_par_0 0xE4 0xAA 0xEE 0x8A 0x8A			# "PAR"
+	define_text SPR_TEXT_PAR_1 : spr_text_par_1 0xE0 0xA0 0xE0 0xC0 0xA0
+
+	define_text SPR_TEXT_GRADE_0 : spr_text_grade_0 0xEE 0x8A 0xAE 0xAC 0xEA		# "GRAD"
+	define_text SPR_TEXT_GRADE_1 : spr_text_grade_1 0x4C 0xAA 0xAA 0xEA 0xAC
+
+	define_text SPR_TEXT_COLON : spr_text_colon 0x00 0x80 0x00 0x80 0x00			# ":"
+
+	define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
+	define_text SPR_TEXT_I : spr_text_I 0x80 0x80 0x80 0x80 0x80					# "I"
+	define_text SPR_TEXT_- : spr_text_- 0x00 0x00 0xE0 0x00 0x00					# "-"
+	define_text SPR_TEXT_+ : spr_text_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
+	define_text SPR_TEXT_X : spr_text_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
+
+	define_text SPR_TEXT_DRUCKE_0 : spr_text_drucke_0 0xCE 0xAA 0xAE 0xAC 0xCA  # "DRUCKE EINE TASTE"
+	define_text SPR_TEXT_DRUCKE_1 : spr_text_drucke_1 0xAD 0x09 0xA9 0xA9 0xED
+	define_text SPR_TEXT_DRUCKE_2 : spr_text_drucke_2 0x5C 0x90 0x18 0x90 0x5C
+	define_text SPR_TEXT_DRUCKE_3 : spr_text_drucke_3 0xEA 0x8A 0xCB 0x8A 0xEA
+	define_text SPR_TEXT_DRUCKE_4 : spr_text_drucke_4 0x5C 0x50 0x58 0xD0 0x5C
+	define_text SPR_TEXT_DRUCKE_5 : spr_text_drucke_5 0xE4 0x4A 0x4E 0x4A 0x4A
+	define_text SPR_TEXT_DRUCKE_6 : spr_text_drucke_6 0xEE 0x84 0xE4 0x24 0xE4
+	define_text SPR_TEXT_DRUCKE_7 : spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
+
+	define_text SPR_TEXT_ERFOLG_0 : spr_text_erfolg_0 0xEE 0x8A 0xCE 0x8C 0xEA # "ERFOLG!"
+	define_text SPR_TEXT_ERFOLG_1 : spr_text_erfolg_1 0xEE 0x8A 0xCA 0x8A 0x8E
+	define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
+
+	:const SPR_TEXT_END 0xFF
+
+	### Climbing legal moves table
+	# This is entirely from the perspective of the left arm
+	:const climbing_leftright_offset 8				# Distance from limb 'root' to centroid
+	:const climbing_limb_length 32						# Length of a limb
+	:const climbing_hand_width 8
+	:calc climbing_width { ( climbing_leftright_offset * 2 ) + ( climbing_limb_length * 2 ) }			# The full width of the visible play area
+	:calc climbing_center { ( climbing_width / 2 ) + 10 }
+	:calc climbing_left { climbing_center - ( climbing_width / 2 ) }
+	:calc climbing_right { climbing_center + ( climbing_width / 2 ) }
+
+	# Creates 1 line of the table, limits are adjusted by left-cut right-cut (not absolute)
+	:macro climbing_table_entry left-cut right-cut {
+		:calc left-lim { climbing_left + left-cut }			# Calc limits
+		:calc right-lim { ( ( climbing_right - right-cut ) - ( climbing_leftright_offset * 3 ) ) - climbing_hand_width }
+		:byte left-lim :byte right-lim												# Output bytes
+	}
+
+	# In: v0 = y-coordinate
+	# Out: v0 = left-limit, v1 = right limit
+	:macro climbing_limit_lookup {
+		v0 <<= v0
+		i := climbing_limit_table
+		i += v0
+		load v1
+	}
+
+	: climbing_set_limits_lefthand
+		v0 := Climbing_Y
+		climbing_limit_lookup
+		Climbing_Limit_Left := v0
+		Climbing_Limit_Right := v1
+		;
+
+	: climbing_set_limits_righthand
+		v0 := Climbing_Y
+		climbing_limit_lookup
+		:calc lim { 127 - ( climbing_hand_width * 2 ) }
+		Climbing_Limit_Left := lim
+		Climbing_Limit_Left -= v1
+		Climbing_Limit_Right := lim
+		Climbing_Limit_Right -= v0
+		;
+
+	: climbing_set_limits_leftfoot
+		v0 := 63
+		v0 -= Climbing_Y
+		climbing_limit_lookup
+		Climbing_Limit_Left := v0
+		Climbing_Limit_Right := v1
+		;
+
+	: climbing_set_limits_rightfoot
+		v0 := 63
+		v0 -= Climbing_Y
+		climbing_limit_lookup
+		Climbing_Limit_Left := 127
+		Climbing_Limit_Left -= v1
+		Climbing_Limit_Right := 127
+		Climbing_Limit_Right -= v0
+		;
+
+
+	: climbing_limit_table
+	# Given a Y coordinate, return the X limits. Numbers given are the pixels 'cut out'
+	# from the edge, but the table is actually filled with raw screen x coordinates
+		climbing_table_entry 17 17		#  0
+		climbing_table_entry 14 14		#  1
+		climbing_table_entry 12 12		#  2
+		climbing_table_entry 10 10		#  3
+		climbing_table_entry  9  9		#  4
+		climbing_table_entry  8  8		#  5
+		climbing_table_entry  7  7		#  6
+		climbing_table_entry  6  6		#  7
+		climbing_table_entry  5  5		#  8
+		climbing_table_entry  4  4		#  9
+		climbing_table_entry  4  4		# 10
+		climbing_table_entry  3  3		# 11
+		climbing_table_entry  3  3		# 12
+		climbing_table_entry  2  2		# 13
+		climbing_table_entry  2  2		# 14
+		climbing_table_entry  2  2		# 15
+		climbing_table_entry  1  1		# 16
+		climbing_table_entry  1  1		# 17
+		climbing_table_entry  1  1		# 18
+		climbing_table_entry  1  1		# 19
+		climbing_table_entry  0  0		# 20
+		climbing_table_entry  0  0		# 21
+		climbing_table_entry  0  0		# 22
+		climbing_table_entry  0  0		# 23
+		climbing_table_entry  0  0		# 24
+		climbing_table_entry  0  0		# 25
+		climbing_table_entry  0  0		# 26
+		climbing_table_entry  0  0		# 27
+		climbing_table_entry  0  0		# 28
+		climbing_table_entry  0  0		# 29
+		climbing_table_entry  0  0		# 30
+		climbing_table_entry  0  0		# 31
+		climbing_table_entry  0  0		# 32
+		climbing_table_entry  0  0		# 33
+		climbing_table_entry  0  0		# 34
+		climbing_table_entry  0  0		# 35
+		climbing_table_entry  0  0		# 36
+		climbing_table_entry  0  0		# 37
+		climbing_table_entry  0  0		# 38
+		climbing_table_entry  0  0		# 39
+		climbing_table_entry  0  0		# 40
+		climbing_table_entry  0  0		# 41
+		climbing_table_entry  0  0		# 42
+		climbing_table_entry  0  0		# 43
+		climbing_table_entry  0  0		# 44
+		climbing_table_entry  0  0		# 45
+		climbing_table_entry  0  0		# 46
+		climbing_table_entry  0  0		# 47
+		climbing_table_entry  0  0		# 48
+		climbing_table_entry  0  0		# 49
+		climbing_table_entry  0  0		# 50
+		climbing_table_entry  0  0		# 51
+		climbing_table_entry  0  0		# 52
+		climbing_table_entry  0  0		# 53
+		climbing_table_entry  0  0		# 54
+		climbing_table_entry  1  1		# 55
+		climbing_table_entry  1  1		# 56
+		climbing_table_entry  1  1		# 57
+		climbing_table_entry  2  2		# 58
+		climbing_table_entry  2  2		# 59
+		climbing_table_entry  3  3		# 60
+		climbing_table_entry  4  4		# 61
+		climbing_table_entry  6  6		# 62
+		climbing_table_entry  9  9		# 63
+
+
+	### Level Map
+
+	:macro maptile-reset {
+		Climbing_TempX := 0
+		Climbing_TempX -= Climbing_X
+		Climbing_TempY := 0
+		Climbing_TempY -= Climbing_Y
+		:calc maptile-lastx { 0 }
+		:calc maptile-lasty { 0 }
+	}
+
+	:macro maptile-entry x y sprite-addr {
+		i := sprite-addr
+		:calc maptile-deltax { x - maptile-lastx }
+		:calc maptile-lastx { x }
+		:calc maptile-deltay { y - maptile-lasty }
+		:calc maptile-lasty { y }
+
+		Climbing_TempX += maptile-deltax
+		Climbing_TempY += maptile-deltay
+
+		climbing_map_check_limits_and_sprite
+	}
+
+	: climbing_map_check_limits_and_sprite
+		v0 := 0
+		# Check Y limit
+		vF := 0xC0
+		vF &= Climbing_TempY
+		if vF != 0 then return
+
+		# Check X limits
+		vF := 96
+		vF =- Climbing_TempX
+		if vF != 0 then return
+		vF := 16
+		vF =- Climbing_TempX
+		if vF != 0 then sprite Climbing_TempX Climbing_TempY Hold_Height
+		;
+
+
+	## Tiles
+	# Tiles are 128x128
+	# Climbing_X, Climbing_Y are the offset into the map
+	#
+
+	# Clears the minimap accumulator bytes
+	:macro minimap_reset {
+		:calc minimap0 { 0 } :calc minimap1 { 0 } :calc minimap2 { 0 } :calc minimap3 { 0 }
+		:calc minimap4 { 0 } :calc minimap5 { 0 } :calc minimap6 { 0 } :calc minimap7 { 0 }
+	}
+	# Adds a dot to the minimap at the location of the hold
+	# w is the width, used to offset the dot slightly (probably pointless really)
+	:macro minimap_addpoint x y w {
+		:calc mm-x-offset { x + ( w / 2 ) }
+		:calc mm-y-offset { y + ( Hold_Height / 2 ) }
+		:calc mm-x { ( mm-x-offset + 7 ) / 16 }
+		:calc mm-y { ( mm-y-offset + 7 ) / 16 }
+		:calc mm-xbit { 1 << mm-x }
+		:calc mm-ybit { 1 << mm-y }
+		:calc mm0 { 0xFF * ( ( ( mm-ybit & ( 1 << 0 ) ) / ( 1 << 0 ) ) ) }
+		:calc mm1 { 0xFF * ( ( ( mm-ybit & ( 1 << 1 ) ) / ( 1 << 1 ) ) ) }
+		:calc mm2 { 0xFF * ( ( ( mm-ybit & ( 1 << 2 ) ) / ( 1 << 2 ) ) ) }
+		:calc mm3 { 0xFF * ( ( ( mm-ybit & ( 1 << 3 ) ) / ( 1 << 3 ) ) ) }
+		:calc mm4 { 0xFF * ( ( ( mm-ybit & ( 1 << 4 ) ) / ( 1 << 4 ) ) ) }
+		:calc mm5 { 0xFF * ( ( ( mm-ybit & ( 1 << 5 ) ) / ( 1 << 5 ) ) ) }
+		:calc mm6 { 0xFF * ( ( ( mm-ybit & ( 1 << 6 ) ) / ( 1 << 6 ) ) ) }
+		:calc mm7 { 0xFF * ( ( ( mm-ybit & ( 1 << 7 ) ) / ( 1 << 7 ) ) ) }
+		:calc minimap0 { minimap0 | ( mm-xbit & mm0 ) }
+		:calc minimap1 { minimap1 | ( mm-xbit & mm1 ) }
+		:calc minimap2 { minimap2 | ( mm-xbit & mm2 ) }
+		:calc minimap3 { minimap3 | ( mm-xbit & mm3 ) }
+		:calc minimap4 { minimap4 | ( mm-xbit & mm4 ) }
+		:calc minimap5 { minimap5 | ( mm-xbit & mm5 ) }
+		:calc minimap6 { minimap6 | ( mm-xbit & mm6 ) }
+		:calc minimap7 { minimap6 | ( mm-xbit & mm7 ) }
+	}
+
+	# Emits the bytes of the minimap to memory. This uses `:org` to place the data
+	# in a predetermined location
+	# `Minimap_Address` sets the base address of the minimap, tile-x and tile-y
+	# are the tile ID #s of the minimap (to locate the correct place in memory)
+	# Currently outputs a seconnd minimap tile with an 'X' superimposed to indicate
+	# the current map tile, since I thought XORing would be awkward.
+	# TODO: Try XORing a sprite onto the map at runtime
+	:macro minimap_output tile-x tile-y {
+			:calc old-here { HERE }
+			:calc addr { Minimap_Address + ( tile-y * Minimap_Bytes * Map_Width ) + ( tile-x * Minimap_Bytes ) }
+			:org addr
+			:byte minimap0
+			:byte minimap1
+			:byte minimap2
+			:byte minimap3
+			:byte minimap4
+			:byte minimap5
+			:byte minimap6
+			:byte minimap7
+	#		:calc minimap2 { minimap2 | 0b00100100 }
+	#		:calc minimap3 { minimap3 | 0b00011000 }
+	#		:calc minimap4 { minimap4 | 0b00011000 }
+	#		:calc minimap5 { minimap5 | 0b00100100 }
+	#		:byte minimap0
+	#		:byte minimap1
+	#		:byte minimap2
+	#		:byte minimap3
+	#		:byte minimap4
+	#		:byte minimap5
+	#		:byte minimap6
+	#		:byte minimap7
+			:org old-here
+	}
+
+	# Emit the address of the current location in the map index
+	# Call this at the address of each map tile
+	:macro map_index_output tile-x tile-y {
+		:calc old-here { HERE }
+		hilo old-here
+		:calc addr { Map_Index_Address + ( tile-y * 2 * Map_Width ) + ( tile-x * 2 ) }
+		:org addr
+		:byte hi :byte lo
+		:org old-here
+	}
+
+	# Intended to reset any offsets/etc needed when creating the map
+	:macro map_begin {
+	}
+
+	:macro map_end {
+
+	}
+	# Begin a new tile of the map
+	:macro map_begintile x y {
+		minimap_reset
+		:calc maptile_x { x }
+		:calc maptile_y { y }
+		:calc map_x { 0 }
+		:calc map_y { 0 }
+		map_index_output x y
+	}
+
+	# Add a hold to the map tile
+	# x, y are offsets into the tile,
+	# w is the width of the tile
+	# This fills the table with the delta between this hold and the previous
+	# so that the sprite index registers can be incrementally changed, saving an instruction
+	:macro map_entry spr_id x y w {
+		:byte spr_id
+		:calc x-delta { x - map_x }
+		:byte x-delta
+		:calc map_x { x }
+		:calc y-delta { y - map_y }
+		:byte y-delta
+		:calc map_y { y }
+		minimap_addpoint x y w
+	}
+
+	# Finish this tile of the map.
+	# Emits the END sigil and outputs the minimap.
+	:macro map_endtile {
+		:byte HOLD_END
+		minimap_output maptile_x maptile_y
+	}
+
+	######################
+	### Map Definition ###
+	######################
+
+	map_begin
+	: maptile_2_2
+		map_begintile 2 2
+		map_entry HOLD_3X5 30 30 5
+		map_entry HOLD_3X5 30 60 5
+		map_entry HOLD_3X6 60 30 6
+		map_entry HOLD_3X6 60 60 6
+		map_entry HOLD_3X7 90 30 7
+		map_entry HOLD_3X7 90 60 7
+		map_entry HOLD_3X8 120 30 8
+		map_entry HOLD_3X8 120 60 8
+		map_endtile
+
+	map_end
+
+	# Special empty tile for uninitialized map tiles
+	: maptile_empty
+		:byte HOLD_END
+
+	##########################
+	### End Map Definition ###
+	##########################
+
+
+	# Draw the minimap to the screen
+	# TODO: This doesn't take into account the current location on the map, just a test as is
+	:calc Minimap_X_Offset { 128 - 32 }
+	:calc Minimap_Y_Offset { 32 }
+	:calc Minimap_Stride { ( Minimap_Bytes * Map_Width ) - ( Minimap_Bytes * 4 ) }
+	: minimap_draw
+		i := Minimap_Address
+		v0 := Minimap_X_Offset
+		v1 := Minimap_Y_Offset
+		:calc minimap-x-end { Minimap_X_Offset + ( 8 * 4 ) }
+		:calc minimap-y-end { Minimap_Y_Offset + ( 8 * 4 ) }
+		loop
+			while v1 != minimap-y-end
+			loop
+				while v0 != minimap-x-end
+				sprite v0 v1 8
+				vF := Minimap_Bytes
+				i += vF
+				v0 += 8
+			again
+			vF := Minimap_Stride
+			i += vF
+			v0 := Minimap_X_Offset
+			v1 += 8
+		again
+		;
+
+	: spr_placeholder
+	0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
+	0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
+	0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
+	0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
+
+
+	:calc Inter_Pitch_Y { 10 }
+	:calc Inter_Grade_Y { 20 }
+	:calc Inter_Par_Y { 30 }
+	:calc Inter_PressKey_Y { 55 }
+	:calc Inter_PressKey_X { 12 }
+	:macro text_entry spr-id x y {
+		:byte spr-id :byte x :byte y
+	}
+
+	: intro_all
+		text_entry SPR_TEXT_PITCH_0  6  Inter_Pitch_Y
+		text_entry SPR_TEXT_PITCH_1 14  Inter_Pitch_Y
+		text_entry SPR_TEXT_GRADE_0  6  Inter_Grade_Y
+		text_entry SPR_TEXT_GRADE_1 14  Inter_Grade_Y
+		text_entry SPR_TEXT_COLON   22  Inter_Grade_Y
+		text_entry SPR_TEXT_PAR_0		 6 Inter_Par_Y
+		text_entry SPR_TEXT_PAR_1		14 Inter_Par_Y
+		text_entry SPR_TEXT_COLON   18 Inter_Par_Y
+		text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
+		:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
+		:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
+		:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
+		:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
+		:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
+		:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
+		:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
+		:byte SPR_TEXT_END
+
+	:calc Outro_Erfolg_X { 35 }
+	:calc Outro_Erfolg_Y { 12 }
+	: outro_all
+		text_entry SPR_TEXT_ERFOLG_0 Outro_Erfolg_X Outro_Erfolg_Y
+		:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
+		text_entry SPR_TEXT_ERFOLG_1 Outro_Erfolg_X Outro_Erfolg_Y
+		:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
+		text_entry SPR_TEXT_ERFOLG_2 Outro_Erfolg_X Outro_Erfolg_Y
+		:byte SPR_TEXT_END
+
+	# Intro text specific to pitch 0
+	: intro_0
+		:byte SPR_TEXT_END
+		;
+
+
+	# Draw all the items in the list for this intro screen
+	: intro_draw
+		clear
+		v3 := 0
+		loop
+			i := outro_all
+			i += v3
+			load v2
+		while v0 != SPR_TEXT_END
+			i := spr_texts
+			i += v0
+			sprite v1 v2 Text_Height
+			v3 += 3
+		again
+		minimap_draw
+		;
+
+	# Waits for a keypress, then waits until no keys are pressed
+	: wait_any_key_plus_debounce
+		v0 := 0
+		loop
+			while v0 -key
+			v0 += 1
+			if v0 == 16 then v0 := 0
+		again
+		loop
+			v0 := 0
+			v1 := 0
+			loop
+				while v0 != 16
+				if v0 key then v1 := 1
+				v0 += 1
+			again
+		while v1 != 0
+		again
+		;
+
+
+	:const Wipe_Delay 1
+	: wipe
+		v0 := 0
+		v1 := random 1
+		loop
+			vF := Wipe_Delay
+			delay := vF
+			if v1 == 0 then wipe_left
+			if v1 != 0 then wipe_right
+			v0 += 12
+		while v0 != 128
+			loop
+				vF := delay
+			while vF != 0
+			again
+		again
+		;
+
+	: wipe_left
+		scroll-left
+		scroll-left
+		scroll-left
+		;
+
+	: wipe_right
+		scroll-right
+		scroll-right
+		scroll-right
+		;
+
+	#:const Clock_X 100
+	#:const Clock_Y 2
+	#:const Clock_Width 6
+	#: clock_draw
+	#	v0 := vE
+	#	v3 := Clock_X
+	#	v4 := Clock_Y
+	#	draw_decimal
+	#	v3 += 6
+	#	i := spr_text_colon
+	#	sprite v3 v4 5
+	#	v3 += 3
+	#	v0 := vD
+	#	draw_decimal
+	#	;
+	#
+	## In:
+	## v0 = value
+	## v3 = x
+	## v4 = y
+	#: bcd_dest 0 0 0
+	#: draw_decimal
+	#	i := bcd_dest
+	#	bcd v0
+	#	load v2
+	#	i := hex v1
+	#	sprite v3 v4 5
+	#	i := hex v2
+	#	v3 += 6
+	#	sprite v3 v4 5
+	#	;
+	#
+	#
+	#: clock_test
+	#	vE := 0
+	#	vD := 0
+	#	loop
+	#		vF := 60
+	#		delay := vF
+	#		clear
+	#		clock_draw
+	#		loop
+	#			vF := delay
+	#		while vF != 0
+	#		again
+	#		vD += 1
+	#		if vD == 60 then vE += 1
+	#		if vD == 60 then vD := 0
+	#		if vE == 100 then vD := 59
+	#		if vE == 100 then VE := 99
+	#	again
+	#	;
+
+	### Stuff that has to come after sprite declarations
+	: climbing_setup_drawlimb_lefthand
+		Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_lefthand
+		Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_arm
+		i := climbing_data_lefthand
+		;
+
+	: climbing_setup_drawlimb_righthand
+		Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_righthand
+		Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_arm
+		i := climbing_data_righthand
+		;
+
+	: climbing_setup_drawlimb_leftfoot
+		Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_leftfoot
+		Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_leg
+		i := climbing_data_leftfoot
+		;
+
+	: climbing_setup_drawlimb_rightfoot
+		Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_rightfoot
+		Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_leg
+		i := climbing_data_rightfoot
+		;
+
+	# Setup the hold drawing i:=maptile based on
+	# v0: X tile
+	# v1: Y tile
+	# TODO: Inline this
+	: climbing_setup_draw_holds
+		i := Map_Index_Address
+		:calc mapindex-stride { 2 * Map_Width }
+		vF := mapindex-stride
+		loop
+		while v1 != 0
+			i += vF
+			v1 += -1
+		again
+		v0 <<= v0
+		i += v0
+		load v1
+		vF := v0
+		vF |= v1
+		if vF == 0 then jump climbing_setup_draw_holds_none
+		Trampoline-Set-I-v0v1 holds_tramp_i:=maptile
+		;
+	: climbing_setup_draw_holds_none
+		Trampoline-Set-I-Const holds_tramp_i:=maptile maptile_empty
+		;
