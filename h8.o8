@@ -127,9 +127,9 @@ define_hold HOLD_3X5 : spr_hold_3x5 0x70 0x88 0x70
 define_hold HOLD_3X6 : spr_hold_3x6 0x78 0x84 0x78
 define_hold HOLD_3X7 : spr_hold_3x7 0x7C 0x82 0x7C
 define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
-define_hold HOLD_GROUNDA : spr_hold_groundA 0x22 0x13 0x97
-define_hold HOLD_GROUNDB : spr_hold_groundB 0x50 0x21 0xAC
-define_hold HOLD_GROUNDC : spr_hold_groundC 0x40 0x27 0xAF
+#define_hold HOLD_GROUNDA : spr_hold_groundA 0x22 0x13 0x97
+#define_hold HOLD_GROUNDB : spr_hold_groundB 0x50 0x21 0xAC
+#define_hold HOLD_GROUNDC : spr_hold_groundC 0x40 0x27 0xAF
 :const HOLD_END 0xFF
 
 
@@ -1190,22 +1190,6 @@ map_begin
 
 : maptile_0_0  # Ground
 	map_begintile 0 0
-	:calc map_ground_y { 63 - 3 }
-	map_entry HOLD_GROUNDA 0x08 map_ground_y 8
-	map_entry HOLD_GROUNDB 0x10 map_ground_y 8
-	map_entry HOLD_GROUNDC 0x18 map_ground_y 8
-	map_entry HOLD_GROUNDB 0x20 map_ground_y 8
-	map_entry HOLD_GROUNDC 0x28 map_ground_y 8
-	map_entry HOLD_GROUNDA 0x30 map_ground_y 8
-	map_entry HOLD_GROUNDC 0x38 map_ground_y 8
-	map_entry HOLD_GROUNDB 0x40 map_ground_y 8
-	map_entry HOLD_GROUNDA 0x48 map_ground_y 8
-	map_entry HOLD_GROUNDC 0x50 map_ground_y 8
-	map_entry HOLD_GROUNDA 0x58 map_ground_y 8
-	map_entry HOLD_GROUNDB 0x60 map_ground_y 8
-	map_entry HOLD_GROUNDC 0x68 map_ground_y 8
-	map_entry HOLD_GROUNDB 0x70 map_ground_y 8
-	map_entry HOLD_GROUNDA 0x78 map_ground_y 8
 	map_endtile
 map_end
 
