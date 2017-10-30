@@ -46,6 +46,7 @@
 
 : main
 	hires
+	clock_test
 	title_draw
 	wait_any_key_plus_debounce
 	wipe
@@ -283,6 +284,9 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 		again
 		vF := CLIMBING_FRAME_DELAY
 		delay := vF
+		clock_draw
+		clock_tick
+		clock_draw
 	again
 	;
 
@@ -454,18 +458,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	#sprite v0 v1 0
 	#v0 += 16
 	#sprite v0 v1 0
-
-	i := hex Climbing_TileX
-	v0 := 100
-	v1 := 0
-	sprite v0 v1 5
-
-	i := hex Climbing_TileY
-	v0 := 100
-	v1 := 7
-	sprite v0 v1 5
-
-
+	clock_draw
 
 	# Draw Minimap
 	minimap_draw
@@ -481,17 +474,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 : climbing_draw_scene_feet
 	clear
 	# Draw score or something
-	i := spr_placeholder
-	v0 := 96
-	v1 := 0
-	sprite v0 v1 0
-	v0 += 16
-	sprite v0 v1 0
-	v0 := 96
-	v1 := 16
-	sprite v0 v1 0
-	v0 += 16
-	sprite v0 v1 0
+	clock_draw
 
 	# Draw Minimap
 	minimap_draw
@@ -1570,58 +1553,93 @@ map_end
 	scroll-right
 	;
 
-#:const Clock_X 100
-#:const Clock_Y 2
-#:const Clock_Width 6
-#: clock_draw
-#	v0 := vE
-#	v3 := Clock_X
-#	v4 := Clock_Y
-#	draw_decimal
-#	v3 += 6
-#	i := spr_text_colon
-#	sprite v3 v4 5
-#	v3 += 3
-#	v0 := vD
-#	draw_decimal
-#	;
-#
-## In:
-## v0 = value
-## v3 = x
-## v4 = y
-#: bcd_dest 0 0 0
-#: draw_decimal
-#	i := bcd_dest
-#	bcd v0
-#	load v2
-#	i := hex v1
-#	sprite v3 v4 5
-#	i := hex v2
-#	v3 += 6
-#	sprite v3 v4 5
-#	;
-#
-#
-#: clock_test
-#	vE := 0
-#	vD := 0
-#	loop
-#		vF := 60
-#		delay := vF
-#		clear
-#		clock_draw
-#		loop
-#			vF := delay
-#		while vF != 0
-#		again
-#		vD += 1
-#		if vD == 60 then vE += 1
-#		if vD == 60 then vD := 0
-#		if vE == 100 then vD := 59
-#		if vE == 100 then VE := 99
-#	again
-#	;
+:const Clock_Ticks_Overflow 19
+:const Clock_X 96
+:const Clock_Y 2
+:const Clock_Width 6
+
+: clock_data
+: clock_data_hours 0
+: clock_data_minutes 0
+: clock_data_ticks 0
+
+: clock_tick
+	i := clock_data
+	load v2
+	v2 += 1
+	vF := Clock_Ticks_Overflow
+	vF -= v2
+	if vF != 0 then jump clock_tick_save
+	v2 := 0
+	v1 += 1
+	vF := 59
+	vF -= v1
+	if vF != 0 then jump clock_tick_save
+	v1 := 0
+	v0 += 1
+	vF := 99
+	vF -= v0
+	if vF != 0 then jump clock_tick_save
+	v0 := 99
+	v1 := 59
+: clock_tick_save
+	i := clock_data
+	save v2
+	;
+
+: clock_draw
+	v1 := Clock_X
+	v2 := Clock_Y
+
+	i := clock_data_hours
+	load v0
+	draw_decimal
+	v1 += 6
+	i := spr_text_colon
+	sprite v1 v2 5
+	v1 += 3
+
+	i := clock_data_minutes
+	load v0
+	draw_decimal
+	;
+
+# In:
+# v0 = value
+# v3 = x
+# v4 = y
+: bcd_dest
+: bcd_dest_hi 0
+: bcd_dest_mid 0
+: bcd_dest_lo 0
+: draw_decimal
+	i := bcd_dest
+	bcd v0
+	i := bcd_dest_mid
+	load v0
+	i := hex v0
+	sprite v1 v2 5
+	i := bcd_dest_lo
+	load v0
+	i := hex v0
+	v1 += 6
+	sprite v1 v2 5
+	;
+
+
+: clock_test
+;
+		vF := 5
+		delay := vF
+		clock_tick
+		clear
+		clock_draw
+		loop
+			vF := delay
+		while vF != 0
+		again
+	jump clock_test
+	;
 
 ### Stuff that has to come after sprite declarations
 : climbing_setup_drawlimb_lefthand
