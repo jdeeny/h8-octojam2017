@@ -69,8 +69,11 @@
 :const Climbing_State_DebounceMove 2
 :const Climbing_State_MoveArm 4
 :const Climbing_State_MoveLeg 6
-:const Climbing_State_MovingLimb 8
-:const Climbing_State_Debounce 10
+:const Climbing_State_MovingArm 8
+:const Climbing_State_MovingLeg 10
+:const Climbing_State_DebounceArms 12
+:const Climbing_State_DebounceLegs 14
+
 
 : climbing_state_jumptable
 	jump climbing_runstate_idle
@@ -78,12 +81,17 @@
 	jump climbing_runstate_movearm
 	jump climbing_runstate_moveleg
 	jump climbing_runstate_movinglimb
-	jump climbing_runstate_debounce
+	jump climbing_runstate_movinglimb
+	jump climbing_runstate_debouncearms
+	jump climbing_runstate_debouncelegs
+
 
 
 
 :alias Climbing_Limit_Left v2
 :alias Climbing_Limit_Right v3
+:alias Climbing_IntersectX v4
+:alias Climbing_IntersectY v5
 :alias Climbing_DeltaX v4
 :alias Climbing_DeltaY v5
 :alias Climbing_TempX v6
@@ -352,7 +360,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	# Initialize before move loop
 	Climbing_DeltaX := 0
 	Climbing_DeltaY := 0
-	Climbing_State := Climbing_State_MovingLimb
+	Climbing_State := Climbing_State_MovingArm
 	jump climbing_main_loop_continue
 
 
@@ -368,7 +376,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	# Initialize before move loop
 	Climbing_DeltaX := 0
 	Climbing_DeltaY := 0
-	Climbing_State := Climbing_State_MovingLimb
+	Climbing_State := Climbing_State_MovingLeg
 	jump climbing_main_loop_continue
 
 
@@ -423,30 +431,38 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 		: climbing_endrand
 
 	# Check key to see if we are finished moving
-	if v1 == 0 then jump climbing_main_loop_continue	# skip ending keys if there wasnt a collision with the hand/foot
-	if Climbing_Limb key then Climbing_State := Climbing_State_Debounce
+	if Climbing_Limb -key then jump climbing_main_loop_continue
 
+	:calc state_offset { Climbing_State_DebounceArms - Climbing_State_MovingArm }
+	Climbing_State += state_offset
 	jump climbing_main_loop_continue
 
 
-: climbing_runstate_debounce
+: climbing_runstate_debouncearms
 	if Climbing_Limb key then jump climbing_main_loop_continue
+
+	# Key is released, check for collision
+	Climbing_IntersectX := Climbing_TempX
+	Climbing_IntersectY := Climbing_TempY
+	clear
+	climbing_draw_holds
+	i := spr_righthand
+	sprite Climbing_IntersectX Climbing_IntersectY 8
+	#:breakpoint collide
+	if vF == 0 then jump climbing_runstate_debouncearms_done
 
 	# Save limb data to ram
 	if Climbing_Limb == LIMB_LEFTHAND then i := climbing_data_lefthand
 	if Climbing_Limb == LIMB_RIGHTHAND then i := climbing_data_righthand
-	if Climbing_Limb == LIMB_LEFTFOOT then i := climbing_data_leftfoot
-	if Climbing_Limb == LIMB_RIGHTFOOT then i := climbing_data_rightfoot
-	v0 := Climbing_TempX
-	v1 := Climbing_TempY
+	v0 := Climbing_IntersectX
+	v1 := Climbing_IntersectY
 	save v1
 
 	climbing_calculate_center
+
+	: climbing_runstate_debouncearms_done
 	if Climbing_Limb == LIMB_LEFTHAND then climbing_draw_scene_hands
 	if Climbing_Limb == LIMB_RIGHTHAND then climbing_draw_scene_hands
-	if Climbing_Limb == LIMB_LEFTFOOT then climbing_draw_scene_feet
-	if Climbing_Limb == LIMB_RIGHTFOOT then climbing_draw_scene_feet
-
 
 	# Clear limb
 	Climbing_Limb := LIMB_NONE
@@ -455,6 +471,34 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 
 
 
+: climbing_runstate_debouncelegs
+	if Climbing_Limb key then jump climbing_main_loop_continue
+	# Key is released, check for collision
+	Climbing_IntersectX := Climbing_TempX
+	Climbing_IntersectY := Climbing_TempY
+	clear
+	climbing_draw_holds
+	i := spr_rightfoot
+	sprite Climbing_IntersectX Climbing_IntersectY 8
+	if vF == 0 then jump climbing_runstate_debouncelegs_done
+
+	# Save limb data to ram
+	if Climbing_Limb == LIMB_LEFTFOOT then i := climbing_data_leftfoot
+	if Climbing_Limb == LIMB_RIGHTFOOT then i := climbing_data_rightfoot
+	v0 := Climbing_IntersectX
+	v1 := Climbing_IntersectY
+	save v1
+
+	climbing_calculate_center
+
+	: climbing_runstate_debouncelegs_done
+	if Climbing_Limb == LIMB_LEFTFOOT then climbing_draw_scene_feet
+	if Climbing_Limb == LIMB_RIGHTFOOT then climbing_draw_scene_feet
+
+	# Clear limb
+	Climbing_Limb := LIMB_NONE
+	Climbing_State := Climbing_State_Idle
+	jump climbing_main_loop_continue
 
 
 : climbing_draw_scene_hands
@@ -580,8 +624,8 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	Climbing_TempY += 128
 
 	climbing_draw_tile_holds
-
 	;
+
 
 
 # Does everything needed to draw the left hand/arm cold (ie not in the climbing move loop)
