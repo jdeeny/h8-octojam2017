@@ -460,7 +460,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	climbing_draw_holds
 	i := spr_righthand
 	sprite Climbing_IntersectX Climbing_IntersectY 8
-	#:breakpoint collide
 	if vF == 0 then jump climbing_runstate_debouncearms_done
 
 	# Save limb data to ram
@@ -1017,6 +1016,93 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 : spr_title_sub_R 	0xB8 0xA8 0xB0 0xA8 0xA8 # 1/2 O, R
 
 
+: spr_shades_left 0x7F 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
+: spr_shades_right 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
+: spr_shades_shine0l 0x60 0xC0 0x80
+: spr_shades_shine1l 0x7E 0xF0 0xE0 0x60 0x40 0x40 0x40
+: spr_shades_shine2l 0x1F 0x3F 0x7F 0x7F 0x7F 0x7F 0x7E 0x1C
+: spr_shades_shine2r 0xFE 0xFE 0xFE 0xFE 0xFC 0xF8 0x70
+: spr_shades_shine3l 0x01 0x0F 0x1F 0x1F 0x3F 0x3F 0x3E 0x1C
+: spr_shades_shine3r 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x1C
+: spr_shades_shine4r 0x00 0x01 0x01 0x01 0x03 0x07 0x0E 0x1C
+: spr_shades_burst0 0x40 0xA0 0x40
+: spr_shades_burst1 0xE0 0xE0 0xE0
+
+
+: draw_shades
+	i := spr_shades_left
+	sprite v0 v1 8
+	v0 += 8
+	vF := 0x80
+	vF &= v0
+	if vF != 0 then jump draw_shades_done
+	i := spr_shades_right
+	sprite v0 v1 8
+	: draw_shades_done
+	v0 += -8
+	;
+
+: draw_shades_wait
+	delay := v2
+	loop vf := delay while vf != 0 again
+	;
+
+:const shades_y 16
+:const shades_x_end 100
+:const shades_x_slow 106
+: animate_shades
+	v0 := 127
+	v1 := shades_y
+	v2 := 1
+	loop
+		while v0 != shades_x_end
+		if v0 == shades_x_slow then v2 := 2
+		draw_shades
+		draw_shades_wait
+		draw_shades
+		v0 += -1
+	again
+	draw_shades
+
+	v2 := 15
+	draw_shades_wait
+	i := spr_shades_shine0l
+	sprite v0 v1 3
+	v2 := 3
+	draw_shades_wait
+	i := spr_shades_shine1l
+	sprite v0 v1 7
+	draw_shades_wait
+	i := spr_shades_shine2l
+	sprite v0 v1 8
+	i := spr_shades_shine2r
+	v0 += 8
+	sprite v0 v1 7
+	v2 := 6
+
+	draw_shades_wait
+	v0 += -8
+	i := spr_shades_shine3l
+	sprite v0 v1 8
+	i := spr_shades_shine3r
+	v0 += 8
+	sprite v0 v1 8
+	draw_shades_wait
+	i := spr_shades_shine4r
+	sprite v0 v1 8
+
+	v0 := shades_x_end
+	draw_shades
+	v2 := 2
+	loop
+		while v0 != 127
+		if v0 == shades_x_slow then v2 := 1
+		draw_shades
+		draw_shades_wait
+		draw_shades
+		v0 += 1
+	again
+	;
 
 # Intro/Outro Text
 :const Text_Height 5
@@ -1686,9 +1772,9 @@ map_end
 : outro_draw_a
 	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_all
 	intro_draw
-	:breakpoint outro
 	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_A
 	intro_draw
+	animate_shades
 	;
 
 
