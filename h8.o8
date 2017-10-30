@@ -641,39 +641,102 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	Trampoline: climbing_tramp_jump_drawlimb_armleg		# To be replaced with `jump := climbing_drawlimb_[arm, leg]`
 	;
 
+
 : climbing_drawlimb_arm
-	v0 := Climbing_TempY
-	loop
-		v0 += 8
-		vF := 63
-		vF &= v0
-		while vF == v0
-		sprite Climbing_TempX v0 8
-	again
-	;
+	#:breakpoint armdraw
+	v0 := Climbing_TempY 			# Copy height into work reg
+	v2 := v0 				# Duplicate into v2, assuming hp48 shift quirk
+	v0 >>= v0 				# Since we actually only need a 4 stride
+	vf := 0b11111100 			# We drop down from 8 stride
+	v0 &= vf 				# we can org to 0xF## mem and use vF for quirk
+	jump0 climbing_drawlimb_arm_sub 	# Then just jump0 from here:
+	: climbing_drawlimb_arm_sub
+		v2 += 8				# 7 times
+		sprite Climbing_TempX v2 8
+		v2 += 8				# 6 times
+		sprite Climbing_TempX v2 8
+		v2 += 8				# 5 times
+		sprite Climbing_TempX v2 8
+		v2 += 8				# 4 times
+		sprite Climbing_TempX v2 8
+		v2 += 8				# 3 times
+		sprite Climbing_TempX v2 8
+		v2 += 8				# 2 times
+		sprite Climbing_TempX v2 8
+		v2 += 8				# 1 times
+		sprite Climbing_TempX v2 8
+		; 				# 0 times
 
 : climbing_drawlimb_leg
-	v0 := Climbing_TempY
-	loop
-		vF := 8
-		vF -= v0
-		while vF == 0
-		v0 += -8
-		sprite Climbing_TempX v0 8
-	again
-	v0 <<= v0
-	v0 <<= v0
-	vF := 0
-	jump0 climbing_drawlimb_leg_remainder
-	: climbing_drawlimb_leg_remainder
-		return return
-		sprite Climbing_TempX vF 1 return
-		sprite Climbing_TempX vF 2 return
-		sprite Climbing_TempX vF 3 return
-		sprite Climbing_TempX vF 4 return
-		sprite Climbing_TempX vF 5 return
-		sprite Climbing_TempX vF 6 return
-		sprite Climbing_TempX vF 7 return
+	# Let's start at 0 and move up to the leg
+	# Draw full legs down to the point where we need to stop for the remainder:
+	v2 := 0
+	v0 := 63			# pivot backwards from 63 instead
+	v0 -= Climbing_TempY		# Remove this value
+	v0 >>= v0			# Since we actually only need a 4 stride
+	vf := 0b11111100		# We drop down from 8 stride
+	v0 &= vf			# we can org to 0xF## mem and use vF for quirk
+	jump0 climbing_drawlimb_leg_sub	# Then just jump0 from here:
+	: climbing_drawlimb_leg_sub
+		sprite Climbing_TempX v2 8
+		v2 += +8				# 7 times
+		sprite Climbing_TempX v2 8
+		v2 += +8				# 6 times
+		sprite Climbing_TempX v2 8
+		v2 += +8				# 5 times
+		sprite Climbing_TempX v2 8
+		v2 += +8				# 4 times
+		sprite Climbing_TempX v2 8
+		v2 += +8				# 3 times
+		sprite Climbing_TempX v2 8
+		v2 += +8				# 2 times
+		sprite Climbing_TempX v2 8
+		v2 += +8				# 1 times
+		# 0 times
+
+	# v2 now contains the value of the multiple of 8 below Climbing Y
+	v0 := v2		# The sprite we're drawing has 7 0x00s following it
+	v0 -= Climbing_TempY	# We use the fact that we have the remainder available to us via ClimbY - v2
+	v0 += 8			# To advance the I pointer into this space. We need to mirror it again though so we have to spend extra instructions
+	i += v0			# This is so, when we draw this final sprite, we only draw the needed rows.
+	sprite Climbing_TempX v2 7	# There is a quick out where remainder is 0, but it's slower to check this 7/8ths of the time
+	# Now, arguably this may be slower because we're drawing empty sprite rows? But, it saves like 30 bytes and several ops
+	# Hopefully there's some code in the renderer that's like '0? Guess I won't bother!
+;
+
+#: climbing_drawlimb_arm
+#	v0 := Climbing_TempY
+#	loop
+#		v0 += 8
+#		vF := 63
+#		vF &= v0
+#		while vF == v0
+#		sprite Climbing_TempX v0 8
+#	again
+#	;
+#
+#: climbing_drawlimb_leg
+#	v0 := Climbing_TempY
+#	loop
+#		vF := 8
+#		vF -= v0
+#		while vF == 0
+#		v0 += -8
+#		sprite Climbing_TempX v0 8
+#	again
+#	v0 <<= v0
+#	v0 <<= v0
+#	vF := 0
+#	jump0 climbing_drawlimb_leg_remainder
+#	: climbing_drawlimb_leg_remainder
+#		return return
+#		sprite Climbing_TempX vF 1 return
+#		sprite Climbing_TempX vF 2 return
+#		sprite Climbing_TempX vF 3 return
+#		sprite Climbing_TempX vF 4 return
+#		sprite Climbing_TempX vF 5 return
+#		sprite Climbing_TempX vF 6 return
+#		sprite Climbing_TempX vF 7 return
 
 
 # Sets the movement limits based on the current limb selection
@@ -864,15 +927,18 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 : spr_lefthand
 0x28 0x56 0xD4 0xD5 0xFD 0xFF 0xFF 0x7E
 
-: spr_armleg
-0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C
-
 : spr_rightfoot
 0x7E 0x7F 0x00 0x00 0x00 0x00 0x00 0x00
 
+# left foot contains a memory pointer for a block of 6 0s
 : spr_leftfoot
 0x7E 0xFE 0x00 0x00 0x00 0x00 0x00 0x00
 
+: spr_armleg
+0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C
+# Padding for shaving 3 cycles off of leg drawing. We need 7 0s!
+0x00 0x00 0x00 0x00 0x00 #0x00 0x00
+# We have 2 0s right below us:
 
 
 : spr_title_htop
