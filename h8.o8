@@ -114,7 +114,7 @@
 :const climbing_hand_width 8
 :const climbing_height 64
 :calc climbing_width { ( climbing_leftright_offset * 2 ) + ( climbing_limb_length * 2 ) }			# The full width of the visible play area
-:calc climbing_center { ( climbing_width / 2 ) + 10 }
+:calc climbing_center { ( climbing_width / 2 ) }
 :calc climbing_left { climbing_center - ( climbing_width / 2 ) }
 :calc climbing_right { climbing_center + ( climbing_width / 2 ) }
 
@@ -231,11 +231,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 :calc LIMB_RIGHTHAND { KEY_RH }
 :calc LIMB_LEFTFOOT { KEY_LF }
 :calc LIMB_RIGHTFOOT { KEY_RF }
-
-:const LEFT_HAND_LIMIT 16
-:const RIGHT_HAND_LIMIT 96
-:const TOP_HAND_LIMIT 0
-:const BOT_HAND_LIMIT 48
 
 # Storage of limb coordinates, LH XY, RH XY, LF XY, RF XY
 :const CLIMBING_DATA_BYTES 2
@@ -1042,25 +1037,24 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 }
 
 : climbing_set_limits_lefthand
-	v0 := Climbing_Y
+	v0 := Climbing_TempY
 	climbing_limit_lookup
 	Climbing_Limit_Left := v0
 	Climbing_Limit_Right := v1
 	;
 
 : climbing_set_limits_righthand
-	v0 := Climbing_Y
+	v0 := Climbing_TempY
 	climbing_limit_lookup
-	:calc lim { 127 - ( climbing_hand_width * 2 ) }
-	Climbing_Limit_Left := lim
+	Climbing_Limit_Left := climbing_right
 	Climbing_Limit_Left -= v1
-	Climbing_Limit_Right := lim
+	Climbing_Limit_Right := climbing_right
 	Climbing_Limit_Right -= v0
 	;
 
 : climbing_set_limits_leftfoot
 	v0 := 63
-	v0 -= Climbing_Y
+	v0 -= Climbing_TempY
 	climbing_limit_lookup
 	Climbing_Limit_Left := v0
 	Climbing_Limit_Right := v1
@@ -1068,11 +1062,11 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 
 : climbing_set_limits_rightfoot
 	v0 := 63
-	v0 -= Climbing_Y
+	v0 -= Climbing_TempY
 	climbing_limit_lookup
-	Climbing_Limit_Left := 127
+	Climbing_Limit_Left := climbing_right
 	Climbing_Limit_Left -= v1
-	Climbing_Limit_Right := 127
+	Climbing_Limit_Right := climbing_right
 	Climbing_Limit_Right -= v0
 	;
 
@@ -1339,6 +1333,19 @@ map_begin
 	map_entry HOLD_3X8 120 30 8
 	map_entry HOLD_3X8 120 60 8
 	map_endtile
+
+: maptile_1_2
+	map_begintile 1 2
+	map_entry HOLD_3X5 30 30 5
+	map_entry HOLD_3X5 30 60 5
+	map_entry HOLD_3X6 60 30 6
+	map_entry HOLD_3X6 60 60 6
+	map_entry HOLD_3X7 90 30 7
+	map_entry HOLD_3X7 90 60 7
+	map_entry HOLD_3X8 120 30 8
+	map_entry HOLD_3X8 120 60 8
+	map_endtile
+
 
 map_end
 
