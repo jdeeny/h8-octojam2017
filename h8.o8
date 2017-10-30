@@ -103,7 +103,7 @@
 
 
 :const Map_Width 6
-:const Map_Height 12
+:const Map_Height 16
 
 
 :calc Map_Num_Tiles { Map_Width * Map_Height }
@@ -480,15 +480,15 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 # Draws all the holds that go on the screen
 # Draws up to 4 tiles
 : climbing_draw_holds
-	v0 := 0 #Climbing_TileX
-	v1 := 0 #Climbing_TileY
+	v0 := Climbing_TileX
+	v1 := Climbing_TileY
 	climbing_setup_draw_holds		# Setup the tile trampoline
 	Climbing_TempX := vD
 	Climbing_TempY := vE
 	climbing_draw_tile_holds
 
-	v0 := 0 #Climbing_TileX
-	v1 := 0 #Climbing_TileY
+	v0 := Climbing_TileX
+	v1 := Climbing_TileY
 	v1 += 1
 	climbing_setup_draw_holds		# Setup the tile trampoline
 	Climbing_TempX := vD
@@ -496,8 +496,8 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	Climbing_TempY += 128
 	climbing_draw_tile_holds
 
-	v0 := 0 #Climbing_TileX
-	v1 := 0 #Climbing_TileY
+	v0 := Climbing_TileX
+	v1 := Climbing_TileY
 	v0 += 1
 	climbing_setup_draw_holds		# Setup the tile trampoline
 	Climbing_TempX := vD
@@ -505,8 +505,8 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	Climbing_TempX += 128
 	climbing_draw_tile_holds
 
-	v0 := 0 #Climbing_TileX
-	v1 := 0 #Climbing_TileY
+	v0 := Climbing_TileX
+	v1 := Climbing_TileY
 	v0 += 1
 	v1 += 1
 	climbing_setup_draw_holds		# Setup the tile trampoline
@@ -1187,6 +1187,18 @@ map_begin
 	map_entry HOLD_3X3 30 30 3
 	map_endtile
 
+: maptile_2_15
+	map_begintile 2 15
+	map_entry HOLD_3X5 30 30 5
+	map_entry HOLD_3X5 30 60 5
+	map_entry HOLD_3X6 60 30 6
+	map_entry HOLD_3X6 60 60 6
+	map_entry HOLD_3X7 90 30 7
+	map_entry HOLD_3X7 90 60 7
+	map_entry HOLD_3X8 120 30 8
+	map_entry HOLD_3X8 120 60 8
+
+	map_endtile
 
 : maptile_0_0  # Ground
 	map_begintile 0 0
