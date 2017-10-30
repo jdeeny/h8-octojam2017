@@ -1309,8 +1309,8 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 
 map_begin
 
-: maptile_2_1
-	map_begintile 2 1
+: maptile_1_2
+	map_begintile 1 2
 	map_entry HOLD_3X3 30 30 3
 	map_entry HOLD_3X3 30 60 3
 	map_entry HOLD_3X3 60 30 3
@@ -1324,26 +1324,85 @@ map_begin
 
 : maptile_2_2
 	map_begintile 2 2
-	map_entry HOLD_3X5 30 30 5
-	map_entry HOLD_3X5 30 60 5
-	map_entry HOLD_3X6 60 30 6
-	map_entry HOLD_3X6 60 60 6
-	map_entry HOLD_3X7 90 30 7
-	map_entry HOLD_3X7 90 60 7
-	map_entry HOLD_3X8 120 30 8
-	map_entry HOLD_3X8 120 60 8
+	map_entry HOLD_3X5 20  4 5
+	map_entry HOLD_3X5 20 30 5
+	map_entry HOLD_3X5 20 60 5
+	map_entry HOLD_3X5 20 90 5
+	map_entry HOLD_3X5 20 110 5
+
+	map_entry HOLD_3X5 50  4 5
+	map_entry HOLD_3X5 50 30 5
+	map_entry HOLD_3X5 50 60 5
+	map_entry HOLD_3X5 50 90 5
+	map_entry HOLD_3X5 50 110 5
+
+	map_entry HOLD_3X5 80  4 5
+	map_entry HOLD_3X5 80 30 5
+	map_entry HOLD_3X5 80 60 5
+	map_entry HOLD_3X5 80 90 5
+	map_entry HOLD_3X5 80 110 5
+
+	map_entry HOLD_3X5 110  4 5
+	map_entry HOLD_3X5 110 30 5
+	map_entry HOLD_3X5 110 60 5
+	map_entry HOLD_3X5 110 90 5
+	map_entry HOLD_3X5 110 110 5
+
+
 	map_endtile
 
-: maptile_1_2
-	map_begintile 1 2
-	map_entry HOLD_3X5 30 30 5
-	map_entry HOLD_3X5 30 60 5
-	map_entry HOLD_3X6 60 30 6
-	map_entry HOLD_3X6 60 60 6
-	map_entry HOLD_3X7 90 30 7
-	map_entry HOLD_3X7 90 60 7
-	map_entry HOLD_3X8 120 30 8
-	map_entry HOLD_3X8 120 60 8
+: maptile_2_1
+	map_begintile 2 1
+	map_entry HOLD_3X5 20  4 5
+	map_entry HOLD_3X5 20 30 5
+	map_entry HOLD_3X5 20 60 5
+	map_entry HOLD_3X5 20 90 5
+	map_entry HOLD_3X5 20 110 5
+
+	map_entry HOLD_3X5 50  4 5
+	map_entry HOLD_3X5 50 30 5
+	map_entry HOLD_3X5 50 60 5
+	map_entry HOLD_3X5 50 90 5
+	map_entry HOLD_3X5 50 110 5
+
+	map_entry HOLD_3X5 80  4 5
+	map_entry HOLD_3X5 80 30 5
+	map_entry HOLD_3X5 80 60 5
+	map_entry HOLD_3X5 80 90 5
+	map_entry HOLD_3X5 80 110 5
+
+	map_entry HOLD_3X5 110  4 5
+	map_entry HOLD_3X5 110 30 5
+	map_entry HOLD_3X5 110 60 5
+	map_entry HOLD_3X5 110 90 5
+	map_entry HOLD_3X5 110 110 5
+	map_endtile
+
+: maptile_2_0
+	map_begintile 2 0
+	map_entry HOLD_3X5 20  4 5
+	map_entry HOLD_3X5 20 30 5
+	map_entry HOLD_3X5 20 60 5
+	map_entry HOLD_3X5 20 90 5
+	map_entry HOLD_3X5 20 110 5
+
+	map_entry HOLD_3X5 50  4 5
+	map_entry HOLD_3X5 50 30 5
+	map_entry HOLD_3X5 50 60 5
+	map_entry HOLD_3X5 50 90 5
+	map_entry HOLD_3X5 50 110 5
+
+	map_entry HOLD_3X5 80  4 5
+	map_entry HOLD_3X5 80 30 5
+	map_entry HOLD_3X5 80 60 5
+	map_entry HOLD_3X5 80 90 5
+	map_entry HOLD_3X5 80 110 5
+
+	map_entry HOLD_3X5 110  4 5
+	map_entry HOLD_3X5 110 30 5
+	map_entry HOLD_3X5 110 60 5
+	map_entry HOLD_3X5 110 90 5
+	map_entry HOLD_3X5 110 110 5
 	map_endtile
 
 
@@ -1486,12 +1545,12 @@ map_end
 	v0 := 0
 	v1 := random 1
 	loop
-		vF := Wipe_Delay
-		delay := vF
 		if v1 == 0 then wipe_left
 		if v1 != 0 then wipe_right
 		v0 += 12
 	while v0 != 128
+		vF := Wipe_Delay
+		delay := vF
 		loop
 			vF := delay
 		while vF != 0
