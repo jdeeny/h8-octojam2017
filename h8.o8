@@ -64,6 +64,7 @@
 	loop
 	again
 
+
 :alias Climbing_Limit_Left v2
 :alias Climbing_Limit_Right v3
 :alias Climbing_TempX v4
@@ -84,10 +85,21 @@
 
 
 :const Map_Entry_Bytes 3
-
-
 # Some holds, these are 3 tall ellipses
 :const Hold_Height 3
+
+
+:const Map_Width 6
+:const Map_Height 12
+
+
+:calc Map_Num_Tiles { Map_Width * Map_Height }
+:const Minimap_Bytes 8
+:calc Minimap_Total_Bytes { ( Minimap_Bytes * Map_Num_Tiles ) }
+:calc Map_Index_Bytes { 2 * Map_Num_Tiles }
+
+
+
 
 :calc hold_acc { 0 }
 :macro define_hold id {
@@ -106,6 +118,20 @@ define_hold HOLD_GROUNDA : spr_hold_groundA 0x22 0x13 0x97
 define_hold HOLD_GROUNDB : spr_hold_groundB 0x50 0x21 0xAC
 define_hold HOLD_GROUNDC : spr_hold_groundC 0x40 0x27 0xAF
 :const HOLD_END 0xFF
+
+
+## Map Index
+: maptile_index
+:calc maptile_index_end { HERE + Map_Index_Bytes }
+:org maptile_index_end
+
+: minimap_data
+:calc minimap_end { HERE + Minimap_Total_Bytes }
+:org minimap_end
+
+:calc Map_Index_Address { maptile_index }
+:calc Minimap_Address { minimap_data }
+
 
 #########################
 ### Code Modification ###
@@ -896,26 +922,11 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 	if vF != 0 then sprite Climbing_TempX Climbing_TempY Hold_Height
 	;
 
-## Index
-# Climbing_TileX, Climbing_TileY
-# Jumptable based on tile xy
-: maptile_index
-
-
-	;
 
 ## Tiles
 # Tiles are 128x128
 # Climbing_X, Climbing_Y are the offset into the map
 #
-:const Map_Width 6
-:const Map_Height 12
-:calc Map_Num_Tiles { Map_Width * Map_Height }
-:const Minimap_Bytes 8
-:calc Minimap_Total_Bytes { ( Minimap_Bytes * Map_Num_Tiles ) }
-:calc Map_Index_Bytes { 2 * Map_Num_Tiles }
-:calc Map_Index_Address { 0xFFF - ( Minimap_Total_Bytes + Map_Index_Bytes ) }
-:calc Minimap_Address { Map_Index_Address + Map_Index_Bytes }
 
 # Clears the minimap accumulator bytes
 :macro minimap_reset {
@@ -1374,7 +1385,7 @@ map_end
 	vE := 0
 	vD := 0
 	loop
-		vF := 1
+		vF := 60
 		delay := vF
 		clear
 		clock_draw
