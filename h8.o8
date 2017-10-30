@@ -46,7 +46,8 @@
 
 : main
 	hires
-	clock_test
+	map_load_A
+
 	title_draw
 	wait_any_key_plus_debounce
 	wipe
@@ -105,10 +106,20 @@
 :const Hold_Height 3
 
 
-:const Map_Width 4
-:const Map_Height 4
+# Define the basic dimensions of the maps
+# This is done early because we need to know how many bytes will be consumed
+# by the tile indexes and minimaps
+# Map A: 5x6 tiles
+:const MAP_A_WIDTH 5
+:const MAP_A_HEIGHT 6
+:calc MAP_A_TILES { MAP_A_WIDTH * MAP_A_HEIGHT }
 
+# Map B: 4x8 tiles
+:const MAP_B_WIDTH 4
+:const MAP_B_HEIGHT 8
+:calc MAP_B_TILES { MAP_B_WIDTH * MAP_B_HEIGHT }
 
+:calc Maps_Total_Tiles { MAP_A_TILES + MAP_B_TILES }
 
 :const climbing_leftright_offset 8				# Distance from limb 'root' to centroid
 :const climbing_limb_length 32						# Length of a limb
@@ -138,10 +149,10 @@
 
 
 
-:calc Map_Num_Tiles { Map_Width * Map_Height }
 :const Minimap_Bytes 8
-:calc Minimap_Total_Bytes { ( Minimap_Bytes * Map_Num_Tiles ) }
-:calc Map_Index_Bytes { 2 * Map_Num_Tiles }
+:calc Minimap_Total_Bytes { ( Minimap_Bytes * Maps_Total_Tiles ) }
+:calc Maptile_Index_Total_Bytes { 2 * Maps_Total_Tiles }
+
 
 
 
@@ -166,16 +177,23 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 
 
 ## Map Index
+: map_index
+
+## Maptile Index
 : maptile_index
-:calc maptile_index_end { HERE + Map_Index_Bytes }
+:calc maptile_index_end { HERE + Maptile_Index_Total_Bytes }
 :org maptile_index_end
 
+## Minimap Data
 : minimap_data
 :calc minimap_end { HERE + Minimap_Total_Bytes }
 :org minimap_end
 
-:calc Map_Index_Address { maptile_index }
-:calc Minimap_Address { minimap_data }
+:calc Map_TileIndex_Addr_Base { maptile_index }
+:calc Map_TileIndex_Addr_Current { Map_TileIndex_Addr_Base }
+
+:calc Minimap_Addr_Base { minimap_data }
+:calc Minimap_Addr_Current { Minimap_Addr_Base }
 
 
 #########################
@@ -210,6 +228,13 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
   :calc hi { 0x10 | hi }
   v0 := hi
   v1 := lo
+  i := label
+  save v1
+}
+
+:macro Trampoline-Set-vF-Const label imm {
+  v0 := 0x6F
+  v1 := imm
   i := label
   save v1
 }
@@ -278,15 +303,15 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 		v0 := Climbing_State
 		jump0 climbing_state_jumptable
 		: climbing_main_loop_continue
+		clock_draw
+		clock_tick
+		clock_draw
 		loop
 			vF := delay
 			while vF != 0
 		again
 		vF := CLIMBING_FRAME_DELAY
 		delay := vF
-		clock_draw
-		clock_tick
-		clock_draw
 	again
 	;
 
@@ -437,8 +462,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	Climbing_Limb := LIMB_NONE
 	Climbing_State := Climbing_State_Idle
 	jump climbing_main_loop_continue
-
-
 
 
 
@@ -1210,7 +1233,7 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 # TODO: Try XORing a sprite onto the map at runtime
 :macro minimap_output tile-x tile-y {
 		:calc old-here { HERE }
-		:calc addr { Minimap_Address + ( tile-y * Minimap_Bytes * Map_Width ) + ( tile-x * Minimap_Bytes ) }
+		:calc addr { Minimap_Addr_Current + ( tile-y * Minimap_Bytes * map-current-width ) + ( tile-x * Minimap_Bytes ) }
 		:org addr
 		:byte minimap0
 		:byte minimap1
@@ -1220,18 +1243,6 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 		:byte minimap5
 		:byte minimap6
 		:byte minimap7
-#		:calc minimap2 { minimap2 | 0b00100100 }
-#		:calc minimap3 { minimap3 | 0b00011000 }
-#		:calc minimap4 { minimap4 | 0b00011000 }
-#		:calc minimap5 { minimap5 | 0b00100100 }
-#		:byte minimap0
-#		:byte minimap1
-#		:byte minimap2
-#		:byte minimap3
-#		:byte minimap4
-#		:byte minimap5
-#		:byte minimap6
-#		:byte minimap7
 		:org old-here
 }
 
@@ -1240,19 +1251,29 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 :macro map_index_output tile-x tile-y {
 	:calc old-here { HERE }
 	hilo old-here
-	:calc addr { Map_Index_Address + ( tile-y * 2 * Map_Width ) + ( tile-x * 2 ) }
+	:calc addr { Map_TileIndex_Addr_Current + ( tile-y * 2 * map-current-width ) + ( tile-x * 2 ) }
 	:org addr
 	:byte hi :byte lo
 	:org old-here
 }
 
 # Intended to reset any offsets/etc needed when creating the map
-:macro map_begin {
+# index-label: the label to set to the address of the map's tile index
+# minimap-label: the label to set to the address of the map's minimap
+:macro map_begin map-id map-height map-width intro-draw-function tileindex-label minimap-label {
+	:calc map-current-height { map-height }
+	:calc map-current-width { map-width }
+	:calc map-current-tiles { map-current-height * map-current-width }
+	:calc tileindex-label { Map_TileIndex_Addr_Current }
+	:calc minimap-label { Minimap_Addr_Current }
 }
 
 :macro map_end {
-
+	# Advance to the next minimap/index addresses
+	:calc Map_TileIndex_Addr_Current { Map_TileIndex_Addr_Current + ( 2 * map-current-tiles ) }
+	:calc Minimap_Addr_Current { Minimap_Addr_Current + ( Minimap_Bytes * map-current-tiles ) }
 }
+
 # Begin a new tile of the map
 :macro map_begintile x y {
 	minimap_reset
@@ -1290,9 +1311,11 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 ### Map Definition ###
 ######################
 
-map_begin
 
-: maptile_1_2
+
+# Begin defining a map
+map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT map_a_draw_intro Maptile_Index_A_Address Minimap_A_Address
+#: maptile_1_2
 	map_begintile 1 2
 	map_entry HOLD_3X3 30 30 3
 	map_entry HOLD_3X3 30 60 3
@@ -1305,7 +1328,7 @@ map_begin
 	map_endtile
 
 
-: maptile_2_2
+#: maptile_2_2
 	map_begintile 2 2
 	map_entry HOLD_3X5 20  4 5
 	map_entry HOLD_3X5 20 30 5
@@ -1334,7 +1357,7 @@ map_begin
 
 	map_endtile
 
-: maptile_2_1
+#: maptile_2_1
 	map_begintile 2 1
 	map_entry HOLD_3X5 20  4 5
 	map_entry HOLD_3X5 20 30 5
@@ -1361,7 +1384,7 @@ map_begin
 	map_entry HOLD_3X5 110 110 5
 	map_endtile
 
-: maptile_2_0
+#: maptile_2_0
 	map_begintile 2 0
 	map_entry HOLD_3X5 20  4 5
 	map_entry HOLD_3X5 20 30 5
@@ -1391,6 +1414,36 @@ map_begin
 
 map_end
 
+map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT map_b_draw_intro Maptile_Index_B_Address Minimap_B_Address
+#: maptile_2_0
+	map_begintile 2 0
+	map_entry HOLD_3X5 20  4 5
+	map_entry HOLD_3X5 20 30 5
+	map_entry HOLD_3X5 20 60 5
+	map_entry HOLD_3X5 20 90 5
+	map_entry HOLD_3X5 20 110 5
+
+	map_entry HOLD_3X5 50  4 5
+	map_entry HOLD_3X5 50 30 5
+	map_entry HOLD_3X5 50 60 5
+	map_entry HOLD_3X5 50 90 5
+	map_entry HOLD_3X5 50 110 5
+
+	map_entry HOLD_3X5 80  4 5
+	map_entry HOLD_3X5 80 30 5
+	map_entry HOLD_3X5 80 60 5
+	map_entry HOLD_3X5 80 90 5
+	map_entry HOLD_3X5 80 110 5
+
+	map_entry HOLD_3X5 110  4 5
+	map_entry HOLD_3X5 110 30 5
+	map_entry HOLD_3X5 110 60 5
+	map_entry HOLD_3X5 110 90 5
+	map_entry HOLD_3X5 110 110 5
+	map_endtile
+
+map_end
+
 # Special empty tile for uninitialized map tiles
 : maptile_empty
 	:byte HOLD_END
@@ -1404,9 +1457,9 @@ map_end
 # TODO: This doesn't take into account the current location on the map, just a test as is
 :calc Minimap_X_Offset { 128 - 32 }
 :calc Minimap_Y_Offset { 32 }
-:calc Minimap_Stride { ( Minimap_Bytes * Map_Width ) - ( Minimap_Bytes * 4 ) }
+:calc Minimap_Stride { ( Minimap_Bytes * map-current-width ) - ( Minimap_Bytes * 4 ) }
 : minimap_draw
-	i := Minimap_Address
+	Trampoline: climbing_tramp_i:=minimap_address i := Minimap_Addr_Base
 	v0 := Minimap_X_Offset
 	v1 := Minimap_Y_Offset
 	:calc minimap-x-end { Minimap_X_Offset + ( 8 * 4 ) }
@@ -1671,9 +1724,10 @@ map_end
 # v1: Y tile
 # TODO: Inline this
 : climbing_setup_draw_holds
-	i := Map_Index_Address
-	:calc mapindex-stride { 2 * Map_Width }
-	vF := mapindex-stride
+	Trampoline: climbing_tramp_i:=map_index_address #i := Map_TileIndex_Addr_Base
+	Trampoline: climbing_tramp_vF:=mapindex-stride
+	#:calc mapindex-stride { 2 * Map_Width }
+	#vF := mapindex-stride
 	loop
 	while v1 != 0
 		i += vF
@@ -1689,4 +1743,18 @@ map_end
 	;
 : climbing_setup_draw_holds_none
 	Trampoline-Set-I-Const holds_tramp_i:=maptile maptile_empty
+	;
+
+
+: map_load_A
+	Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_A_Address
+	Trampoline-Set-I-Const climbing_tramp_i:=minimap_address Minimap_A_Address
+	:calc index-stride { MAP_A_WIDTH * 2 }
+	Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
+	;
+: map_load_B
+	Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_B_Address
+	Trampoline-Set-I-Const climbing_tramp_i:=minimap_address Minimap_B_Address
+	:calc index-stride { MAP_B_WIDTH * 2 }
+	Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
 	;
