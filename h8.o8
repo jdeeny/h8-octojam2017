@@ -157,7 +157,7 @@
 # :calc Player_Start_Y { 15 }
 
 
-:const Map_Data_Bytes 12
+:const Map_Data_Bytes 14
 :calc Map_Data_Total_Bytes { Map_Data_Bytes * MAPS_NUM }
 :const Minimap_Bytes 8
 :calc Minimap_Total_Bytes { ( Minimap_Bytes * Maps_Total_Tiles ) }
@@ -280,6 +280,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 : climbing_data_righthand		0 0
 : climbing_data_leftfoot 		0 0
 : climbing_data_rightfoot		0 0
+: climbing_data_goaltile		0 0
 
 # This sets up the beginning of a climbing session
 #  - loads level data, sets limb locations etc
@@ -315,6 +316,13 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 
 
 : climbing_runstate_idle
+	i := climbing_data_goaltile
+	load v1
+	if v0 != Climbing_TileX then jump climbing_runstate_idle_notgoal
+	if v1 != Climbing_TileY then jump climbing_runstate_idle_notgoal
+	:breakpoint atgoal
+	v0 := v0
+	: climbing_runstate_idle_notgoal
 	# Scan limb selection keys
 	ifkey KEY_LH jump climbing_runstate_idle_setlimb_lefthand
 	ifkey KEY_RH jump climbing_runstate_idle_setlimb_righthand
@@ -1313,6 +1321,9 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 	:byte player-start-rightfoot-x
 	:calc player-start-rightfoot-y { ( player-start-hold-rf-y - avg-y ) + Climbing_Center_Y }
 	:byte player-start-rightfoot-y
+
+	:byte player-end-tilex
+	:byte player-end-tiley
 
 	:org old-here
 }
