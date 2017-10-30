@@ -407,57 +407,57 @@
 
 
 
-	: climbing_draw_scene_hands
-		clear
-	# Draw score or something
-		i := spr_placeholder
-		v0 := 96
-		v1 := 0
-		sprite v0 v1 0
-		v0 += 16
-		sprite v0 v1 0
-		v0 := 96
-		v1 := 16
-		sprite v0 v1 0
-		v0 += 16
-		sprite v0 v1 0
+: climbing_draw_scene_hands
+	clear
+# Draw score or something
+	i := spr_placeholder
+	v0 := 96
+	v1 := 0
+	sprite v0 v1 0
+	v0 += 16
+	sprite v0 v1 0
+	v0 := 96
+	v1 := 16
+	sprite v0 v1 0
+	v0 += 16
+	sprite v0 v1 0
 
-		# Draw Minimap
-		minimap_draw
+	# Draw Minimap
+	minimap_draw
 
-		# Draw holds
-		climbing_draw_holds
+	# Draw holds
+	climbing_draw_holds
 
-		# Draw the initial limbs
-		climbing_draw_lefthand
-		climbing_draw_righthand
-		;
+	# Draw the initial limbs
+	climbing_draw_lefthand
+	climbing_draw_righthand
+	;
 
-	: climbing_draw_scene_feet
-		clear
-	# Draw score or something
-		i := spr_placeholder
-		v0 := 96
-		v1 := 0
-		sprite v0 v1 0
-		v0 += 16
-		sprite v0 v1 0
-		v0 := 96
-		v1 := 16
-		sprite v0 v1 0
-		v0 += 16
-		sprite v0 v1 0
+: climbing_draw_scene_feet
+	clear
+# Draw score or something
+	i := spr_placeholder
+	v0 := 96
+	v1 := 0
+	sprite v0 v1 0
+	v0 += 16
+	sprite v0 v1 0
+	v0 := 96
+	v1 := 16
+	sprite v0 v1 0
+	v0 += 16
+	sprite v0 v1 0
 
-		# Draw Minimap
-		minimap_draw
+	# Draw Minimap
+	minimap_draw
 
-		# Draw holds
-		climbing_draw_holds
+	# Draw holds
+	climbing_draw_holds
 
-		# Draw the initial limbs
-		climbing_draw_leftfoot
-		climbing_draw_rightfoot
-		;
+	# Draw the initial limbs
+	climbing_draw_leftfoot
+	climbing_draw_rightfoot
+	;
 
 
 	# Draws all the holds in a map tile
