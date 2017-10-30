@@ -1047,9 +1047,9 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	loop vf := delay while vf != 0 again
 	;
 
-:const shades_y 16
-:const shades_x_end 100
-:const shades_x_slow 106
+:const shades_y 8
+:calc shades_x_end { ( 128 - 16 ) / 2 }
+:calc shades_x_slow { ( ( 128 - shades_x_end ) / 12 ) + shades_x_end }
 : animate_shades
 	v0 := 127
 	v1 := shades_y
@@ -1681,8 +1681,6 @@ map_end
 :calc Inter_Pitch_Y { 10 }
 :calc Inter_Grade_Y { 20 }
 :calc Inter_Par_Y { 30 }
-:calc Inter_PressKey_Y { 55 }
-:calc Inter_PressKey_X { 12 }
 :macro text_entry spr-id x y {
 	:byte spr-id :byte x :byte y
 }
@@ -1696,6 +1694,9 @@ map_end
 	text_entry SPR_TEXT_PAR_0		 6 Inter_Par_Y
 	text_entry SPR_TEXT_PAR_1		14 Inter_Par_Y
 	text_entry SPR_TEXT_COLON   18 Inter_Par_Y
+
+	:calc Inter_PressKey_X { 37 }
+	:calc Inter_PressKey_Y { 55 }
 	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
 	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
 	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
@@ -1713,14 +1714,33 @@ map_end
 	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
 	:byte SPR_TEXT_END
 
-:calc Outro_Erfolg_X { 35 }
-:calc Outro_Erfolg_Y { 12 }
+:calc Outro_Erfolg_X { 52 }
+:calc Outro_Erfolg_Y { 20 }
 : outro_all
 	text_entry SPR_TEXT_ERFOLG_0 Outro_Erfolg_X Outro_Erfolg_Y
 	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
 	text_entry SPR_TEXT_ERFOLG_1 Outro_Erfolg_X Outro_Erfolg_Y
 	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
 	text_entry SPR_TEXT_ERFOLG_2 Outro_Erfolg_X Outro_Erfolg_Y
+
+	:calc Inter_PressKey_X { 37 }
+	:calc Inter_PressKey_Y { 55 }
+	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
+
 	:byte SPR_TEXT_END
 
 # Intro text specific to pitch A
