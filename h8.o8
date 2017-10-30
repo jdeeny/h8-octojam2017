@@ -1377,6 +1377,10 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 	:calc player-start-tilex { maptile_x }
 	:calc player-start-tiley { maptile_y }
 }
+:macro map_is_goal_tile {
+	:calc player-end-tilex { maptile_x }
+	:calc player-end-tiley { maptile_y }
+}
 
 :macro map_is_player_start_lh {
 	:calc player-start-hold-lh-x { hold-x }
@@ -1404,133 +1408,129 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 # Begin defining a map
 map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT map_a_draw_intro Map_Data_A_Address Maptile_Index_A_Address Minimap_A_Address
 	map_begintile 1 2
-	map_entry HOLD_3X3 30 30 3
-	map_entry HOLD_3X3 30 60 3
-	map_entry HOLD_3X3 60 30 3
-	map_entry HOLD_3X3 60 60 3
-	map_entry HOLD_3X3 90 30 3
-	map_entry HOLD_3X3 90 60 3
-	map_entry HOLD_3X3 120 30 3
-	map_entry HOLD_3X3 120 60 3
+		map_is_goal_tile
+		map_entry HOLD_3X3 30 30 3
+		map_entry HOLD_3X3 30 60 3
+		map_entry HOLD_3X3 60 30 3
+		map_entry HOLD_3X3 60 60 3
+		map_entry HOLD_3X3 90 30 3
+		map_entry HOLD_3X3 90 60 3
+		map_entry HOLD_3X3 120 30 3
+		map_entry HOLD_3X3 120 60 3
 	map_endtile
 
-
-#: maptile_2_2
 	map_begintile 2 2
-	map_is_player_start_tile
-	map_entry HOLD_3X5 20  4 5
-	map_entry HOLD_3X5 20 30 5
-	map_entry HOLD_3X5 20 60 5
-	map_entry HOLD_3X5 20 90 5
-	map_entry HOLD_3X5 20 110 5
+		map_is_player_start_tile
+		map_entry HOLD_3X5 20  4 5
+		map_entry HOLD_3X5 20 30 5
+		map_entry HOLD_3X5 20 60 5
+		map_entry HOLD_3X5 20 90 5
+		map_entry HOLD_3X5 20 110 5
 
-	map_entry HOLD_3X5 50  4 5
-	map_entry HOLD_3X5 50 30 5
-	map_entry HOLD_3X5 50 60 5
-	map_entry HOLD_3X5 50 90 5
-	map_entry HOLD_3X5 50 110 5
+		map_entry HOLD_3X5 50  4 5
+		map_entry HOLD_3X5 50 30 5
+		map_entry HOLD_3X5 50 60 5
+		map_entry HOLD_3X5 50 90 5
+		map_entry HOLD_3X5 50 110 5
 
-	map_entry HOLD_3X5 80  4 5
-	map_entry HOLD_3X5 75 30 5 map_is_player_start_lh
-	map_entry HOLD_3X5 80 60 5 map_is_player_start_lf
-	map_entry HOLD_3X5 80 90 5
-	map_entry HOLD_3X5 80 110 5
+		map_entry HOLD_3X5 80  4 5
+		map_entry HOLD_3X5 75 30 5 map_is_player_start_lh
+		map_entry HOLD_3X5 80 60 5 map_is_player_start_lf
+		map_entry HOLD_3X5 80 90 5
+		map_entry HOLD_3X5 80 110 5
 
-	map_entry HOLD_3X5 110  4 5
-	map_entry HOLD_3X5 108 35 5 map_is_player_start_rh
-	map_entry HOLD_3X5 112 65 5 map_is_player_start_rf
-	map_entry HOLD_3X5 110 90 5
-	map_entry HOLD_3X5 110 110 5
-
-
+		map_entry HOLD_3X5 110  4 5
+		map_entry HOLD_3X5 108 35 5 map_is_player_start_rh
+		map_entry HOLD_3X5 112 65 5 map_is_player_start_rf
+		map_entry HOLD_3X5 110 90 5
+		map_entry HOLD_3X5 110 110 5
 	map_endtile
 
-#: maptile_2_1
 	map_begintile 2 1
-	map_entry HOLD_3X5 20  4 5
-	map_entry HOLD_3X5 20 30 5
-	map_entry HOLD_3X5 20 60 5
-	map_entry HOLD_3X5 20 90 5
-	map_entry HOLD_3X5 20 110 5
+		map_entry HOLD_3X5 20  4 5
+		map_entry HOLD_3X5 20 30 5
+		map_entry HOLD_3X5 20 60 5
+		map_entry HOLD_3X5 20 90 5
+		map_entry HOLD_3X5 20 110 5
 
-	map_entry HOLD_3X5 50  4 5
-	map_entry HOLD_3X5 50 30 5
-	map_entry HOLD_3X5 50 60 5
-	map_entry HOLD_3X5 50 90 5
-	map_entry HOLD_3X5 50 110 5
+		map_entry HOLD_3X5 50  4 5
+		map_entry HOLD_3X5 50 30 5
+		map_entry HOLD_3X5 50 60 5
+		map_entry HOLD_3X5 50 90 5
+		map_entry HOLD_3X5 50 110 5
 
-	map_entry HOLD_3X5 80  4 5
-	map_entry HOLD_3X5 80 30 5
-	map_entry HOLD_3X5 80 60 5
-	map_entry HOLD_3X5 80 90 5
-	map_entry HOLD_3X5 80 110 5
+		map_entry HOLD_3X5 80  4 5
+		map_entry HOLD_3X5 80 30 5
+		map_entry HOLD_3X5 80 60 5
+		map_entry HOLD_3X5 80 90 5
+		map_entry HOLD_3X5 80 110 5
 
-	map_entry HOLD_3X5 110  4 5
-	map_entry HOLD_3X5 110 30 5
-	map_entry HOLD_3X5 110 60 5
-	map_entry HOLD_3X5 110 90 5
-	map_entry HOLD_3X5 110 110 5
+		map_entry HOLD_3X5 110  4 5
+		map_entry HOLD_3X5 110 30 5
+		map_entry HOLD_3X5 110 60 5
+		map_entry HOLD_3X5 110 90 5
+		map_entry HOLD_3X5 110 110 5
 	map_endtile
 
-#: maptile_2_0
 	map_begintile 2 0
-	map_entry HOLD_3X5 20  4 5
-	map_entry HOLD_3X5 20 30 5
-	map_entry HOLD_3X5 20 60 5
-	map_entry HOLD_3X5 20 90 5
-	map_entry HOLD_3X5 20 110 5
+		map_entry HOLD_3X5 20  4 5
+		map_entry HOLD_3X5 20 30 5
+		map_entry HOLD_3X5 20 60 5
+		map_entry HOLD_3X5 20 90 5
+		map_entry HOLD_3X5 20 110 5
 
-	map_entry HOLD_3X5 50  4 5
-	map_entry HOLD_3X5 50 30 5
-	map_entry HOLD_3X5 50 60 5
-	map_entry HOLD_3X5 50 90 5
-	map_entry HOLD_3X5 50 110 5
+		map_entry HOLD_3X5 50  4 5
+		map_entry HOLD_3X5 50 30 5
+		map_entry HOLD_3X5 50 60 5
+		map_entry HOLD_3X5 50 90 5
+		map_entry HOLD_3X5 50 110 5
 
-	map_entry HOLD_3X5 80  4 5
-	map_entry HOLD_3X5 80 30 5
-	map_entry HOLD_3X5 80 60 5
-	map_entry HOLD_3X5 80 90 5
-	map_entry HOLD_3X5 80 110 5
+		map_entry HOLD_3X5 80  4 5
+		map_entry HOLD_3X5 80 30 5
+		map_entry HOLD_3X5 80 60 5
+		map_entry HOLD_3X5 80 90 5
+		map_entry HOLD_3X5 80 110 5
 
-	map_entry HOLD_3X5 110  4 5
-	map_entry HOLD_3X5 110 30 5
-	map_entry HOLD_3X5 110 60 5
-	map_entry HOLD_3X5 110 90 5
-	map_entry HOLD_3X5 110 110 5
+		map_entry HOLD_3X5 110  4 5
+		map_entry HOLD_3X5 110 30 5
+		map_entry HOLD_3X5 110 60 5
+		map_entry HOLD_3X5 110 90 5
+		map_entry HOLD_3X5 110 110 5
 	map_endtile
-
-
 map_end
 
 map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT map_b_draw_intro Map_Data_B_Address Maptile_Index_B_Address Minimap_B_Address
 #: maptile_2_0
-	map_begintile 2 0
-	map_is_player_start_tile
-	map_entry HOLD_3X5 20  4 5
-	map_entry HOLD_3X5 20 30 5 map_is_player_start_lh
-	map_entry HOLD_3X5 20 60 5 map_is_player_start_lf
-	map_entry HOLD_3X5 20 90 5
-	map_entry HOLD_3X5 20 110 5
-
-	map_entry HOLD_3X5 50  4 5
-	map_entry HOLD_3X5 50 30 5 map_is_player_start_rh
-	map_entry HOLD_3X5 50 60 5 map_is_player_start_rf
-	map_entry HOLD_3X5 50 90 5
-	map_entry HOLD_3X5 50 110 5
-
-	map_entry HOLD_3X5 80  4 5
-	map_entry HOLD_3X5 80 30 5
-	map_entry HOLD_3X5 80 60 5
-	map_entry HOLD_3X5 80 90 5
-	map_entry HOLD_3X5 80 110 5
-
-	map_entry HOLD_3X5 110  4 5
-	map_entry HOLD_3X5 110 30 5
-	map_entry HOLD_3X5 110 60 5
-	map_entry HOLD_3X5 110 90 5
-	map_entry HOLD_3X5 110 110 5
+	map_begintile 2 1
+		map_is_goal_tile
 	map_endtile
 
+	map_begintile 2 0
+		map_is_player_start_tile
+		map_entry HOLD_3X5 20  4 5
+		map_entry HOLD_3X5 20 30 5 map_is_player_start_lh
+		map_entry HOLD_3X5 20 60 5 map_is_player_start_lf
+		map_entry HOLD_3X5 20 90 5
+		map_entry HOLD_3X5 20 110 5
+
+		map_entry HOLD_3X5 50  4 5
+		map_entry HOLD_3X5 50 30 5 map_is_player_start_rh
+		map_entry HOLD_3X5 50 60 5 map_is_player_start_rf
+		map_entry HOLD_3X5 50 90 5
+		map_entry HOLD_3X5 50 110 5
+
+		map_entry HOLD_3X5 80  4 5
+		map_entry HOLD_3X5 80 30 5
+		map_entry HOLD_3X5 80 60 5
+		map_entry HOLD_3X5 80 90 5
+		map_entry HOLD_3X5 80 110 5
+
+		map_entry HOLD_3X5 110  4 5
+		map_entry HOLD_3X5 110 30 5
+		map_entry HOLD_3X5 110 60 5
+		map_entry HOLD_3X5 110 90 5
+		map_entry HOLD_3X5 110 110 5
+	map_endtile
 map_end
 
 # Special empty tile for uninitialized map tiles
