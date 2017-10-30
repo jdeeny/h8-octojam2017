@@ -107,6 +107,7 @@
 
 
 # Define the basic dimensions of the maps
+:const MAPS_NUM 2
 # This is done early because we need to know how many bytes will be consumed
 # by the tile indexes and minimaps
 # Map A: 5x6 tiles
@@ -115,8 +116,8 @@
 :calc MAP_A_TILES { MAP_A_WIDTH * MAP_A_HEIGHT }
 
 # Map B: 4x8 tiles
-:const MAP_B_WIDTH 4
-:const MAP_B_HEIGHT 8
+:const MAP_B_WIDTH 3
+:const MAP_B_HEIGHT 3
 :calc MAP_B_TILES { MAP_B_WIDTH * MAP_B_HEIGHT }
 
 :calc Maps_Total_Tiles { MAP_A_TILES + MAP_B_TILES }
@@ -148,7 +149,8 @@
 :calc Player_Start_Y { 15 }
 
 
-
+:const Map_Data_Bytes 10
+:calc Map_Data_Total_Bytes { Map_Data_Bytes * MAPS_NUM }
 :const Minimap_Bytes 8
 :calc Minimap_Total_Bytes { ( Minimap_Bytes * Maps_Total_Tiles ) }
 :calc Maptile_Index_Total_Bytes { 2 * Maps_Total_Tiles }
@@ -176,8 +178,10 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 :const HOLD_END 0xFF
 
 
-## Map Index
-: map_index
+## Map data - player start posns
+: map_data
+:calc map_data_end { HERE + Map_Data_Total_Bytes }
+:org map_data_end
 
 ## Maptile Index
 : maptile_index
@@ -188,6 +192,9 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 : minimap_data
 :calc minimap_end { HERE + Minimap_Total_Bytes }
 :org minimap_end
+
+:calc Map_Data_Addr_Base { map_data }
+:calc Map_Data_Addr_Current { Map_Data_Addr_Base }
 
 :calc Map_TileIndex_Addr_Base { maptile_index }
 :calc Map_TileIndex_Addr_Current { Map_TileIndex_Addr_Base }
@@ -1228,10 +1235,7 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 # in a predetermined location
 # `Minimap_Address` sets the base address of the minimap, tile-x and tile-y
 # are the tile ID #s of the minimap (to locate the correct place in memory)
-# Currently outputs a seconnd minimap tile with an 'X' superimposed to indicate
-# the current map tile, since I thought XORing would be awkward.
-# TODO: Try XORing a sprite onto the map at runtime
-:macro minimap_output tile-x tile-y {
+:macro minimap_emit tile-x tile-y {
 		:calc old-here { HERE }
 		:calc addr { Minimap_Addr_Current + ( tile-y * Minimap_Bytes * map-current-width ) + ( tile-x * Minimap_Bytes ) }
 		:org addr
@@ -1248,7 +1252,7 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 
 # Emit the address of the current location in the map index
 # Call this at the address of each map tile
-:macro map_index_output tile-x tile-y {
+:macro map_tileindex_emit tile-x tile-y {
 	:calc old-here { HERE }
 	hilo old-here
 	:calc addr { Map_TileIndex_Addr_Current + ( tile-y * 2 * map-current-width ) + ( tile-x * 2 ) }
@@ -1257,13 +1261,54 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 	:org old-here
 }
 
+
+:macro map_data_emit tile-x tile-y {
+	:calc old-here { HERE }
+	:calc addr { Map_Data_Addr_Current }
+	:org addr
+	:byte player-start-tilex
+	:byte player-start-tiley
+
+	:calc avg-x { ( player-start-hold-lh-x + player-starthold-rh-x + player-starthold-lf-x + player-starthold-rf-x ) / 4 }
+	:calc avg-y { ( player-start-hold-lh-y + player-starthold-rh-y + player-starthold-lf-y + player-starthold-rf-y ) / 4 }
+
+	:calc start-offset-x { avg-x - Climbing_Center_X }
+	:calc start-offset-y { avg-y - Climbing_Center_Y }
+	:byte start-offset-x
+	:byte start-offset-y
+
+	:calc player-start-lefthand-x { player-start-hold-lh-x - avg-x }
+	:byte player-start-lefthand-x
+	:calc player-start-lefthand-y { player-start-hold-lh-y - avg-y }
+	:byte player-start-lefthand-y
+
+	:calc player-start-righthand-x { player-start-hold-rh-x - avg-x }
+	:byte player-start-righthand-x
+	:calc player-start-righthand-y { player-start-hold-rh-y - avg-y }
+	:byte player-start-righthand-y
+
+	:calc player-start-leftfoot-x { player-start-hold-lf-x - avg-x }
+	:byte player-start-leftfoot-x
+	:calc player-start-leftfoot-y { player-start-hold-lf-y - avg-y }
+	:byte player-start-leftfoot-y
+
+	:calc player-start-rightfoot-x { player-start-hold-rf-x - avg-x }
+	:byte player-start-rightfoot-x
+	:calc player-start-rightfoot-y { player-start-hold-rf-y - avg-y }
+	:byte player-start-rightfoot-y
+
+	:org old-here
+}
+
+
 # Intended to reset any offsets/etc needed when creating the map
 # index-label: the label to set to the address of the map's tile index
 # minimap-label: the label to set to the address of the map's minimap
-:macro map_begin map-id map-height map-width intro-draw-function tileindex-label minimap-label {
+:macro map_begin map-id map-height map-width intro-draw-function mapdata-label tileindex-label minimap-label {
 	:calc map-current-height { map-height }
 	:calc map-current-width { map-width }
 	:calc map-current-tiles { map-current-height * map-current-width }
+	:calc mapdata-label { Map_Data_Addr_Current }
 	:calc tileindex-label { Map_TileIndex_Addr_Current }
 	:calc minimap-label { Minimap_Addr_Current }
 }
@@ -1281,7 +1326,7 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 	:calc maptile_y { y }
 	:calc map_x { 0 }
 	:calc map_y { 0 }
-	map_index_output x y
+	map_tileindex_emit x y
 }
 
 # Add a hold to the map tile
@@ -1290,6 +1335,8 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 # This fills the table with the delta between this hold and the previous
 # so that the sprite index registers can be incrementally changed, saving an instruction
 :macro map_entry spr_id x y w {
+	:calc hold-x { x }
+	:calc hold-y { y }
 	:byte spr_id
 	:calc x-delta { x - map_x }
 	:byte x-delta
@@ -1304,7 +1351,29 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 # Emits the END sigil and outputs the minimap.
 :macro map_endtile {
 	:byte HOLD_END
-	minimap_output maptile_x maptile_y
+	minimap_emit maptile_x maptile_y
+}
+
+:macro map_is_player_start_tile {
+	:calc player-start-tilex { map_x }
+	:calc player-start-tilex { map_y }
+}
+
+:macro map_is_player_start_lh {
+	:calc player-start-hold-lh-x { hold-x }
+	:calc player-start-hold-lh-y { hold-y }
+}
+:macro map_is_player_start_rh {
+	:calc player-start-hold-rh-x { hold-x }
+	:calc player-start-hold-rh-y { hold-y }
+}
+:macro map_is_player_start_lf {
+	:calc player-start-hold-lf-x { hold-x }
+	:calc player-start-hold-lf-y { hold-y }
+}
+:macro map_is_player_start_rf {
+	:calc player-start-hold-rf-x { hold-x }
+	:calc player-start-hold-rf-y { hold-y }
 }
 
 ######################
@@ -1314,7 +1383,7 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 
 
 # Begin defining a map
-map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT map_a_draw_intro Maptile_Index_A_Address Minimap_A_Address
+map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT map_a_draw_intro Map_Data_A_Address Maptile_Index_A_Address Minimap_A_Address
 #: maptile_1_2
 	map_begintile 1 2
 	map_entry HOLD_3X3 30 30 3
@@ -1330,6 +1399,7 @@ map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT map_a_draw_intro Maptile_Index_A_Addres
 
 #: maptile_2_2
 	map_begintile 2 2
+	map_is_player_start_tile
 	map_entry HOLD_3X5 20  4 5
 	map_entry HOLD_3X5 20 30 5
 	map_entry HOLD_3X5 20 60 5
@@ -1343,14 +1413,14 @@ map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT map_a_draw_intro Maptile_Index_A_Addres
 	map_entry HOLD_3X5 50 110 5
 
 	map_entry HOLD_3X5 80  4 5
-	map_entry HOLD_3X5 80 30 5
-	map_entry HOLD_3X5 80 60 5
+	map_entry HOLD_3X5 80 30 5 map_is_player_start_lh
+	map_entry HOLD_3X5 80 60 5 map_is_player_start_lf
 	map_entry HOLD_3X5 80 90 5
 	map_entry HOLD_3X5 80 110 5
 
 	map_entry HOLD_3X5 110  4 5
-	map_entry HOLD_3X5 110 30 5
-	map_entry HOLD_3X5 110 60 5
+	map_entry HOLD_3X5 110 30 5 map_is_player_start_rh
+	map_entry HOLD_3X5 110 60 5 map_is_player_start_rf
 	map_entry HOLD_3X5 110 90 5
 	map_entry HOLD_3X5 110 110 5
 
@@ -1459,7 +1529,9 @@ map_end
 :calc Minimap_Y_Offset { 32 }
 :calc Minimap_Stride { ( Minimap_Bytes * map-current-width ) - ( Minimap_Bytes * 4 ) }
 : minimap_draw
-	Trampoline: climbing_tramp_i:=minimap_address i := Minimap_Addr_Base
+	Trampoline: climbing_tramp_i:=minimap_address
+	#Trampoline: climbing_tramp_v0:=minimap_x_offset #v0 := Minimap_X_Offset		# TODO: Fix this <-- so it draws the correct spots like hold drawing does
+	#Trampoline: climbing_tramp_v1:=minimap_y_offset #v1 := Minimap_Y_Offset
 	v0 := Minimap_X_Offset
 	v1 := Minimap_Y_Offset
 	:calc minimap-x-end { Minimap_X_Offset + ( 8 * 4 ) }
@@ -1724,6 +1796,7 @@ map_end
 # v1: Y tile
 # TODO: Inline this
 : climbing_setup_draw_holds
+#:breakpoint setup
 	Trampoline: climbing_tramp_i:=map_index_address #i := Map_TileIndex_Addr_Base
 	Trampoline: climbing_tramp_vF:=mapindex-stride
 	#:calc mapindex-stride { 2 * Map_Width }
@@ -1746,7 +1819,45 @@ map_end
 	;
 
 
+: map_set_start_load_two
+	Trampoline: map_tramp_i:=map_data_address
+	i += v2
+	load v1
+	;
+
+: map_set_start
+	v2 := 0
+	map_set_start_load_two
+	Climbing_TileX := v0
+	Climbing_TileY := v1
+	v2 += 2
+	map_set_start_load_two
+	Climbing_X := v0
+	Climbing_Y := v0
+
+	v2 += 2
+	map_set_start_load_two
+	i := climbing_data_lefthand
+	save v1
+
+	v2 += 2
+	map_set_start_load_two
+	i := climbing_data_righthand
+	save v1
+
+	v2 += 2
+	map_set_start_load_two
+	i := climbing_data_leftfoot
+	save v1
+
+	v2 += 2
+	map_set_start_load_two
+	i := climbing_data_rightfoot
+	save v1
+	;
+
 : map_load_A
+	Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_A_Address
 	Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_A_Address
 	Trampoline-Set-I-Const climbing_tramp_i:=minimap_address Minimap_A_Address
 	:calc index-stride { MAP_A_WIDTH * 2 }
