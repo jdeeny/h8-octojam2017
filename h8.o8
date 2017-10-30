@@ -52,7 +52,8 @@
 	wait_any_key_plus_debounce
 	wipe
 
-	intro_draw
+	clear
+	intro_draw_a
 	wait_any_key_plus_debounce
 	wipe
 
@@ -60,6 +61,9 @@
 	climbing_init
 	climbing_run
 
+	clear
+	outro_draw_a
+	wait_any_key_plus_debounce
 	: main_loop
 	loop
 	again
@@ -320,8 +324,8 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	load v1
 	if v0 != Climbing_TileX then jump climbing_runstate_idle_notgoal
 	if v1 != Climbing_TileY then jump climbing_runstate_idle_notgoal
-	:breakpoint atgoal
-	v0 := v0
+	return
+
 	: climbing_runstate_idle_notgoal
 	# Scan limb selection keys
 	ifkey KEY_LH jump climbing_runstate_idle_setlimb_lefthand
@@ -1419,7 +1423,6 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 # Begin defining a map
 map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT map_a_draw_intro Map_Data_A_Address Maptile_Index_A_Address Minimap_A_Address
 	map_begintile 1 2
-		map_is_goal_tile
 		map_entry HOLD_3X3 30 30 3
 		map_entry HOLD_3X3 30 60 3
 		map_entry HOLD_3X3 60 30 3
@@ -1432,6 +1435,7 @@ map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT map_a_draw_intro Map_Data_A_Address Map
 
 	map_begintile 2 2
 		map_is_player_start_tile
+		map_is_goal_tile
 		map_entry HOLD_3X5 20  4 5
 		map_entry HOLD_3X5 20 30 5
 		map_entry HOLD_3X5 20 60 5
@@ -1633,18 +1637,26 @@ map_end
 	text_entry SPR_TEXT_ERFOLG_2 Outro_Erfolg_X Outro_Erfolg_Y
 	:byte SPR_TEXT_END
 
-# Intro text specific to pitch 0
-: intro_0
+# Intro text specific to pitch A
+: intro_A
+	text_entry SPR_TEXT_PITCH_0  24  Inter_Pitch_Y
 	:byte SPR_TEXT_END
-	;
 
+# Intro text specific to pitch A
+: intro_B
+	:byte SPR_TEXT_END
+
+: outro_A
+	:byte SPR_TEXT_END
+
+: outro_B
+	:byte SPR_TEXT_END
 
 # Draw all the items in the list for this intro screen
 : intro_draw
-	clear
 	v3 := 0
 	loop
-		i := outro_all
+		Trampoline: intro_tramp_i:=intro_data
 		i += v3
 		load v2
 	while v0 != SPR_TEXT_END
@@ -1653,8 +1665,33 @@ map_end
 		sprite v1 v2 Text_Height
 		v3 += 3
 	again
+	;
+
+: intro_draw_a
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_all
+	intro_draw
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_A
+	intro_draw
 	minimap_draw
 	;
+
+: intro_draw_b
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_all
+	intro_draw
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_B
+	intro_draw
+	minimap_draw
+	;
+
+: outro_draw_a
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_all
+	intro_draw
+	:breakpoint outro
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_A
+	intro_draw
+	;
+
+
 
 # Waits for a keypress, then waits until no keys are pressed
 : wait_any_key_plus_debounce
@@ -1882,6 +1919,12 @@ map_end
 	map_set_start_load_two
 	i := climbing_data_rightfoot
 	save v1
+
+	v2 += 2
+	map_set_start_load_two
+	i := climbing_data_goaltile
+	save v1
+
 	;
 
 : map_load_A
