@@ -135,21 +135,21 @@
 :calc Climbing_Center_Y { climbing_height / 2 }
 
 
-:calc Player_Start_LeftHand_X { Climbing_Center_X - 10 }
-:calc Player_Start_LeftHand_Y { Climbing_Center_Y - 10 }
-:calc Player_Start_RightHand_X { Climbing_Center_X + 10 }
-:calc Player_Start_RightHand_Y { Climbing_Center_Y - 10 }
-:calc Player_Start_LeftFoot_X { Climbing_Center_X - 10 }
-:calc Player_Start_LeftFoot_Y { Climbing_Center_Y + 10 }
-:calc Player_Start_RightFoot_X { Climbing_Center_X + 10 }
-:calc Player_Start_RightFoot_Y { Climbing_Center_Y + 10 }
-:const Player_Start_TileX 2
-:const Player_Start_TileY 2
-:calc Player_Start_X { 60 }
-:calc Player_Start_Y { 15 }
+# :calc Player_Start_LeftHand_X { Climbing_Center_X - 10 }
+# :calc Player_Start_LeftHand_Y { Climbing_Center_Y - 10 }
+# :calc Player_Start_RightHand_X { Climbing_Center_X + 10 }
+# :calc Player_Start_RightHand_Y { Climbing_Center_Y - 10 }
+# :calc Player_Start_LeftFoot_X { Climbing_Center_X - 10 }
+# :calc Player_Start_LeftFoot_Y { Climbing_Center_Y + 10 }
+# :calc Player_Start_RightFoot_X { Climbing_Center_X + 10 }
+# :calc Player_Start_RightFoot_Y { Climbing_Center_Y + 10 }
+# :const Player_Start_TileX 2
+# :const Player_Start_TileY 2
+# :calc Player_Start_X { 60 }
+# :calc Player_Start_Y { 15 }
 
 
-:const Map_Data_Bytes 10
+:const Map_Data_Bytes 12
 :calc Map_Data_Total_Bytes { Map_Data_Bytes * MAPS_NUM }
 :const Minimap_Bytes 8
 :calc Minimap_Total_Bytes { ( Minimap_Bytes * Maps_Total_Tiles ) }
@@ -277,24 +277,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 #  - loads level data, sets limb locations etc
 : climbing_init
 	# Setup some initial XY coords for the limbs
-	i := climbing_data
-	v0 := Player_Start_LeftHand_X
-	v1 := Player_Start_LeftHand_Y
-	save v1
-	v0 := Player_Start_RightHand_X
-	v1 := Player_Start_RightHand_Y
-	save v1
-	v0 := Player_Start_LeftFoot_X
-	v1 := Player_Start_LeftFoot_Y
-	save v1
-	v0 := Player_Start_RightFoot_X
-	v1 := Player_Start_RightFoot_Y
-	save v1
-
-	Climbing_TileX := Player_Start_TileX
-	Climbing_TileY := Player_Start_TileY
-	Climbing_X := Player_Start_X
-	Climbing_Y := Player_Start_Y
+	map_set_start
 
 	;
 
@@ -651,7 +634,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 
 
 : climbing_drawlimb_arm
-	#:breakpoint armdraw
 	v0 := Climbing_TempY 			# Copy height into work reg
 	v2 := v0 				# Duplicate into v2, assuming hp48 shift quirk
 	v0 >>= v0 				# Since we actually only need a 4 stride
@@ -765,14 +747,12 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	# Load hand location
 	i := climbing_data
 	load v3
-	#:breakpoint load1
 	v2 += v0
 	v3 += v1
 	v4 >>= v2
 	v5 >>= v3
 
 	load v3
-	#:breakpoint load2
 	v2 += v0
 	v3 += v1
 	v2 >>= v2
@@ -782,7 +762,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	v3 += v5
 	v2 >>= v2
 	v3 >>= v3
-	#:breakpoint avginv2v3
 
 	# center is at 1/2 height, 1/2 width
 	# offset because we store the corner
@@ -790,7 +769,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	:calc offsety { 0 - Climbing_Center_Y }
 	v2 += offsetx
 	v3 += offsety
-	#:breakpoint offsetinv2v3
 
 	# figure out delta
 #	v0 := v2
@@ -802,7 +780,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 #	v2 := v0
 #	v3 := v1
 
-	#:breakpoint climbing_offset
 	i := climbing_data_lefthand
 	load v1
 	v0 -= v2
@@ -810,7 +787,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	i := climbing_data_lefthand
 	save v1
 
-	#:breakpoint savelh
 
 	i := climbing_data_righthand
 	load v1
@@ -819,7 +795,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	i := climbing_data_righthand
 	save v1
 
-	#:breakpoint saverh
 
 	i := climbing_data_leftfoot
 	load v1
@@ -828,7 +803,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	i := climbing_data_leftfoot
 	save v1
 
-	#:breakpoint savelf
 
 	i := climbing_data_rightfoot
 	load v1
@@ -836,7 +810,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	v1 -= v3
 	i := climbing_data_rightfoot
 	save v1
-	#:breakpoint saverf
 
 
 	vF := 0x80
@@ -1262,39 +1235,39 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 }
 
 
-:macro map_data_emit tile-x tile-y {
+:macro map_data_emit {
 	:calc old-here { HERE }
 	:calc addr { Map_Data_Addr_Current }
 	:org addr
 	:byte player-start-tilex
 	:byte player-start-tiley
 
-	:calc avg-x { ( player-start-hold-lh-x + player-starthold-rh-x + player-starthold-lf-x + player-starthold-rf-x ) / 4 }
-	:calc avg-y { ( player-start-hold-lh-y + player-starthold-rh-y + player-starthold-lf-y + player-starthold-rf-y ) / 4 }
+	:calc avg-x { ( player-start-hold-lh-x + player-start-hold-rh-x + player-start-hold-lf-x + player-start-hold-rf-x ) / 4 }
+	:calc avg-y { ( player-start-hold-lh-y + player-start-hold-rh-y + player-start-hold-lf-y + player-start-hold-rf-y ) / 4 }
 
 	:calc start-offset-x { avg-x - Climbing_Center_X }
 	:calc start-offset-y { avg-y - Climbing_Center_Y }
 	:byte start-offset-x
 	:byte start-offset-y
 
-	:calc player-start-lefthand-x { player-start-hold-lh-x - avg-x }
+	:calc player-start-lefthand-x { ( player-start-hold-lh-x - avg-x ) + Climbing_Center_X }
 	:byte player-start-lefthand-x
-	:calc player-start-lefthand-y { player-start-hold-lh-y - avg-y }
+	:calc player-start-lefthand-y { ( player-start-hold-lh-y - avg-y ) + Climbing_Center_Y }
 	:byte player-start-lefthand-y
 
-	:calc player-start-righthand-x { player-start-hold-rh-x - avg-x }
+	:calc player-start-righthand-x { ( player-start-hold-rh-x - avg-x ) + Climbing_Center_X }
 	:byte player-start-righthand-x
-	:calc player-start-righthand-y { player-start-hold-rh-y - avg-y }
+	:calc player-start-righthand-y { ( player-start-hold-rh-y - avg-y ) + Climbing_Center_Y }
 	:byte player-start-righthand-y
 
-	:calc player-start-leftfoot-x { player-start-hold-lf-x - avg-x }
+	:calc player-start-leftfoot-x { ( player-start-hold-lf-x - avg-x ) + Climbing_Center_X }
 	:byte player-start-leftfoot-x
-	:calc player-start-leftfoot-y { player-start-hold-lf-y - avg-y }
+	:calc player-start-leftfoot-y { ( player-start-hold-lf-y - avg-y ) + Climbing_Center_Y }
 	:byte player-start-leftfoot-y
 
-	:calc player-start-rightfoot-x { player-start-hold-rf-x - avg-x }
+	:calc player-start-rightfoot-x { ( player-start-hold-rf-x - avg-x ) + Climbing_Center_X }
 	:byte player-start-rightfoot-x
-	:calc player-start-rightfoot-y { player-start-hold-rf-y - avg-y }
+	:calc player-start-rightfoot-y { ( player-start-hold-rf-y - avg-y ) + Climbing_Center_Y }
 	:byte player-start-rightfoot-y
 
 	:org old-here
@@ -1304,9 +1277,9 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 # Intended to reset any offsets/etc needed when creating the map
 # index-label: the label to set to the address of the map's tile index
 # minimap-label: the label to set to the address of the map's minimap
-:macro map_begin map-id map-height map-width intro-draw-function mapdata-label tileindex-label minimap-label {
-	:calc map-current-height { map-height }
+:macro map_begin map-id map-width map-height intro-draw-function mapdata-label tileindex-label minimap-label {
 	:calc map-current-width { map-width }
+	:calc map-current-height { map-height }
 	:calc map-current-tiles { map-current-height * map-current-width }
 	:calc mapdata-label { Map_Data_Addr_Current }
 	:calc tileindex-label { Map_TileIndex_Addr_Current }
@@ -1314,7 +1287,9 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 }
 
 :macro map_end {
+	map_data_emit
 	# Advance to the next minimap/index addresses
+	:calc Map_Data_Addr_Current { Map_Data_Addr_Current + Map_Data_Bytes }
 	:calc Map_TileIndex_Addr_Current { Map_TileIndex_Addr_Current + ( 2 * map-current-tiles ) }
 	:calc Minimap_Addr_Current { Minimap_Addr_Current + ( Minimap_Bytes * map-current-tiles ) }
 }
@@ -1355,8 +1330,8 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 }
 
 :macro map_is_player_start_tile {
-	:calc player-start-tilex { map_x }
-	:calc player-start-tilex { map_y }
+	:calc player-start-tilex { maptile_x }
+	:calc player-start-tiley { maptile_y }
 }
 
 :macro map_is_player_start_lh {
@@ -1384,7 +1359,6 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 
 # Begin defining a map
 map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT map_a_draw_intro Map_Data_A_Address Maptile_Index_A_Address Minimap_A_Address
-#: maptile_1_2
 	map_begintile 1 2
 	map_entry HOLD_3X3 30 30 3
 	map_entry HOLD_3X3 30 60 3
@@ -1413,14 +1387,14 @@ map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT map_a_draw_intro Map_Data_A_Address Map
 	map_entry HOLD_3X5 50 110 5
 
 	map_entry HOLD_3X5 80  4 5
-	map_entry HOLD_3X5 80 30 5 map_is_player_start_lh
+	map_entry HOLD_3X5 75 30 5 map_is_player_start_lh
 	map_entry HOLD_3X5 80 60 5 map_is_player_start_lf
 	map_entry HOLD_3X5 80 90 5
 	map_entry HOLD_3X5 80 110 5
 
 	map_entry HOLD_3X5 110  4 5
-	map_entry HOLD_3X5 110 30 5 map_is_player_start_rh
-	map_entry HOLD_3X5 110 60 5 map_is_player_start_rf
+	map_entry HOLD_3X5 108 35 5 map_is_player_start_rh
+	map_entry HOLD_3X5 112 65 5 map_is_player_start_rf
 	map_entry HOLD_3X5 110 90 5
 	map_entry HOLD_3X5 110 110 5
 
@@ -1484,18 +1458,19 @@ map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT map_a_draw_intro Map_Data_A_Address Map
 
 map_end
 
-map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT map_b_draw_intro Maptile_Index_B_Address Minimap_B_Address
+map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT map_b_draw_intro Map_Data_B_Address Maptile_Index_B_Address Minimap_B_Address
 #: maptile_2_0
 	map_begintile 2 0
+	map_is_player_start_tile
 	map_entry HOLD_3X5 20  4 5
-	map_entry HOLD_3X5 20 30 5
-	map_entry HOLD_3X5 20 60 5
+	map_entry HOLD_3X5 20 30 5 map_is_player_start_lh
+	map_entry HOLD_3X5 20 60 5 map_is_player_start_lf
 	map_entry HOLD_3X5 20 90 5
 	map_entry HOLD_3X5 20 110 5
 
 	map_entry HOLD_3X5 50  4 5
-	map_entry HOLD_3X5 50 30 5
-	map_entry HOLD_3X5 50 60 5
+	map_entry HOLD_3X5 50 30 5 map_is_player_start_rh
+	map_entry HOLD_3X5 50 60 5 map_is_player_start_rf
 	map_entry HOLD_3X5 50 90 5
 	map_entry HOLD_3X5 50 110 5
 
@@ -1796,7 +1771,6 @@ map_end
 # v1: Y tile
 # TODO: Inline this
 : climbing_setup_draw_holds
-#:breakpoint setup
 	Trampoline: climbing_tramp_i:=map_index_address #i := Map_TileIndex_Addr_Base
 	Trampoline: climbing_tramp_vF:=mapindex-stride
 	#:calc mapindex-stride { 2 * Map_Width }
@@ -1833,7 +1807,7 @@ map_end
 	v2 += 2
 	map_set_start_load_two
 	Climbing_X := v0
-	Climbing_Y := v0
+	Climbing_Y := v1
 
 	v2 += 2
 	map_set_start_load_two
@@ -1864,6 +1838,7 @@ map_end
 	Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
 	;
 : map_load_B
+	Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_B_Address
 	Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_B_Address
 	Trampoline-Set-I-Const climbing_tramp_i:=minimap_address Minimap_B_Address
 	:calc index-stride { MAP_B_WIDTH * 2 }
