@@ -63,13 +63,28 @@
 	again
 
 
+:const Climbing_State_Idle 0
+:const Climbing_State_MoveArm 2
+:const Climbing_State_MoveLeg 4
+:const Climbing_State_MovingLimb 6
+:const Climbing_State_Debounce 8
+
+: climbing_state_jumptable
+	jump climbing_runstate_idle
+	jump climbing_runstate_movearm
+	jump climbing_runstate_moveleg
+	jump climbing_runstate_movinglimb
+	jump climbing_runstate_debounce
+
+
+
 :alias Climbing_Limit_Left v2
 :alias Climbing_Limit_Right v3
 :alias Climbing_TempX v4
 :alias Climbing_TempY v5
-:alias Climbing_View v6
-:alias Climbing_Moving v7
-:alias Climbing_Debounce v8
+:alias Climbing_TileX v6
+:alias Climbing_TileY v7
+:alias Climbing_State v8
 :alias Climbing_X v9
 :alias Climbing_Y vA
 :alias Climbing_DeltaX vB
@@ -191,9 +206,6 @@ define_hold HOLD_GROUNDC : spr_hold_groundC 0x40 0x27 0xAF
 :const TOP_HAND_LIMIT 0
 :const BOT_HAND_LIMIT 48
 
-:const CLIMBING_VIEW_HANDS 0
-:const CLIMBING_VIEW_FEET 1
-
 # Storage of limb coordinates, LH XY, RH XY, LF XY, RF XY
 :const CLIMBING_DATA_BYTES 2
 : climbing_data
@@ -217,146 +229,23 @@ define_hold HOLD_GROUNDC : spr_hold_groundC 0x40 0x27 0xAF
 	save v1
 	v0 := 80
 	save v1
+
+	Climbing_TileY := 15
+	Climbing_TileX := 2
 	;
 
 # This loops around idling, waiting for limb select and moving a limb onto a hold
 : climbing_run
 	# Setup
 	Climbing_Limb := LIMB_NONE
-	Climbing_Moving := 0
-	Climbing_View := CLIMBING_VIEW_HANDS
-
-	climbing_draw_scene_feet
+	Climbing_State := Climbing_State_Idle
+	climbing_draw_scene_hands
 
 	: climbing_main_loop
 	loop
-		# Don't select a limb if we are moving already
-		if Climbing_Moving != 0 then jump climbing_moving_limb
-
-		# Scan limb selection keys
-		ifkey KEY_LH Climbing_Limb := LIMB_LEFTHAND
-		ifkey KEY_RH Climbing_Limb := LIMB_RIGHTHAND
-		ifkey KEY_LF Climbing_Limb := LIMB_LEFTFOOT
-		ifkey KEY_RF Climbing_Limb := LIMB_RIGHTFOOT
-
-		# Don't do anything if no limb was selected
-		if Climbing_Limb == LIMB_NONE then jump climbing_delay_loop
-
-		# Select a new limb and start moving it
-		: climbing_begin_move
-		# At this point, a limb is selected (Climbing_Limb := LIMB_XXX)
-
-		# If the selection switchs between hand/foot, update screen appropriately
-		if Climbing_Limb == LIMB_LEFTHAND then climbing_draw_scene_hands
-		if Climbing_Limb == LIMB_RIGHTHAND then climbing_draw_scene_hands
-		if Climbing_Limb == LIMB_LEFTFOOT then climbing_draw_scene_feet
-		if Climbing_Limb == LIMB_RIGHTFOOT then climbing_draw_scene_feet
-
-		# Setup the limb drawing function to do the right thing and load Climbing X/Y
-		if Climbing_Limb == LIMB_LEFTHAND then climbing_setup_drawlimb_lefthand
-		if Climbing_Limb == LIMB_RIGHTHAND then climbing_setup_drawlimb_righthand
-		if Climbing_Limb == LIMB_LEFTFOOT then climbing_setup_drawlimb_leftfoot
-		if Climbing_Limb == LIMB_RIGHTFOOT then climbing_setup_drawlimb_rightfoot
-
-		# i is set equal to the correct data area by the above setup functions
-		load v1
-		Climbing_X := v0
-		Climbing_Y := v1
-
-		# Initialize before move loop
-		Climbing_Debounce := 0	# Clear debounce flag
-		Climbing_Moving := 1		# Moving = True
-		Climbing_DeltaX := 0
-		Climbing_DeltaY := 0
-
-		# Move a limb
-		: climbing_moving_limb
-
-			# Erase, update XY, and redraw the limb
-				: climbing_redraw_limb
-				# Erase limb
-					climbing_drawlimb
-				# Adjust x/y
-					Climbing_X += Climbing_DeltaX
-					Climbing_Y += Climbing_DeltaY
-				# Apply limits
-					vF := 0x80
-					vF &= Climbing_Y
-					if vF != 0 then Climbing_Y := 1
-
-					vF := 0x40
-					vF &= Climbing_Y
-					if vF != 0 then Climbing_Y := 63
-
-					climbing_set_limits
-
-					vF := Climbing_X
-					vF -= Climbing_Limit_Left
-					if vF == 0 then Climbing_X := Climbing_Limit_Left
-
-					vF := Climbing_Limit_Right
-					vF -= Climbing_X
-					if vF == 0 then Climbing_X := Climbing_Limit_Right
-
-				# Draw limb
-					climbing_drawlimb
-
-			# Scan movement keys and adjust delta x/y
-				: climbing_scan_movement_keys
-				Climbing_DeltaX := 0
-				Climbing_DeltaY := 0
-				ifkey KEY_LEFT Climbing_DeltaX += CLIMBING_SPEED_REVERSE
-				ifkey KEY_RIGHT Climbing_DeltaX += CLIMBING_SPEED
-				ifkey KEY_UP Climbing_DeltaY += CLIMBING_SPEED_REVERSE
-				ifkey KEY_DOWN Climbing_DeltaY += CLIMBING_SPEED
-
-			# Add random jitter to the delta x/y
-				v0 := random 0b00001100
-				vF := random 0b00000001
-				jump0 climbing_randtable
-				: climbing_randtable
-				Climbing_DeltaX += vF
-				jump climbing_endrand
-				Climbing_DeltaX -= vF
-				jump climbing_endrand
-				Climbing_DeltaY += vF
-				jump climbing_endrand
-				Climbing_DeltaY -= vF
-				: climbing_endrand
-
-
-			# Check keys to see if we are finished moving
-				if v1 == 0 then jump climbing_delay_loop	# skip ending keys if there wasnt a collision with the hand/foot
-				: climbing_scan_moveend_keys
-				# If we are not debounced, don't allow switch
-				if Climbing_Debounce == 0 then jump climbing_check_debounce
-				if Climbing_Limb key then jump climbing_exit_movement	# Exit if they press the same limb key again
-				jump climbing_delay_loop
-
-				: climbing_check_debounce
-				if Climbing_Limb -key then Climbing_Debounce := 1		# Set debounced flag if the key was released
-				jump climbing_delay_loop
-
-		# Limb movement is over, determine if the move landed on a hold
-		: climbing_exit_movement
-		# Cheap debounce
-		loop while Climbing_Limb key again
-
-		# Save limb data to ram
-		if Climbing_Limb == LIMB_LEFTHAND then i := climbing_data_lefthand
-		if Climbing_Limb == LIMB_RIGHTHAND then i := climbing_data_righthand
-		if Climbing_Limb == LIMB_LEFTFOOT then i := climbing_data_leftfoot
-		if Climbing_Limb == LIMB_RIGHTFOOT then i := climbing_data_rightfoot
-		v0 := Climbing_X
-		v1 := Climbing_Y
-		save v1
-
-		# Clear limb
-		Climbing_Moving := 0
-		Climbing_Limb := LIMB_NONE
-
-		# Delay and Continue with idle
-		: climbing_delay_loop
+		v0 := Climbing_State
+		jump0 climbing_state_jumptable
+		: climbing_main_loop_continue
 		loop
 			vF := delay
 			while vF != 0
@@ -365,6 +254,142 @@ define_hold HOLD_GROUNDC : spr_hold_groundC 0x40 0x27 0xAF
 		delay := vF
 	again
 	;
+
+
+: climbing_runstate_idle
+	# Scan limb selection keys
+	ifkey KEY_LH jump climbing_runstate_idle_setlimb_lefthand
+	ifkey KEY_RH jump climbing_runstate_idle_setlimb_righthand
+	ifkey KEY_LF jump climbing_runstate_idle_setlimb_leftfoot
+	ifkey KEY_RF jump climbing_runstate_idle_setlimb_rightfoot
+	jump climbing_main_loop_continue
+	: climbing_runstate_idle_setlimb_lefthand
+		Climbing_Limb := LIMB_LEFTHAND
+		Climbing_State := Climbing_State_MoveArm
+		jump climbing_main_loop_continue
+	: climbing_runstate_idle_setlimb_righthand
+		Climbing_Limb := LIMB_RIGHTHAND
+		Climbing_State := Climbing_State_MoveArm
+		jump climbing_main_loop_continue
+	: climbing_runstate_idle_setlimb_leftfoot
+		Climbing_Limb := LIMB_LEFTHAND
+		Climbing_State := Climbing_State_MoveLeg
+		jump climbing_main_loop_continue
+	: climbing_runstate_idle_setlimb_rightfoot
+		Climbing_Limb := LIMB_RIGHTHAND
+		Climbing_State := Climbing_State_MoveLeg
+		jump climbing_main_loop_continue
+
+: climbing_runstate_movearm
+	climbing_draw_scene_hands
+	if Climbing_Limb == LIMB_LEFTHAND then climbing_setup_drawlimb_lefthand
+	if Climbing_Limb == LIMB_RIGHTHAND then climbing_setup_drawlimb_righthand
+	# i is set equal to the correct data area by the above setup functions
+	load v1
+	Climbing_X := v0
+	Climbing_Y := v1
+
+	# Initialize before move loop
+	Climbing_DeltaX := 0
+	Climbing_DeltaY := 0
+	Climbing_State := Climbing_State_MovingLimb
+	jump climbing_main_loop_continue
+
+
+: climbing_runstate_moveleg
+	climbing_draw_scene_feet
+	if Climbing_Limb == LIMB_LEFTFOOT then climbing_setup_drawlimb_leftfoot
+	if Climbing_Limb == LIMB_RIGHTFOOT then climbing_setup_drawlimb_rightfoot
+	# i is set equal to the correct data area by the above setup functions
+	load v1
+	Climbing_X := v0
+	Climbing_Y := v1
+
+	# Initialize before move loop
+	Climbing_DeltaX := 0
+	Climbing_DeltaY := 0
+	Climbing_State := Climbing_State_MovingLimb
+	jump climbing_main_loop_continue
+
+
+: climbing_runstate_movinglimb
+	# Erase limb
+		climbing_drawlimb
+	# Adjust x/y
+		Climbing_X += Climbing_DeltaX
+		Climbing_Y += Climbing_DeltaY
+	# Apply limits
+		vF := 0x80
+		vF &= Climbing_Y
+		if vF != 0 then Climbing_Y := 1
+
+		vF := 0x40
+		vF &= Climbing_Y
+		if vF != 0 then Climbing_Y := 63
+
+		climbing_set_limits
+
+		vF := Climbing_X
+		vF -= Climbing_Limit_Left
+		if vF == 0 then Climbing_X := Climbing_Limit_Left
+
+		vF := Climbing_Limit_Right
+		vF -= Climbing_X
+		if vF == 0 then Climbing_X := Climbing_Limit_Right
+
+	# Draw limb
+		climbing_drawlimb
+
+	# Scan movement keys and adjust delta x/y
+		Climbing_DeltaX := 0
+		Climbing_DeltaY := 0
+		ifkey KEY_LEFT Climbing_DeltaX += CLIMBING_SPEED_REVERSE
+		ifkey KEY_RIGHT Climbing_DeltaX += CLIMBING_SPEED
+		ifkey KEY_UP Climbing_DeltaY += CLIMBING_SPEED_REVERSE
+		ifkey KEY_DOWN Climbing_DeltaY += CLIMBING_SPEED
+
+	# Add random jitter to the delta x/y
+		v0 := random 0b00001100
+		vF := random 0b00000001
+		jump0 climbing_randtable
+		: climbing_randtable
+		Climbing_DeltaX += vF
+		jump climbing_endrand
+		Climbing_DeltaX -= vF
+		jump climbing_endrand
+		Climbing_DeltaY += vF
+		jump climbing_endrand
+		Climbing_DeltaY -= vF
+		: climbing_endrand
+
+	# Check key to see if we are finished moving
+	if v1 == 0 then jump climbing_main_loop_continue	# skip ending keys if there wasnt a collision with the hand/foot
+	if Climbing_Limb key then Climbing_State := Climbing_State_Debounce
+
+	jump climbing_main_loop_continue
+
+
+: climbing_runstate_debounce
+	if Climbing_Limb key then jump climbing_main_loop_continue
+
+	# Save limb data to ram
+	if Climbing_Limb == LIMB_LEFTHAND then i := climbing_data_lefthand
+	if Climbing_Limb == LIMB_RIGHTHAND then i := climbing_data_righthand
+	if Climbing_Limb == LIMB_LEFTFOOT then i := climbing_data_leftfoot
+	if Climbing_Limb == LIMB_RIGHTFOOT then i := climbing_data_rightfoot
+	v0 := Climbing_X
+	v1 := Climbing_Y
+	save v1
+
+	# Clear limb
+	Climbing_Limb := LIMB_NONE
+	Climbing_State := Climbing_State_Idle
+	jump climbing_main_loop_continue
+
+
+
+
+
 
 
 : climbing_draw_scene_hands
