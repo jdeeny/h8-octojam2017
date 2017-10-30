@@ -46,8 +46,6 @@
 
 : main
 	hires
-	clock_test
-	:breakpoint clk
 	title_draw
 	wait_any_key_plus_debounce
 	wipe
@@ -757,7 +755,7 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 :const climbing_limb_length 32						# Length of a limb
 :const climbing_hand_width 8
 :calc climbing_width { ( climbing_leftright_offset * 2 ) + ( climbing_limb_length * 2 ) }			# The full width of the visible play area
-:calc climbing_center { 64 }
+:calc climbing_center { ( climbing_width / 2 ) + 10 }
 :calc climbing_left { climbing_center - ( climbing_width / 2 ) }
 :calc climbing_right { climbing_center + ( climbing_width / 2 ) }
 
