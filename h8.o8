@@ -1502,7 +1502,6 @@ map_end
 # TODO: This doesn't take into account the current location on the map, just a test as is
 :calc Minimap_X_Offset { 128 - 32 }
 :calc Minimap_Y_Offset { 32 }
-:calc Minimap_Stride { ( Minimap_Bytes * map-current-width ) - ( Minimap_Bytes * 4 ) }
 : minimap_draw
 	Trampoline: climbing_tramp_i:=minimap_address
 	#Trampoline: climbing_tramp_v0:=minimap_x_offset #v0 := Minimap_X_Offset		# TODO: Fix this <-- so it draws the correct spots like hold drawing does
@@ -1520,7 +1519,7 @@ map_end
 			i += vF
 			v0 += 8
 		again
-		vF := Minimap_Stride
+		Trampoline: minimap_tramp_vF:=minimap_stride #vF := Minimap_Stride
 		i += vF
 		v0 := Minimap_X_Offset
 		v1 += 8
@@ -1836,6 +1835,9 @@ map_end
 	Trampoline-Set-I-Const climbing_tramp_i:=minimap_address Minimap_A_Address
 	:calc index-stride { MAP_A_WIDTH * 2 }
 	Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
+	:calc minimap-stride { ( Minimap_Bytes * MAP_A_WIDTH ) - ( Minimap_Bytes * 4 ) }
+	Trampoline-Set-vF-Const minimap_tramp_vF:=minimap_stride minimap-stride
+
 	;
 : map_load_B
 	Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_B_Address
@@ -1843,4 +1845,6 @@ map_end
 	Trampoline-Set-I-Const climbing_tramp_i:=minimap_address Minimap_B_Address
 	:calc index-stride { MAP_B_WIDTH * 2 }
 	Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
+	:calc minimap-stride { ( Minimap_Bytes * MAP_B_WIDTH ) - ( Minimap_Bytes * 4 ) }
+	Trampoline-Set-vF-Const minimap_tramp_vF:=minimap_stride minimap-stride
 	;
