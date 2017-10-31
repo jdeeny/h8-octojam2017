@@ -1375,6 +1375,12 @@ slice_begin SLICE_SHADES 8
 slice_end
 
 
+
+:macro calc-center span-size item-size offset-to-span {
+	:calc center-offset { ( ( span-size - item-size ) / 2 ) + offset-to-span }
+}
+
+
 :const Screen_Table_Bytes 2
 :const Screen_Count 1
 : screen_table
@@ -1409,7 +1415,8 @@ slice_end
 
 
 :const FEATURE_DISPLAY_SLICE 0
-:const FEATURE_ANIMATE_SLICE 2
+:const FEATURE_DISPLAY_SPRITE16 2
+:const FEATURE_ANIMATE_SLICE 4
 :const FEATURE_END 0xFF
 
 
@@ -1462,12 +1469,33 @@ slice_end
 	:byte y
 }
 
+:macro feature_display_sprite16 sprite-addr x y {
+	:byte FEATURE_DISPLAY_SPRITE16
+	hilo sprite-addr
+	:byte hi
+	:byte lo
+	:byte x
+	:byte y
+}
+
 : screen_definitions
 
 screen_begin SCREEN_TITLE
 	step_begin 5 100
 		feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
-		#feature_display_sprite16 spr_title_htop TITLE_H8
+
+		:calc title_x { TITLE_H8_XOFFSET }
+		:calc title_y { TITLE_H8_YOFFSET }
+		feature_display_sprite16 spr_title_htop title_x title_y
+		:calc title_x { TITLE_H8_XOFFSET + TITLE_H8_XSKIP }
+		feature_display_sprite16 spr_title_8top title_x title_y
+
+		:calc title_x { TITLE_H8_XOFFSET }
+		:calc title_y { TITLE_H8_YOFFSET + 16 }
+		feature_display_sprite16 spr_title_hbot title_x title_y
+		:calc title_x { TITLE_H8_XOFFSET + TITLE_H8_XSKIP }
+		feature_display_sprite16 spr_title_8bot title_x title_y
+
 		#feature_animate_slice slice_id x1 x2 y1 y2 frames easing?
 	step_end
 screen_end
@@ -1545,45 +1573,61 @@ screen_end
 : step_load_feature
 	i := screen_state_current
 	load v1
-	:breakpoint loadfeature
 
-	vF := 0xA0
-	v0 |= vF
-	:calc addr { HERE + 4 }
-	i := addr
-	save v1
-	i := addr
+	set_i_to_v0v1
 	# i = feature data
 	load v0
 	;
 
 # Draws any sprites and sets up animations
 : step_init
-	:breakpoint step_init
-	step_load_feature
-	:breakpoint feature_loaded
-	jump0 feature_handler_jumptable
-	: feature_handler_return
+	loop
+		step_load_feature
+	while v0 != FEATURE_END
+		jump0 feature_handler_jumptable
+		: feature_handler_return
+	again
 	;
 
 : feature_handler_jumptable
 	jump feature_handler_display_slice
+	jump feature_handler_display_sprite16
 
 : feature_handler_display_slice
-	:breakpoint feature-handler-disp-slice
 	load v2
 	v4 := v1
 	v5 := v2
 	slice_draw
-	:breakpoint drawn
+	vF := 4
+	feature_handler_advance_current
+	jump feature_handler_return
+
+: feature_handler_display_sprite16
+	load v3
+	set_i_to_v0v1
+	sprite v2 v3 0
+	vF := 5
+	feature_handler_advance_current
+	jump feature_handler_return
+
+# In: vF := offset
+: feature_handler_advance_current
 	i := screen_state_current
 	load v1
-	vF := 4
 	v1 += vF
 	if vF != 0 then v0 += 1
 	i := screen_state_current
 	save v1
-	jump feature_handler_return
+	;
+
+: set_i_to_v0v1
+	vF := 0xA0
+	v0 |= vF
+	:calc addr { HERE + 4 }
+	i := addr
+	save v1
+	i := addr
+	;
 
 # Advances any animations setup by step_begin
 : step_continue
@@ -1597,7 +1641,6 @@ screen_end
 # in: v0/v1 = address of step data
 # out: screen_state set to loaded step data
 : step_load
-	:breakpoint step_load
 	# Save the address of the first feature of the step ( 4 bytes later )
 	v2 := v0
 	v3 := v1
@@ -1611,7 +1654,6 @@ screen_end
 	v0 := v2
 	v1 := v3
 
-	:breakpoint loadstep
 	vF := 0xA0
 	v0 |= vF
 	:calc addr { HERE + 4 }
@@ -1640,7 +1682,6 @@ screen_end
 	# look up address of first step of the screen in screen table
 	i := screen_table
 	i += v0
-	:breakpoint screentable
 	load v1
 
 	step_load # load the first step
@@ -2569,7 +2610,6 @@ map_end
 
 : title_draw
 	v0 := SCREEN_TITLE
-	:breakpoint title_begin
 	screen_init
 	:breakpoint title_done
 #	clear
