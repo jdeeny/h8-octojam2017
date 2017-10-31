@@ -1263,7 +1263,6 @@ slice_end
 :const FEATURE_DISPLAY_SPRITE16 2
 :const FEATURE_SETUP_ANIMATION_SLIDE_X 4
 :const FEATURE_SETUP_ANIMATION_BOUNCE_Y 6
-:const FEATURE_SETUP_ANIMATION_CYCLE 8
 :const FEATURE_END 0xFF
 
 
@@ -1336,6 +1335,15 @@ slice_end
 	:byte steps-per-ease
 }
 
+:macro feature-setup-animation-bounce-y animator-id slice-id x y limit {
+	:byte FEATURE_SETUP_ANIMATION_BOUNCE_Y
+	:byte animator-id
+	:byte slice-id
+	:byte x
+	:byte y
+	:byte limit
+}
+
 
 : screen_definitions
 
@@ -1385,7 +1393,8 @@ screen_begin SCREEN_TITLE
 		feature_display_sprite16 spr_title_8bot title_x title_y
 
 		feature_display_slice SLICE_TEXT_START Title_Select_Start_X Title_Select_Start_Y
-		feature-setup-animation-slide-x 0 SLICE_TEXT_START 20 10 50 1 5
+		#feature-setup-animation-slide-x 0 SLICE_TEXT_START 20 10 50 1 5
+		feature-setup-animation-bounce-y 0 SLICE_TEXT_START 80 50 6
 	step_end
 screen_end
 
@@ -1546,6 +1555,8 @@ screen_end
 	while v0 != FEATURE_END
 		jump0 feature_handler_jumptable
 		: feature_handler_return
+		feature_handler_advance_current		# vF set by handler
+
 	again
 	;
 
@@ -1554,7 +1565,6 @@ screen_end
 	jump feature_handler_display_sprite16
 	jump feature_handler_setup_animation_slide_x
 	jump feature_handler_setup_animation_bounce_y
-	jump feature_handler_setup_animation_cycle
 
 : feature_handler_display_slice
 	load v2
@@ -1562,7 +1572,6 @@ screen_end
 	v5 := v2
 	slice_draw
 	vF := 4
-	feature_handler_advance_current
 	jump feature_handler_return
 
 : feature_handler_display_sprite16
@@ -1570,14 +1579,12 @@ screen_end
 	set_i_to_v0v1
 	sprite v2 v3 0
 	vF := 5
-	feature_handler_advance_current
 	jump feature_handler_return
 
 
 :const ANIMATOR_TYPE_NONE 0
 :const ANIMATOR_TYPE_SLIDE_X 2
 :const ANIMATOR_TYPE_BOUNCE_Y 4
-:const ANIMATOR_TYPE_CYCLE 6
 
 :const ANIMATOR_0 0
 : animator_data
@@ -1616,36 +1623,31 @@ screen_end
 	v2 := 0
 	save v2		# save steps per ease and ease state & counter
 
-	i := animator_sliceid
-	load v2
-	v4 := v1
-	v5 := v2
-	slice_draw
+	animator_draw_slice
 
 	vF := 8
-	feature_handler_advance_current
-
 	jump feature_handler_return
 
 : feature_handler_setup_animation_bounce_y
-	load v6
+	load v4
 	i := animator_data
 	i += v0
 
-	v0 := ANIMATOR_TYPE_NONE #v0 := ANIMATOR_TYPE_BOUNCE_Y
-#	v7 := 0
-	save v7	# type, spr_id, x, y, steps, increment, steps_per_ease, ease_step
-	jump feature_handler_return
+	v0 := ANIMATOR_TYPE_BOUNCE_Y
+	save v0
+	v0 := v1
+	save v0
+	v0 := v2
+	v1 := v3
+	save v1
+	v0 := 0
+	v1 := -1
+	v2 := v4
+	save v2
 
-: feature_handler_setup_animation_cycle
-	# animator id, spr id, x, y, steps, increment, steps_per_ease
-	load v6
-	i := animator_data
-	i += v0
+	animator_draw_slice
 
-	v0 := ANIMATOR_TYPE_NONE #v0 := ANIMATOR_TYPE_BOUNCE_Y
-	v7 := 0
-	save v7	# type, spr_id, x, y, steps, increment, steps_per_ease, ease_step
+	vF := 6
 	jump feature_handler_return
 
 
@@ -1679,18 +1681,22 @@ screen_end
 	return	# none
 	jump animator_continue_handler_slide_x
 	jump animator_continue_handler_bounce_y
-	jump animator_continue_handler_cycle
+
+: animator_draw_slice
+	i := animator_sliceid
+	load v2
+	v4 := v1
+	v5 := v2
+	slice_draw
+	;
 
 : animator_continue_handler_slide_x
 
 	i := animator_steps
 	load v0
 	if v0 == 0 then return	# if steps = 0, we are done
-	i := animator_sliceid
-	load v2
-	v4 := v1
-	v5 := v2
-	slice_draw
+
+	animator_draw_slice
 
 	i := animator_sliceid
 	load v4
@@ -1698,19 +1704,27 @@ screen_end
 	v1 += v4
 	i := animator_sliceid
 	save v3
-	v4 := v1
-	v5 := v2
-	slice_draw
+
+	animator_draw_slice
 	;
 
 : animator_continue_handler_bounce_y
-	# update offset
-	slice_draw
-	# add offset to y
-	slice_draw
-	;
 
-: animator_continue_handler_cycle
+	animator_draw_slice
+	i := animator_sliceid
+	load v5
+
+	v2 += v4
+	v3 += 1
+	if v3 != v5 then jump animator_continue_handler_bounce_y_not_at_limit
+	v3 := 0
+	#vF := 0
+	v4 =- v3 #vF
+	: animator_continue_handler_bounce_y_not_at_limit
+	i := animator_sliceid
+	save v5
+
+	animator_draw_slice
 	;
 
 : screen_run
