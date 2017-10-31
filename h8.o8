@@ -234,8 +234,7 @@
 
 :calc Maptile_Index_Total_Bytes { 2 * Maps_Total_Tiles }
 
-:calc Intro_JumpTable_Total_Bytes { 2 * MAPS_NUM }
-:calc Outro_JumpTable_Total_Bytes { 2 * MAPS_NUM }
+:calc Info_ID_Table_Total_Bytes { 1 * MAPS_NUM }
 :calc Next_JumpTable_Total_Bytes { 2 * MAPS_NUM }
 
 
@@ -271,15 +270,10 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 :calc maptile_index_end { HERE + Maptile_Index_Total_Bytes }
 :org maptile_index_end
 
-## Intro jumptable
-: map_intro_jumptable
-:calc intro_end { HERE + Intro_JumpTable_Total_Bytes }
+## Map info screen id table
+: map_info_id_table
+:calc intro_end { HERE + Info_ID_Table_Total_Bytes }
 :org intro_end
-
-## Outro jumptable
-: map_outro_jumptable
-:calc outro_end { HERE + Outro_JumpTable_Total_Bytes }
-:org outro_end
 
 ## Nextmap jumptable
 : map_next_jumptable
@@ -293,11 +287,8 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 :calc Map_TileIndex_Addr_Base { maptile_index }
 :calc Map_TileIndex_Addr_Current { Map_TileIndex_Addr_Base }
 
-:calc Map_Intro_Addr_Base { map_intro_jumptable }
-:calc Map_Intro_Addr_Current { Map_Intro_Addr_Base }
-
-:calc Map_Outro_Addr_Base { map_outro_jumptable }
-:calc Map_Outro_Addr_Current { Map_Outro_Addr_Base }
+:calc Map_Info_Addr_Base { map_info_id_table }
+:calc Map_Info_Addr_Current { Map_Info_Addr_Base }
 
 :calc Map_Next_Addr_Base { map_next_jumptable }
 :calc Map_Next_Addr_Current { Map_Next_Addr_Base }
@@ -383,6 +374,7 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 : climbing_data_leftfoot 		0 0
 : climbing_data_rightfoot		0 0
 : climbing_data_goaltile		0 0
+: climbing_data_currentmap 0
 
 # This sets up the beginning of a climbing session
 #  - loads level data, sets limb locations etc
@@ -1281,7 +1273,7 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 
 
 :const Slice_Table_Bytes 4
-:const Slice_Count 9
+:const Slice_Count 10
 : slice_table
 	:calc slice_table_bytes { Slice_Table_Bytes * Slice_Count }
 	:calc slice_table_end { HERE + slice_table_bytes }
@@ -1370,6 +1362,12 @@ slice_begin SLICE_TEXT_SUBTITLE 5
 	: spr_title_sub_R 	0xB8 0xA8 0xB0 0xA8 0xA8 # 1/2 O, R
 slice_end
 
+slice_begin SLICE_TEXT_PITCH_NAME_A 5
+	: spr_text_pitch_name_a0 0x00 0x55 0x00 0x00 0x00
+	: spr_text_pitch_name_a1 0x00 0x55 0x00 0x00 0x00
+	: spr_text_pitch_name_a2 0x00 0x55 0x00 0x00 0x00
+slice_end
+
 slice_begin SLICE_SHADES 8
 : spr_shades_left 0x7F 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
 : spr_shades_right 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
@@ -1383,7 +1381,7 @@ slice_end
 
 
 :const Screen_Table_Bytes 2
-:const Screen_Count 3
+:const Screen_Count 5
 : screen_table
 	:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
 	:calc screen_table_end { HERE + screen_table_bytes }
@@ -1541,8 +1539,26 @@ screen_begin SCREEN_INTRO_OUTRO_BASE
 	step_end
 screen_end
 
-: screen_outro
-screen_begin SCREEN_OUTRO
+: screen_mapinfo_A
+screen_begin SCREEN_MAPINFO_A
+step_begin 1 1
+	feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Pitch_Y
+	feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Grade_Y
+	feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Par_Y
+step_end
+screen_end
+
+: screen_mapinfo_B
+screen_begin SCREEN_MAPINFO_B
+step_begin 1 1
+	feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Pitch_Y
+	feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Grade_Y
+	feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Par_Y
+step_end
+screen_end
+
+: screen_win
+screen_begin SCREEN_WIN
 	step_begin 1 1
 		#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
 
@@ -1948,38 +1964,6 @@ screen_end
 	again
 	;
 
-
-#: intro_draw_a
-#	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_all
-#	intro_draw
-#	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_A
-#	intro_draw
-#	;
-#
-#: intro_draw_b
-#	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_all
-#	intro_draw
-#	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_B
-#	intro_draw
-#	;
-#
-#: outro_draw_a
-#	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_all
-#	intro_draw
-#	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_A
-#	intro_draw
-#	animate_shades
-#	;
-#
-#: outro_draw_b
-#	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_all
-#	intro_draw
-#	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_A
-#	intro_draw
-#	animate_shades
-#	;
-
-
 ### Level Map
 
 :macro maptile-reset {
@@ -2080,19 +2064,11 @@ screen_end
 	:org old-here
 }
 
-:macro map_intro_emit {
+:macro map_info_emit {
 	:calc old-here { HERE }
-	:calc addr { Map_Intro_Addr_Current }
+	:calc addr { Map_Info_Addr_Current }
 	:org addr
-		jump map-intro-address
-	:org old-here
-}
-
-:macro map_outro_emit {
-	:calc old-here { HERE }
-	:calc addr { Map_Outro_Addr_Current }
-	:org addr
-		jump map-outro-address
+		:byte map-info-id
 	:org old-here
 }
 
@@ -2108,7 +2084,7 @@ screen_end
 # Intended to reset any offsets/etc needed when creating the map
 # index-label: the label to set to the address of the map's tile index
 :calc map_id_incr { 0 }
-:macro map_begin map-id map-width map-height intro-draw-function outro-draw-function load-next-map-function mapdata-label tileindex-label {
+:macro map_begin map-id map-width map-height map-info-screen-id load-next-map-function mapdata-label tileindex-label {
 	:calc map-id { map_id_incr }
 	:calc map_id_incr { map_id_incr + 2 }
 	:calc map-current-width { map-width }
@@ -2116,21 +2092,18 @@ screen_end
 	:calc map-current-tiles { map-current-height * map-current-width }
 	:calc mapdata-label { Map_Data_Addr_Current }
 	:calc tileindex-label { Map_TileIndex_Addr_Current }
-	:calc map-intro-address { intro-draw-function }
-	:calc map-outro-address { outro-draw-function }
+	:calc map-info-id { map-info-screen-id }
 	:calc map-next-address { load-next-map-function }
 }
 
 :macro map_end {
 	map_data_emit
-	map_intro_emit
-	map_outro_emit
+	map_info_emit
 	map_next_emit
 	# Advance to the next addresses
 	:calc Map_Data_Addr_Current { Map_Data_Addr_Current + Map_Data_Bytes }
 	:calc Map_TileIndex_Addr_Current { Map_TileIndex_Addr_Current + ( 2 * map-current-tiles ) }
-	:calc Map_Intro_Addr_Current { Map_Intro_Addr_Current + 2 }
-	:calc Map_Outro_Addr_Current { Map_Outro_Addr_Current + 2 }
+	:calc Map_Info_Addr_Current { Map_Info_Addr_Current + 1 }
 	:calc Map_Next_Addr_Current { Map_Next_Addr_Current + 2 }
 }
 
@@ -2199,7 +2172,7 @@ screen_end
 
 
 # Begin defining a map
-map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT main main map_load_B_stub Map_Data_A_Address Maptile_Index_A_Address
+map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT SCREEN_MAPINFO_A map_load_B_stub Map_Data_A_Address Maptile_Index_A_Address
 	map_begintile 1 2
 		map_entry HOLD_3X3 30 30 3
 		map_entry HOLD_3X3 30 60 3
@@ -2296,7 +2269,7 @@ map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT main main map_load_B_stub Map_Data_A_Ad
 	map_endtile
 map_end
 
-map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT main main main Map_Data_B_Address Maptile_Index_B_Address
+map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT SCREEN_MAPINFO_B main Map_Data_B_Address Maptile_Index_B_Address
 #: maptile_2_0
 	map_begintile 2 0
 		map_is_goal_tile
@@ -2392,13 +2365,30 @@ map_end
 	;
 
 
+: map_load_info_screen
+	i := climbing_data_currentmap
+	load v0
+	i := map_info_id_table
+	i += v0
+	load v0
+	;
+
 : intro_display
 	v0 := SCREEN_INTRO_OUTRO_BASE
+	screen_init
+	map_load_info_screen
 	screen_init
 	;
 
 : outro_display
 	v0 := SCREEN_INTRO_OUTRO_BASE
+	screen_init
+	map_load_info_screen
+	screen_init
+	;
+
+: win_display
+	v0 := SCREEN_WIN
 	screen_init
 	;
 
@@ -2594,13 +2584,12 @@ map_end
 	Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
 
 	:calc map { MAP_A }
-	:calc addr { map_intro_jumptable + ( map ) }
-	#Trampoline-Set-jmp-Const intro_display_tramp_jump addr
-	:calc addr { map_outro_jumptable + ( map ) }
-	#Trampoline-Set-jmp-Const outro_display_tramp_jump addr
 	:calc addr { map_next_jumptable + ( map ) }
 	Trampoline-Set-jmp-Const load_next_tramp_jump addr
 
+	i := climbing_data_currentmap
+	v0 := MAP_A
+	save v0
 	;
 : map_load_B
 	Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_B_Address
@@ -2609,12 +2598,12 @@ map_end
 	Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
 
 	:calc map { MAP_B }
-	:calc addr { map_intro_jumptable + ( map ) }
-	#Trampoline-Set-jmp-Const intro_display_tramp_jump addr
-	:calc addr { map_outro_jumptable + ( map ) }
-	#Trampoline-Set-jmp-Const outro_display_tramp_jump addr
 	:calc addr { map_next_jumptable + ( map ) }
 	Trampoline-Set-jmp-Const load_next_tramp_jump addr
+
+	i := climbing_data_currentmap
+	v0 := MAP_B
+	save v0
 	;
 
 :alias load_continue_counter vE
