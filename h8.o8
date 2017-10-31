@@ -1117,7 +1117,7 @@
 
 
 	:const Slice_Table_Bytes 4
-	:const Slice_Count 11
+	:const Slice_Count 14
 	: slice_table
 		:calc slice_table_bytes { Slice_Table_Bytes * Slice_Count }
 		:calc slice_table_end { HERE + slice_table_bytes }
@@ -1160,6 +1160,13 @@
 		: spr_text_par_0 0xE4 0xAA 0xEE 0x8A 0x8A			# "PAR"
 		: spr_text_par_1 0xE0 0xA0 0xE0 0xC0 0xA0
 	slice_end
+
+	slice_begin SLICE_TEXT_LENGTH 5
+		: spr_text_length_0 0x95 0x89 0x95 0x9D 0xD5		# "LANGE"
+		: spr_text_length_1 0x2E 0x28 0xA8 0x6A 0x2E
+		: spr_text_length_2 0xE0 0x80 0xC0 0x80 0xE0
+	slice_end
+
 
 	slice_begin SLICE_TEXT_GRADE 5
 		: spr_text_grade_0 0xEE 0x8A 0xAE 0xAC 0xEA		# "GRAD"
@@ -1226,6 +1233,14 @@
 	slice_begin SLICE_SHADES 8
 	: spr_shades_left 0x7F 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
 	: spr_shades_right 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
+	slice_end
+
+	slice_begin SLICE_TEXT_48 5
+	: spr_text_48 0xAE 0xAA 0xEE 0x2A 0x2E
+	slice_end
+
+	slice_begin SLICE_TEXT_METERS 5
+	: spr_text_meters 0x00 0x00 0x00 0x50 0xA8
 	slice_end
 
 	#define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
@@ -1434,19 +1449,24 @@
 	screen_end
 
 
-	:calc Intro_Pitch_Y { 10 }
-	:calc Intro_Grade_Y { 20 }
+	:calc Intro_Pitch_Y { 6 }
+	:calc Intro_Grade_Y { 14 }
+	:calc Intro_Length_Y { 22 }
 	:calc Intro_Par_Y { 30 }
 
 	: screen_intro_outro_base
 	screen_begin SCREEN_INTRO_OUTRO_BASE
 		step_begin 1 1
 			feature_display_slice SLICE_TEXT_PITCH 6 Intro_Pitch_Y
+			feature_display_slice SLICE_TEXT_COLON 23 Intro_Pitch_Y
 			feature_display_slice SLICE_TEXT_GRADE 6 Intro_Grade_Y
 			feature_display_slice SLICE_TEXT_COLON 22 Intro_Grade_Y
 			feature_display_slice SLICE_TEXT_PAR 6 Intro_Par_Y
 			feature_display_slice SLICE_TEXT_COLON 18 Intro_Par_Y
+			feature_display_slice SLICE_TEXT_LENGTH 6 Intro_Length_Y
+			feature_display_slice SLICE_TEXT_COLON 26 Intro_Length_Y
 
+			feature_display_slice SLICE_TEXT_METERS 44 Intro_Length_Y
 		#	:calc Inter_PressKey_X { 37 }
 		#	:calc Inter_PressKey_Y { 55 }
 		#	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
@@ -2363,7 +2383,7 @@
 		save v2
 
 		if v2 == 0 then clock_draw
-		
+
 		# update fatigue indicator
 		i := clock_heart_ticks
 		load v0
