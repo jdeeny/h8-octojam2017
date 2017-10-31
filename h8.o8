@@ -49,7 +49,8 @@
 	map_load_A
 
 	title_draw
-	wait_any_key_plus_debounce
+	title_select
+	#wait_any_key_plus_debounce
 	wipe
 
 	: gameplay_loop
@@ -196,9 +197,7 @@ define_hold HOLD_3X5 : spr_hold_3x5 0x70 0x88 0x70
 define_hold HOLD_3X6 : spr_hold_3x6 0x78 0x84 0x78
 define_hold HOLD_3X7 : spr_hold_3x7 0x7C 0x82 0x7C
 define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
-#define_hold HOLD_GROUNDA : spr_hold_groundA 0x22 0x13 0x97
-#define_hold HOLD_GROUNDB : spr_hold_groundB 0x50 0x21 0xAC
-#define_hold HOLD_GROUNDC : spr_hold_groundC 0x40 0x27 0xAF
+define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 :const HOLD_END 0xFF
 
 
@@ -970,7 +969,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 ####################
 :const TITLE_CHAR_WIDTH 16
 
-:const TITLE_H8_YOFFSET 17
+:const TITLE_H8_YOFFSET 12
 :const TITLE_H8_SPACING 6
 :calc TITLE_H8_XSKIP { TITLE_H8_SPACING + 16 }
 :calc TITLE_H8_XOFFSET { 64 - ( ( TITLE_CHAR_WIDTH + TITLE_H8_XSKIP ) / 2 ) }
@@ -988,6 +987,19 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 :calc TITLE_SUB_XOFFSET { 64 - ( TITLE_SUB_TOTAL_WIDTH / 2 ) }
 :calc TITLE_SUB_YOFFSET { TITLE_H8_YOFFSET - 10 }
 :calc TITLE_SUB_XEND { TITLE_SUB_XOFFSET + ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) }
+
+:const Title_Begin_Num 4
+:const Title_Continue_Num 5
+:const Title_Select_Marker_X 2
+:calc Title_Select_Marker_Start_X { Title_Select_Marker_X + 11 }
+
+:const Title_Select_Marker_Y 50
+:const Title_Select_Marker_Select_Offset 70
+:const Title_Select_Marker_Text_Offset 49
+:const Title_Delay 20
+
+:calc Title_Select_Marker_Continue_X { Title_Select_Marker_X + Title_Select_Marker_Select_Offset + 7 }
+
 
 : title_draw
 	clear
@@ -1019,8 +1031,41 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 		i += v0
 		while v1 != TITLE_SUB_XEND
 	again
+
+
+	v0 := Title_Begin_Num
+	v1 := Title_Select_Marker_Start_X
+	v2 := Title_Select_Marker_Y
+	v3 := 5
+	i := spr_text_start_0
+	loop
+		sprite v1 v2 5
+		v1 += 8
+		i += v3
+		v0 += -1
+		while v0 != 0
+	again
+
+	v0 := Title_Continue_Num
+	v1 := Title_Select_Marker_Continue_X
+	v2 := Title_Select_Marker_Y
+	v3 := 5
+	i := spr_text_continue_0
+	loop
+		sprite v1 v2 5
+		v1 += 8
+		i += v3
+		v0 += -1
+		while v0 != 0
+	again
+
+
+	title_select_draw_marker
+
 	;
 ### End Title Screen
+
+
 
 ###############
 ### Sprites ###
@@ -1044,13 +1089,13 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 0x00 0x00 0x00 0x00 0x00 #0x00 0x00
 # We have 2 0s right below us:
 
-: spr_dot 0x80
-
 : spr_title_htop
 0x00 0x00 0x60 0x06 0xF0 0x0F 0xF0 0x0F
 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
 0xF0 0x0F 0xF0 0x0F 0xFF 0xFF 0xFF 0xFF
+
+: spr_dot 0x80
 
 : spr_title_hbot
 0xFF 0xFF 0xFF 0xFF 0xF0 0x0F 0xF0 0x0F
@@ -1084,7 +1129,6 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 : spr_title_sub_TO	0x3B 0x92 0x92 0x92 0x93 # 1/2 A, T, 1/2 O
 : spr_title_sub_R 	0xB8 0xA8 0xB0 0xA8 0xA8 # 1/2 O, R
 
-
 : spr_shades_left 0x7F 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
 : spr_shades_right 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
 : spr_shades_shine0l 0x60 0xC0 0x80
@@ -1097,6 +1141,8 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 : spr_shades_burst0 0x40 0xA0 0x40
 : spr_shades_burst1 0xE0 0xE0 0xE0
 
+: spr_select_marker 0xD8 0xA8 0x50 0xA8 0xD8
+: spr_select_marker_alt 0x20 0x50 0xA8 0x50 0x20
 
 : draw_shades
 	i := spr_shades_left
@@ -1176,6 +1222,70 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	again
 	;
 
+
+:alias title_selection v3
+:alias title_alt_status v4
+
+: title_select_draw_marker
+	i := spr_select_marker
+	if title_alt_status == 1 then i := spr_select_marker_alt
+	v0 := Title_Select_Marker_X
+	v1 := Title_Select_Marker_Y
+	if title_selection == 1 then v0 += Title_Select_Marker_Select_Offset
+	sprite v0 v1 5
+	v0 += Title_Select_Marker_Text_Offset
+	sprite v0 v1 5
+	;
+
+
+: title_select
+	title_selection := 0
+	title_alt_status := 0
+	: title_select_continue
+
+	v0 := KEY_LEFT
+	if v0 key then jump title_select_swap
+	v0 := KEY_RIGHT
+	if v0 key then jump title_select_swap
+	v0 := KEY_UP
+	if v0 key then jump title_select_go
+	v0 := KEY_DOWN
+	if v0 key then jump title_select_go
+	vF := delay
+	if vF != 0 then jump title_select_continue
+	title_select_shake
+	vF := Title_Delay
+	delay := vF
+	jump title_select_continue
+
+	: title_select_go
+		v0 := KEY_UP
+		if v0 key then jump title_select_go
+		v0 := KEY_DOWN
+		if v0 key then jump title_select_go
+		;
+
+	: title_select_swap
+		v0 := KEY_LEFT
+		if v0 key then jump title_select_swap
+		v0 := KEY_RIGHT
+		if v0 key then jump title_select_swap
+
+		title_select_draw_marker
+		vF := 1
+		title_selection =- vF
+		title_select_draw_marker
+	jump title_select_continue
+
+: title_select_shake
+	title_select_draw_marker
+	vF := 1
+	v4 =- vF
+	title_select_draw_marker
+;
+
+
+
 # Intro/Outro Text
 :const Text_Height 5
 :calc text_acc { 0 }
@@ -1214,6 +1324,16 @@ define_text SPR_TEXT_DRUCKE_7 : spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
 define_text SPR_TEXT_ERFOLG_0 : spr_text_erfolg_0 0xEE 0x8A 0xCE 0x8C 0xEA # "ERFOLG!"
 define_text SPR_TEXT_ERFOLG_1 : spr_text_erfolg_1 0xEE 0x8A 0xCA 0x8A 0x8E
 define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
+
+define_text SPR_TEXT_START_0 : spr_text_start_0 0x49 0xA9 0xED 0xAB 0xA9 # "ANFANG"
+define_text SPR_TEXT_START_1 : spr_text_start_1 0xE4 0x8A 0xEE 0x8A 0x8A
+define_text SPR_TEXT_START_2 : spr_text_start_2 0x97 0x94 0xD4 0xB5 0x97
+define_text SPR_TEXT_CONTINUE_0 : spr_text_continue_0 0xEE 0x8A 0xCA 0x8A 0x8E # "FORTSETZEN"
+define_text SPR_TEXT_CONTINUE_1 : spr_text_continue_1 0xEE 0xA4 0xE4 0xC4 0xA4
+define_text SPR_TEXT_CONTINUE_2 : spr_text_continue_2 0xEE 0x88 0xEC 0x28 0xEE
+define_text SPR_TEXT_CONTINUE_3 : spr_text_continue_3 0xEE 0x42 0x44 0x48 0x4E
+define_text SPR_TEXT_CONTINUE_4 : spr_text_continue_4 0xE9 0x89 0xCD 0x8B 0xE9
+
 
 :const SPR_TEXT_END 0xFF
 
@@ -1711,7 +1831,10 @@ map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT intro_draw_a outro_draw_a main Map_Data
 		map_entry HOLD_3X5 50 90 5
 		map_entry HOLD_3X5 50 110 5
 
-		map_entry HOLD_3X5 80  4 5
+		map_entry HOLD_CHECKER 20  10 8
+		map_entry HOLD_CHECKER 40  10 8
+		map_entry HOLD_CHECKER 60  10 8
+		map_entry HOLD_CHECKER 80  10 8
 		map_entry HOLD_3X5 75 30 5 map_is_player_start_lh
 		map_entry HOLD_3X5 80 60 5 map_is_player_start_lf
 		map_entry HOLD_3X5 80 90 5
@@ -1850,7 +1973,7 @@ map_end
 	v1 := random 1
 	loop
 		if v1 == 0 then wipe_left
-		if v1 != 0 then wipe_right
+		if v1 == 1 then wipe_right
 		v0 += 12
 	while v0 != 128
 		vF := Wipe_Delay
@@ -1959,19 +2082,17 @@ map_end
 	;
 
 
-: clock_test
-;
-		vF := 5
-		delay := vF
-		clock_tick
-		clear
-		clock_draw
-		loop
-			vF := delay
-		while vF != 0
-		again
-	jump clock_test
+# in: v0 = x, v1 = y
+: is_on_screen
+	vF := 0x80
+	vF &= v0
+	if vF != 0 then return
+	vF := 0xC0
+	vF &= v1
+	if vF != 0 then return
 	;
+
+
 
 ### Stuff that has to come after sprite declarations
 : climbing_setup_drawlimb_lefthand
