@@ -1117,7 +1117,7 @@
 
 
 	:const Slice_Table_Bytes 4
-	:const Slice_Count 18
+	:const Slice_Count 19
 	: slice_table
 		:calc slice_table_bytes { Slice_Table_Bytes * Slice_Count }
 		:calc slice_table_end { HERE + slice_table_bytes }
@@ -1175,7 +1175,9 @@
 		: spr_text_h 0x80 0x80 0xE0 0xA0 0xA0
 	slice_end
 
-
+	slice_begin SLICE_TEXT_1 5
+		: spr_text_1 0xC0 0x40 0x40 0x40 0xE0
+	slice_end
 
 	slice_begin SLICE_TEXT_GRADE 5
 		: spr_text_grade_0 0xEE 0x8A 0xAE 0xAC 0xEA		# "GRAD"
@@ -1482,7 +1484,7 @@
 			feature_display_slice SLICE_TEXT_COLON 18 Intro_Par_Y
 			feature_display_slice SLICE_TEXT_LENGTH 6 Intro_Length_Y
 			feature_display_slice SLICE_TEXT_COLON 26 Intro_Length_Y
-			feature_display_slice SLICE_TEXT_m 44 Intro_Length_Y
+			feature_display_slice SLICE_TEXT_m 50 Intro_Length_Y
 
 			feature_display_slice SLICE_TEXT_h 43 Intro_Par_Y
 			feature_display_slice SLICE_TEXT_00 48 Intro_Par_Y
@@ -1522,11 +1524,11 @@
 	: screen_mapinfo_A
 	screen_begin SCREEN_MAPINFO_A
 		step_begin 1 1
-			feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Pitch_Y
-			feature_display_slice SLICE_TEXT_V 35 Intro_Grade_Y
-			feature_display_slice SLICE_TEXT_- 39 Intro_Grade_Y
+			feature_display_slice SLICE_TEXT_1 45 Intro_Pitch_Y
+			feature_display_slice SLICE_TEXT_V 43 Intro_Grade_Y
+			feature_display_slice SLICE_TEXT_- 47 Intro_Grade_Y
+			feature_display_slice SLICE_TEXT_48 42 Intro_Length_Y
 			feature_display_slice SLICE_TEXT_48 35 Intro_Par_Y
-			feature_display_slice SLICE_TEXT_48 35 Intro_Length_Y
 
 		step_end
 	screen_end
