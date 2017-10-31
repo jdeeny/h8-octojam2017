@@ -1344,18 +1344,19 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 
 
 
-# Intro/Outro Text
-:const Text_Height 5
-:calc slice_acc { 0 }
 
-:const Slice_Bytes 4
+:const Slice_Table_Bytes 4
 :const Slice_Count 9
 : slice_table
-	:calc slice_table_bytes { Slice_Bytes * Slice_Count }
+	:calc slice_table_bytes { Slice_Table_Bytes * Slice_Count }
 	:calc slice_table_end { HERE + slice_table_bytes }
 	:org slice_table_end
 
 
+# Slice Data
+# Slices are stored in the table as:
+#		addr-hi, addr-lo, num-sprites, sprite-height
+:calc slice_acc { 0 }
 :macro slice_begin id height {
 	:calc id { slice_acc }
 	:calc slice-id { id }
@@ -1375,7 +1376,7 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 	:byte slice-height
 	:org old-here
 
-	:calc slice_acc { slice_acc + Slice_Bytes }
+	:calc slice_acc { slice_acc + Slice_Table_Bytes }
 }
 
 
@@ -1440,7 +1441,99 @@ slice_begin SLICE_SHADES 8
 slice_end
 
 
+:const Screen_Table_Bytes 2
+:const Screen_Count 1
+: screen_table
+	:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
+	:calc screen_table_end { HERE + screen_table_bytes }
+	:org screen_table_end
 
+
+### Screens
+# Screen are stored in an index table as:
+#		addr-hi, addr-lo
+
+# Screen data is stored as a string of steps:
+# prescaler ticks-till-next addr-of-next
+# < step data >
+# prescaler ticks-till-next addr-of-next
+# ...
+# prescaler ticks-till-next 0x0000 <- no next
+# < step data >
+
+# A step is shown until the ticks elapse, then the next step is shown
+
+# Step Data
+# Inside the screen step is a series of 'features'
+# A feature is defined as:
+# Type - Display a slice, animate a slice, etc
+# A variable amount of data depending on type
+# Display slice:
+#		Slice_ID x y
+# Animate slice:
+#		Slice_ID x1 y1 x2 y2 <maybe some timing stuff>
+
+
+:const FEATURE_DISPLAY_SLICE 0
+:const FEATURE_END 0xFF
+
+
+:calc screen_acc { 0 }
+:macro screen_begin id {
+	:calc id { screen_acc }
+	:calc screen-id { id }
+	:calc screen-addr { HERE }
+	#:calc screen-height { height }
+}
+:macro screen_end {
+	# emit a FEATURE_END
+	:byte FEATURE_END
+	:calc old-here { HERE }
+	:calc screen-end-addr { HERE }
+	#:calc screnn-length { ( screen-end-addr - screen-addr ) / screen-height }
+	:calc addr { screen_table + screen-id }
+	:org addr
+	hilo slice-addr
+	:byte hi
+	:byte lo
+	#:byte slice-length
+	#:byte slice-height
+	:org old-here
+
+	:calc screen_acc { screen_acc + Screen_Table_Bytes }
+}
+
+:macro step_begin prescaler ticks {
+	:byte prescaler
+	:byte ticks
+	:calc step_next_addr { HERE }
+	:calc step_body_addr { HERE + 2 }
+	:org step_body_addr
+}
+
+# Save the address of the next step at the beginning of the step
+:macro step_end {
+	:calc old-here { HERE }
+	:org step_next_addr
+	hilo old-here
+	:byte hi
+	:byte lo
+	:org old-here
+}
+
+
+:macro feature_display_slice slice-id x y {
+	:byte FEATURE_DISPLAY_SLICE
+	:byte x
+	:byte y
+}
+
+screen_begin SCREEN_TITLE
+	step_begin 5 100
+		#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
+		#feature_animate_slice slice_id x1 x2 y1 y2 frames easing?
+	step_end
+screen_end
 
 
 
