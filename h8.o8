@@ -242,6 +242,9 @@
 
 
 
+### Hold Definitions
+#
+# These are all 3 tall
 :calc hold_acc { 0 }
 :macro define_hold id {
 	:calc id { hold_acc }
@@ -257,7 +260,7 @@ define_hold HOLD_3X7 : spr_hold_3x7 0x7C 0x82 0x7C
 define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 :const HOLD_END 0xFF
-
+### End Hold Definitions
 
 ## Map data - player start posns
 : map_data
@@ -1132,6 +1135,9 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 ###############
 ### Sprites ###
 ###############
+
+# These are sprites that are not part of 'slices'
+
 : spr_righthand			# 8x8 px version
 0x14 0x6A 0x2B 0xAB 0xBF 0xFF 0xFF 0x7E
 
@@ -1179,20 +1185,6 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 0x7F 0xFE 0x3F 0xFC 0x1F 0xF8 0x07 0xE0
 
 
-# H8 - Bergsteigersimulator
-: spr_title_sub_be	0xCE 0xA8 0xCC 0xA8 0xCE # BE
-: spr_title_sub_rg	0xCE 0xA8 0xCA 0xAA 0xAE # RG
-: spr_title_sub_st 	0xEE 0x84 0xE4 0x24 0xE4 # ST
-: spr_title_sub_ei 	0xEB 0x8A 0xCA 0x8A 0xEB # EI 1/2 G
-: spr_title_sub_ge 	0xBB 0x22 0xB3 0xA2 0xBA # GE 2 col R
-: spr_title_sub_rsi 0xBA 0xA2 0x3A 0x8A 0xBA # 1 col R,SI
-: spr_title_sub_m 	0x8A 0xDA 0xAA 0x8A 0x8B # M 1/2 U
-: spr_title_sub_ula 0xA1 0xA2 0xA3 0xA2 0xBA # 1/2 u L 1/2A
-: spr_title_sub_TO	0x3B 0x92 0x92 0x92 0x93 # 1/2 A, T, 1/2 O
-: spr_title_sub_R 	0xB8 0xA8 0xB0 0xA8 0xA8 # 1/2 O, R
-
-: spr_shades_left 0x7F 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
-: spr_shades_right 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
 : spr_shades_shine0l 0x60 0xC0 0x80
 : spr_shades_shine1l 0x7E 0xF0 0xE0 0x60 0x40 0x40 0x40
 : spr_shades_shine2l 0x1F 0x3F 0x7F 0x7F 0x7F 0x7F 0x7E 0x1C
@@ -1205,6 +1197,8 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 
 : spr_select_marker 0xD8 0xA8 0x50 0xA8 0xD8
 : spr_select_marker_alt 0x20 0x50 0xA8 0x50 0x20
+
+
 
 : draw_shades
 	i := spr_shades_left
@@ -1352,51 +1346,123 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 
 # Intro/Outro Text
 :const Text_Height 5
-:calc text_acc { 0 }
-:macro define_text id {
-	:calc id { text_acc }
-	:calc text_acc { text_acc + Text_Height }
+:calc slice_acc { 0 }
+
+:const Slice_Bytes 4
+:const Slice_Count 9
+: slice_table
+	:calc slice_table_bytes { Slice_Bytes * Slice_Count }
+	:calc slice_table_end { HERE + slice_table_bytes }
+	:org slice_table_end
+
+
+:macro slice_begin id height {
+	:calc id { slice_acc }
+	:calc slice-id { id }
+	:calc slice-addr { HERE }
+	:calc slice-height { height }
+}
+:macro slice_end {
+	:calc old-here { HERE }
+	:calc slice-end-addr { HERE }
+	:calc slice-length { ( slice-end-addr - slice-addr ) / slice-height }
+	:calc addr { slice_table + slice-id }
+	:org addr
+	hilo slice-addr
+	:byte hi
+	:byte lo
+	:byte slice-length
+	:byte slice-height
+	:org old-here
+
+	:calc slice_acc { slice_acc + Slice_Bytes }
 }
 
-: spr_texts
-define_text SPR_TEXT_PITCH_0 : spr_text_pitch_0 0xEB 0xA9 0xE9 0x89 0x89		# "PITCH"
-define_text SPR_TEXT_PITCH_1 : spr_text_pitch_1 0xB5 0x25 0x27 0x25 0x35
 
-define_text SPR_TEXT_PAR_0 : spr_text_par_0 0xE4 0xAA 0xEE 0x8A 0x8A			# "PAR"
-define_text SPR_TEXT_PAR_1 : spr_text_par_1 0xE0 0xA0 0xE0 0xC0 0xA0
+slice_begin SLICE_TEXT_PITCH 5
+	: spr_text_pitch_0 0xEB 0xA9 0xE9 0x89 0x89		# "PITCH"
+	: spr_text_pitch_1 0xB5 0x25 0x27 0x25 0x35
+slice_end
 
-define_text SPR_TEXT_GRADE_0 : spr_text_grade_0 0xEE 0x8A 0xAE 0xAC 0xEA		# "GRAD"
-define_text SPR_TEXT_GRADE_1 : spr_text_grade_1 0x4C 0xAA 0xAA 0xEA 0xAC
+slice_begin SLICE_TEXT_PAR 5
+	: spr_text_par_0 0xE4 0xAA 0xEE 0x8A 0x8A			# "PAR"
+	: spr_text_par_1 0xE0 0xA0 0xE0 0xC0 0xA0
+slice_end
 
-define_text SPR_TEXT_COLON : spr_text_colon 0x00 0x80 0x00 0x80 0x00			# ":"
+slice_begin SLICE_TEXT_GRADE 5
+	: spr_text_grade_0 0xEE 0x8A 0xAE 0xAC 0xEA		# "GRAD"
+	: spr_text_grade_1 0x4C 0xAA 0xAA 0xEA 0xAC
+slice_end
 
-define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
-define_text SPR_TEXT_I : spr_text_I 0x80 0x80 0x80 0x80 0x80					# "I"
-define_text SPR_TEXT_- : spr_text_- 0x00 0x00 0xE0 0x00 0x00					# "-"
-define_text SPR_TEXT_+ : spr_text_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
-define_text SPR_TEXT_X : spr_text_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
+slice_begin SLICE_TEXT_COLON 5
+	: spr_text_colon 0x00 0x80 0x00 0x80 0x00			# ":"
+slice_end
 
-define_text SPR_TEXT_DRUCKE_0 : spr_text_drucke_0 0xCE 0xAA 0xAE 0xAC 0xCA  # "DRUCKE EINE TASTE"
-define_text SPR_TEXT_DRUCKE_1 : spr_text_drucke_1 0xAD 0x09 0xA9 0xA9 0xED
-define_text SPR_TEXT_DRUCKE_2 : spr_text_drucke_2 0x5C 0x90 0x18 0x90 0x5C
-define_text SPR_TEXT_DRUCKE_3 : spr_text_drucke_3 0xEA 0x8A 0xCB 0x8A 0xEA
-define_text SPR_TEXT_DRUCKE_4 : spr_text_drucke_4 0x5C 0x50 0x58 0xD0 0x5C
-define_text SPR_TEXT_DRUCKE_5 : spr_text_drucke_5 0xE4 0x4A 0x4E 0x4A 0x4A
-define_text SPR_TEXT_DRUCKE_6 : spr_text_drucke_6 0xEE 0x84 0xE4 0x24 0xE4
-define_text SPR_TEXT_DRUCKE_7 : spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
+slice_begin SLICE_TEXT_SUCCESS 5
+	: spr_text_erfolg_0 0xEE 0x8A 0xCE 0x8C 0xEA # "ERFOLG!"
+	: spr_text_erfolg_1 0xEE 0x8A 0xCA 0x8A 0x8E
+	: spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
+slice_end
 
-define_text SPR_TEXT_ERFOLG_0 : spr_text_erfolg_0 0xEE 0x8A 0xCE 0x8C 0xEA # "ERFOLG!"
-define_text SPR_TEXT_ERFOLG_1 : spr_text_erfolg_1 0xEE 0x8A 0xCA 0x8A 0x8E
-define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 
-define_text SPR_TEXT_START_0 : spr_text_start_0 0x49 0xA9 0xED 0xAB 0xA9 # "ANFANG"
-define_text SPR_TEXT_START_1 : spr_text_start_1 0xE4 0x8A 0xEE 0x8A 0x8A
-define_text SPR_TEXT_START_2 : spr_text_start_2 0x97 0x94 0xD4 0xB5 0x97
-define_text SPR_TEXT_CONTINUE_0 : spr_text_continue_0 0xEE 0x8A 0xCA 0x8A 0x8E # "FORTSETZEN"
-define_text SPR_TEXT_CONTINUE_1 : spr_text_continue_1 0xEE 0xA4 0xE4 0xC4 0xA4
-define_text SPR_TEXT_CONTINUE_2 : spr_text_continue_2 0xEE 0x88 0xEC 0x28 0xEE
-define_text SPR_TEXT_CONTINUE_3 : spr_text_continue_3 0xEE 0x42 0x44 0x48 0x4E
-define_text SPR_TEXT_CONTINUE_4 : spr_text_continue_4 0xE9 0x89 0xCD 0x8B 0xE9
+slice_begin SLICE_TEXT_START 5
+	: spr_text_start_0 0x49 0xA9 0xED 0xAB 0xA9 # "ANFANG"
+	: spr_text_start_1 0xE4 0x8A 0xEE 0x8A 0x8A
+	: spr_text_start_2 0x97 0x94 0xD4 0xB5 0x97
+slice_end
+
+slice_begin SLICE_TEXT_CONTINUE 5
+	: spr_text_continue_0 0xEE 0x8A 0xCA 0x8A 0x8E # "FORTSETZEN"
+	: spr_text_continue_1 0xEE 0xA4 0xE4 0xC4 0xA4
+	: spr_text_continue_2 0xEE 0x88 0xEC 0x28 0xEE
+	: spr_text_continue_3 0xEE 0x42 0x44 0x48 0x4E
+	: spr_text_continue_4 0xE9 0x89 0xCD 0x8B 0xE9
+slice_end
+
+
+# H8 - Bergsteigersimulator
+slice_begin SLICE_TEXT_SUBTITLE 5
+	: spr_title_sub_be	0xCE 0xA8 0xCC 0xA8 0xCE # BE
+	: spr_title_sub_rg	0xCE 0xA8 0xCA 0xAA 0xAE # RG
+	: spr_title_sub_st 	0xEE 0x84 0xE4 0x24 0xE4 # ST
+	: spr_title_sub_ei 	0xEB 0x8A 0xCA 0x8A 0xEB # EI 1/2 G
+	: spr_title_sub_ge 	0xBB 0x22 0xB3 0xA2 0xBA # GE 2 col R
+	: spr_title_sub_rsi 0xBA 0xA2 0x3A 0x8A 0xBA # 1 col R,SI
+	: spr_title_sub_m 	0x8A 0xDA 0xAA 0x8A 0x8B # M 1/2 U
+	: spr_title_sub_ula 0xA1 0xA2 0xA3 0xA2 0xBA # 1/2 u L 1/2A
+	: spr_title_sub_TO	0x3B 0x92 0x92 0x92 0x93 # 1/2 A, T, 1/2 O
+	: spr_title_sub_R 	0xB8 0xA8 0xB0 0xA8 0xA8 # 1/2 O, R
+slice_end
+
+slice_begin SLICE_SHADES 8
+: spr_shades_left 0x7F 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
+: spr_shades_right 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
+slice_end
+
+
+
+
+
+
+
+#define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
+#define_text SPR_TEXT_I : spr_text_I 0x80 0x80 0x80 0x80 0x80					# "I"
+#define_text SPR_TEXT_- : spr_text_- 0x00 0x00 0xE0 0x00 0x00					# "-"
+#define_text SPR_TEXT_+ : spr_text_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
+#define_text SPR_TEXT_X : spr_text_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
+
+#slice_begin SLICE_TEXT_PRESS_KEY
+#define_text SPR_TEXT_DRUCKE_0 : spr_text_drucke_0 0xCE 0xAA 0xAE 0xAC 0xCA  # "DRUCKE EINE TASTE"
+#define_text SPR_TEXT_DRUCKE_1 : spr_text_drucke_1 0xAD 0x09 0xA9 0xA9 0xED
+#define_text SPR_TEXT_DRUCKE_2 : spr_text_drucke_2 0x5C 0x90 0x18 0x90 0x5C
+#define_text SPR_TEXT_DRUCKE_3 : spr_text_drucke_3 0xEA 0x8A 0xCB 0x8A 0xEA
+#define_text SPR_TEXT_DRUCKE_4 : spr_text_drucke_4 0x5C 0x50 0x58 0xD0 0x5C
+#define_text SPR_TEXT_DRUCKE_5 : spr_text_drucke_5 0xE4 0x4A 0x4E 0x4A 0x4A
+#define_text SPR_TEXT_DRUCKE_6 : spr_text_drucke_6 0xEE 0x84 0xE4 0x24 0xE4
+#define_text SPR_TEXT_DRUCKE_7 : spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
+#slice_end
+
+
 
 
 :const SPR_TEXT_END 0xFF
@@ -1531,66 +1597,66 @@ define_text SPR_TEXT_CONTINUE_4 : spr_text_continue_4 0xE9 0x89 0xCD 0x8B 0xE9
 }
 
 : intro_all
-	text_entry SPR_TEXT_PITCH_0  6  Inter_Pitch_Y
-	text_entry SPR_TEXT_PITCH_1 14  Inter_Pitch_Y
-	text_entry SPR_TEXT_GRADE_0  6  Inter_Grade_Y
-	text_entry SPR_TEXT_GRADE_1 14  Inter_Grade_Y
-	text_entry SPR_TEXT_COLON   22  Inter_Grade_Y
-	text_entry SPR_TEXT_PAR_0		 6 Inter_Par_Y
-	text_entry SPR_TEXT_PAR_1		14 Inter_Par_Y
-	text_entry SPR_TEXT_COLON   18 Inter_Par_Y
-
-	:calc Inter_PressKey_X { 37 }
-	:calc Inter_PressKey_Y { 55 }
-	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
+#	text_entry SPR_TEXT_PITCH_0  6  Inter_Pitch_Y
+#	text_entry SPR_TEXT_PITCH_1 14  Inter_Pitch_Y
+#	text_entry SPR_TEXT_GRADE_0  6  Inter_Grade_Y
+#	text_entry SPR_TEXT_GRADE_1 14  Inter_Grade_Y
+#	text_entry SPR_TEXT_COLON   22  Inter_Grade_Y
+#	text_entry SPR_TEXT_PAR_0		 6 Inter_Par_Y
+#	text_entry SPR_TEXT_PAR_1		14 Inter_Par_Y
+#	text_entry SPR_TEXT_COLON   18 Inter_Par_Y
+#
+#	:calc Inter_PressKey_X { 37 }
+#	:calc Inter_PressKey_Y { 55 }
+#	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
 	:byte SPR_TEXT_END
 
 :calc Outro_Erfolg_X { 52 }
 :calc Outro_Erfolg_Y { 16 }
 : outro_all
-	text_entry SPR_TEXT_ERFOLG_0 Outro_Erfolg_X Outro_Erfolg_Y
-	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
-	text_entry SPR_TEXT_ERFOLG_1 Outro_Erfolg_X Outro_Erfolg_Y
-	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
-	text_entry SPR_TEXT_ERFOLG_2 Outro_Erfolg_X Outro_Erfolg_Y
-
-	:calc Inter_PressKey_X { 37 }
-	:calc Inter_PressKey_Y { 55 }
-	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
+#	text_entry SPR_TEXT_ERFOLG_0 Outro_Erfolg_X Outro_Erfolg_Y
+#	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
+#	text_entry SPR_TEXT_ERFOLG_1 Outro_Erfolg_X Outro_Erfolg_Y
+#	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
+#	text_entry SPR_TEXT_ERFOLG_2 Outro_Erfolg_X Outro_Erfolg_Y
+#
+#	:calc Inter_PressKey_X { 37 }
+#	:calc Inter_PressKey_Y { 55 }
+#	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
+#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+#	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
 
 	:byte SPR_TEXT_END
 
 # Intro text specific to pitch A
 : intro_A
-	text_entry SPR_TEXT_PITCH_0  24  Inter_Pitch_Y
+	#text_entry SPR_TEXT_PITCH_0  24  Inter_Pitch_Y
 	:byte SPR_TEXT_END
 
 # Intro text specific to pitch A
@@ -1611,9 +1677,9 @@ define_text SPR_TEXT_CONTINUE_4 : spr_text_continue_4 0xE9 0x89 0xCD 0x8B 0xE9
 		i += v3
 		load v2
 	while v0 != SPR_TEXT_END
-		i := spr_texts
-		i += v0
-		sprite v1 v2 Text_Height
+#		i := spr_texts
+#		i += v0
+#		sprite v1 v2 Text_Height
 		v3 += 3
 	again
 	;
