@@ -1504,6 +1504,8 @@
 			feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Pitch_Y
 			feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Grade_Y
 			feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Par_Y
+			feature_display_slice SLICE_TEXT_48 35 Intro_Length_Y
+
 		step_end
 	screen_end
 
