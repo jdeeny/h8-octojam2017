@@ -160,7 +160,7 @@
 	# by the tile indexes and minimaps
 	# Map A: 5x6 tiles
 	:const MAP_A_WIDTH 3
-	:const MAP_A_HEIGHT 3
+	:const MAP_A_HEIGHT 4
 	:calc MAP_A_TILES { MAP_A_WIDTH * MAP_A_HEIGHT }
 
 	# Map B: 4x8 tiles
@@ -357,7 +357,7 @@
 			v0 := Climbing_State
 			jump0 climbing_state_jumptable
 			: climbing_main_loop_continue
-			step_continue
+			#step_continue
 			#clock_draw
 			clock_tick
 			#clock_draw
@@ -372,11 +372,6 @@
 
 
 	: climbing_runstate_idle
-		i := climbing_data_goaltile
-		load v1
-		if v0 != Climbing_TileX then jump climbing_runstate_idle_notgoal
-		if v1 != Climbing_TileY then jump climbing_runstate_idle_notgoal
-		return
 
 		: climbing_runstate_idle_notgoal
 		# Scan limb selection keys
@@ -534,8 +529,15 @@
 		: climbing_runstate_finalizearms_done
 		climbing_draw_scene_hands
 
-
 		Climbing_State := Climbing_State_Debounce
+
+		i := climbing_data_goaltile
+		load v1
+		if v0 != Climbing_TileX then jump climbing_runstate_idle_notgoal
+		if v1 != Climbing_TileY then jump climbing_runstate_idle_notgoal
+		return
+
+
 		jump climbing_main_loop_continue
 
 
@@ -656,61 +658,55 @@
 	;
 
 
-	: climbing_draw_hold
-		;
-
-
-	: climbing_draw_minimap_dot
-		;
 
 : climbing_draw_minimap
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v0 += -1
-	v1 += -1
-	climbing_draw_minimap_tile
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v1 += -1
-	climbing_draw_minimap_tile
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v0 += 1
-	v1 += -1
-	climbing_draw_minimap_tile
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v0 += -1
-	climbing_draw_minimap_tile
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	climbing_draw_minimap_tile
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v0 += 1
-	climbing_draw_minimap_tile
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v0 += -1
-	v1 += 1
-	climbing_draw_minimap_tile
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v1 += 1
-	climbing_draw_minimap_tile
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v0 += 1
-	v1 += 1
-	climbing_draw_minimap_tile
+#	v0 := Climbing_TileX
+#	v1 := Climbing_TileY
+#	v0 += -1
+#	v1 += -1
+#	climbing_draw_minimap_tile
+#
+#	v0 := Climbing_TileX
+#	v1 := Climbing_TileY
+#	v1 += -1
+#	climbing_draw_minimap_tile
+#
+#	v0 := Climbing_TileX
+#	v1 := Climbing_TileY
+#	v0 += 1
+#	v1 += -1
+#	climbing_draw_minimap_tile
+#
+#	v0 := Climbing_TileX
+#	v1 := Climbing_TileY
+#	v0 += -1
+#	climbing_draw_minimap_tile
+#
+#	v0 := Climbing_TileX
+#	v1 := Climbing_TileY
+#	climbing_draw_minimap_tile
+#
+#	v0 := Climbing_TileX
+#	v1 := Climbing_TileY
+#	v0 += 1
+#	climbing_draw_minimap_tile
+#
+#	v0 := Climbing_TileX
+#	v1 := Climbing_TileY
+#	v0 += -1
+#	v1 += 1
+#	climbing_draw_minimap_tile
+#
+#	v0 := Climbing_TileX
+#	v1 := Climbing_TileY
+#	v1 += 1
+#	climbing_draw_minimap_tile
+#
+#	v0 := Climbing_TileX
+#	v1 := Climbing_TileY
+#	v0 += 1
+#	v1 += 1
+#	climbing_draw_minimap_tile
 	;
 
 : climbing_draw_minimap_tile
@@ -734,26 +730,29 @@
 	Climbing_TempY -= Climbing_Y
 	climbing_draw_tile_holds
 
+
 	v0 := Climbing_TileX
 	v1 := Climbing_TileY
 	v1 += 1
 	climbing_setup_draw_holds		# Setup the tile trampoline
 	Climbing_TempX := 0
 	Climbing_TempX -= Climbing_X
-	Climbing_TempY := 0
+	Climbing_TempY := 128
 	Climbing_TempY -= Climbing_Y
-	Climbing_TempY += 128
+	#Climbing_TempY += 128
 	climbing_draw_tile_holds
+
+;
 
 	v0 := Climbing_TileX
 	v1 := Climbing_TileY
 	v0 += 1
 	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := 0
+	Climbing_TempX := 128 #0
 	Climbing_TempX -= Climbing_X
 	Climbing_TempY := 0
 	Climbing_TempY -= Climbing_Y
-	Climbing_TempX += 128
+	#Climbing_TempX += 128
 	climbing_draw_tile_holds
 
 	v0 := Climbing_TileX
@@ -761,12 +760,12 @@
 	v0 += 1
 	v1 += 1
 	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := 0
+	Climbing_TempX := 128
 	Climbing_TempX -= Climbing_X
-	Climbing_TempY := 0
+	Climbing_TempY := 128
 	Climbing_TempY -= Climbing_Y
-	Climbing_TempX += 128
-	Climbing_TempY += 128
+	#Climbing_TempX += 128
+	#Climbing_TempY += 128
 
 	climbing_draw_tile_holds
 	;
@@ -1954,7 +1953,6 @@ screen_end
 	i := addr
 	;
 
-: screen_update
 # Advances any animations setup by step_begin
 : step_continue
 	# See if this step is done
@@ -1988,7 +1986,7 @@ screen_end
 #	v4 := v1
 #	v5 := v2
 #	slice_draw
-#	;
+	;
 
 #: animator_continue_handler_slide_x
 #
@@ -2432,21 +2430,29 @@ screen_end
 	map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT SCREEN_MAPINFO_A map_load_B_stub Map_Data_A_Address Maptile_Index_A_Address
 
 		# bottom
+
+		map_begintile 1 1
+			map_entry HOLD_CHECKER 40 116
+			map_entry HOLD_CHECKER 67 116
+			map_is_goal_tile
+
+		map_endtile
+
 		map_begintile 1 2
 			map_is_player_start_tile
 			map_entry HOLD_3X8 47 18
 			map_entry HOLD_3X8 75 20
 
 			map_entry HOLD_3X8 37 108
-			map_entry HOLD_3X8 47 48 map_is_player_start_lf
-			map_entry HOLD_3X8 75 60 map_is_player_start_rf
+			map_entry HOLD_3X8 47 108 map_is_player_start_lf
+			map_entry HOLD_3X8 75 100 map_is_player_start_rf
 			map_entry HOLD_3X8 89 104
 
 			map_entry HOLD_3X5 28 95
 			map_entry HOLD_3X6 99 99
 
-			map_entry HOLD_3X4 35 32 map_is_player_start_lh
-			map_entry HOLD_3X5 80 40 map_is_player_start_rh
+			map_entry HOLD_3X4 35 83 map_is_player_start_lh
+			map_entry HOLD_3X5 80 78 map_is_player_start_rh
 
 			map_entry HOLD_3X5 41 74
 			map_entry HOLD_3X7 59 59
@@ -2460,22 +2466,16 @@ screen_end
 			map_entry HOLD_3X7 25 42
 			map_entry HOLD_3X6 65 47
 
-			map_entry HOLD_3X4 45 27
-			map_entry HOLD_3X5 65 19
-			map_is_goal_tile
+			#map_entry HOLD_3X4 45 27
+			#map_entry HOLD_3X5 65 19
+
 
 		map_endtile
 
-		map_begintile 2 2
-			map_entry HOLD_3X4 0 0
-			map_entry HOLD_3X5 127 127
 
+
+		map_begintile 1 0
 		map_endtile
-
-		map_begintile 1 1
-
-		map_endtile
-
 	map_end
 
 	map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT SCREEN_MAPINFO_B do-win Map_Data_B_Address Maptile_Index_B_Address
@@ -2526,7 +2526,7 @@ screen_end
 		v0 := 0
 		vF := 4
 		delay := vF
-		step_continue
+		#step_continue
 
 		loop
 			vF := delay
@@ -2612,6 +2612,7 @@ screen_end
 : win_display
 	v0 := SCREEN_WIN
 	screen_init
+	clock_draw_win
 
 	;
 
@@ -2734,13 +2735,41 @@ screen_end
 
 : clock_draw_outro
 	load_time_current
-
 	v1 := Clock_Outro_X
 	v2 := Clock_Outro_Y
-
 	clock_draw_inner
 	;
 
+
+: clock_draw_win
+	i := time_data
+	load v1
+	i := clock_data
+	save v1
+	v1 := 55
+	v2 := 14
+	clock_draw_inner
+
+	i := time_data
+	v0 := 2
+	i += v0
+	load v1
+	i := clock_data
+	save v1
+	v1 := 55
+	v2 := 22
+	clock_draw_inner
+
+	i := time_data
+	v0 := 4
+	i += v0
+	load v1
+	i := clock_data
+	save v1
+	v1 := 55
+	v2 := 30
+	clock_draw_inner
+	;
 
 
 
@@ -2803,6 +2832,7 @@ screen_end
 	if vF == 0 then jump climbing_setup_draw_holds_none
 	Trampoline-Set-I-v0v1 holds_tramp_i:=maptile
 	;
+
 : climbing_setup_draw_holds_none
 	Trampoline-Set-I-Const holds_tramp_i:=maptile maptile_empty
 	;
