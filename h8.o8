@@ -1158,7 +1158,7 @@
 
 
 	:const Slice_Table_Bytes 4
-	:const Slice_Count 26
+	:const Slice_Count 27
 	: slice_table
 		:calc slice_table_bytes { Slice_Table_Bytes * Slice_Count }
 		:calc slice_table_end { HERE + slice_table_bytes }
@@ -1222,6 +1222,13 @@ slice_end
 
 slice_begin SLICE_TEXT_2 5
 	: spr_text_2 0xE0 0x20 0xE0 0x80 0xE0
+slice_end
+
+slice_begin SLICE_TEXT_TOTAL 5
+	: spr_text_total0 0xEE 0x88 0x8C 0xA8 0xEE
+	: spr_text_total1 0xE4 0x8A 0xEE 0x2A 0xEA
+	: spr_text_total2 0x8B 0xD9 0xA9 0x89 0x89
+	: spr_text_total3 0x80 0x00 0x00 0x00 0x00
 slice_end
 
 #	slice_begin SLICE_TEXT_MAP 7
@@ -1660,7 +1667,14 @@ screen_end
 : screen_win
 screen_begin SCREEN_WIN
 	step_begin 0 0
-		#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
+		feature_display_slice SLICE_TEXT_SUCCESS 54 Intro_Pitch_Y
+		feature_display_slice SLICE_TEXT_PITCH 15 14
+		feature_display_slice SLICE_TEXT_1 34 14
+		feature_display_slice SLICE_TEXT_PITCH 15 22
+		feature_display_slice SLICE_TEXT_2 34 22
+		feature_display_slice SLICE_TEXT_PITCH 15 30
+		feature_display_slice SLICE_TEXT_2 34 30
+		feature_display_slice SLICE_TEXT_TOTAL 13 40
 
 	step_end
 screen_end
