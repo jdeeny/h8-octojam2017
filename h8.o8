@@ -52,19 +52,26 @@
 	wait_any_key_plus_debounce
 	wipe
 
-	clear
-	intro_draw_a
-	wait_any_key_plus_debounce
-	wipe
+	: gameplay_loop
 
-	clear
-	climbing_init
-	climbing_run
+:breakpoint preintro
+		intro_display
+		wait_any_key_plus_debounce
+		wipe
 
-	clear
-	outro_draw_a
-	wait_any_key_plus_debounce
-	: main_loop
+		climbing_init
+		climbing_run
+
+		wipe
+		outro_display
+		wait_any_key_plus_debounce
+
+		wipe
+		load_next_map
+
+	jump gameplay_loop
+
+	: the-end
 	loop
 	again
 
@@ -233,11 +240,11 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 :calc Minimap_Addr_Base { minimap_data }
 :calc Minimap_Addr_Current { Minimap_Addr_Base }
 
-:calc Intro_Addr_Base { map_intro_jumptable }
-:calc Intro_Addr_Current { Intro_Addr_Base }
+:calc Map_Intro_Addr_Base { map_intro_jumptable }
+:calc Map_Intro_Addr_Current { Map_Intro_Addr_Base }
 
-:calc Outro_Addr_Base { map_outro_jumptable }
-:calc Outro_Addr_Current { Outro_Addr_Base }
+:calc Map_Outro_Addr_Base { map_outro_jumptable }
+:calc Map_Outro_Addr_Current { Map_Outro_Addr_Base }
 
 :calc Map_Next_Addr_Base { map_next_jumptable }
 :calc Map_Next_Addr_Current { Map_Next_Addr_Base }
@@ -1605,7 +1612,10 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 # Intended to reset any offsets/etc needed when creating the map
 # index-label: the label to set to the address of the map's tile index
 # minimap-label: the label to set to the address of the map's minimap
+:calc map_id_incr { 0 }
 :macro map_begin map-id map-width map-height intro-draw-function outro-draw-function load-next-map-function mapdata-label tileindex-label minimap-label {
+	:calc map-id { map_id_incr }
+	:calc map_id_incr { map_id_incr + 2 }
 	:calc map-current-width { map-width }
 	:calc map-current-height { map-height }
 	:calc map-current-tiles { map-current-height * map-current-width }
@@ -1619,10 +1629,16 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 
 :macro map_end {
 	map_data_emit
+	map_intro_emit
+	map_outro_emit
+	map_next_emit
 	# Advance to the next minimap/index addresses
 	:calc Map_Data_Addr_Current { Map_Data_Addr_Current + Map_Data_Bytes }
 	:calc Map_TileIndex_Addr_Current { Map_TileIndex_Addr_Current + ( 2 * map-current-tiles ) }
 	:calc Minimap_Addr_Current { Minimap_Addr_Current + ( Minimap_Bytes * map-current-tiles ) }
+	:calc Map_Intro_Addr_Current { Map_Intro_Addr_Current + 2 }
+	:calc Map_Outro_Addr_Current { Map_Outro_Addr_Current + 2 }
+	:calc Map_Next_Addr_Current { Map_Next_Addr_Current + 2 }
 }
 
 # Begin a new tile of the map
@@ -1913,6 +1929,17 @@ map_end
 	scroll-right
 	;
 
+
+: intro_display
+	Trampoline: intro_display_tramp_jump
+	;
+: outro_display
+	Trampoline: outro_display_tramp_jump
+	;
+: load_next_map
+	Trampoline: load_next_tramp_jump
+	;
+
 :const Clock_Ticks_Overflow 19
 :const Clock_X 96
 :const Clock_Y 2
@@ -2105,6 +2132,14 @@ map_end
 	:calc minimap-stride { ( Minimap_Bytes * MAP_A_WIDTH ) - ( Minimap_Bytes * 4 ) }
 	Trampoline-Set-vF-Const minimap_tramp_vF:=minimap_stride minimap-stride
 
+	:calc map { MAP_A }
+	:calc addr { map_intro_jumptable + ( 2 * map ) }
+	Trampoline-Set-jmp-Const intro_display_tramp_jump addr
+	:calc addr { map_outro_jumptable + ( 2 * map ) }
+	Trampoline-Set-jmp-Const outro_display_tramp_jump addr
+	:calc addr { map_next_jumptable + ( 2 * map ) }
+	Trampoline-Set-jmp-Const load_next_tramp_jump addr
+
 	;
 : map_load_B
 	Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_B_Address
@@ -2114,4 +2149,12 @@ map_end
 	Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
 	:calc minimap-stride { ( Minimap_Bytes * MAP_B_WIDTH ) - ( Minimap_Bytes * 4 ) }
 	Trampoline-Set-vF-Const minimap_tramp_vF:=minimap_stride minimap-stride
+
+	:calc map { MAP_B }
+	:calc addr { map_intro_jumptable + ( 2 * map ) }
+	Trampoline-Set-jmp-Const intro_display_tramp_jump addr
+	:calc addr { map_outro_jumptable + ( 2 * map ) }
+	Trampoline-Set-jmp-Const outro_display_tramp_jump addr
+	:calc addr { map_next_jumptable + ( 2 * map ) }
+	Trampoline-Set-jmp-Const load_next_tramp_jump addr
 	;
