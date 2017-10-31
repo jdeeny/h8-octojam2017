@@ -1204,7 +1204,7 @@
 	slice_end
 
 	slice_begin SLICE_TEXT_m 5
-	: spr_text_meters 0x00 0x00 0x00 0x50 0xA8
+	: spr_text_m 0x00 0x00 0x00 0x50 0xA8
 	slice_end
 
 	slice_begin SLICE_TEXT_V 5
@@ -2231,11 +2231,11 @@ screen_end
 
 			map_entry HOLD_3X4 45 27
 			map_entry HOLD_3X5 65 19
-map_is_goal_tile
 
 		map_endtile
 
 		map_begintile 1 1
+			map_is_goal_tile
 
 		map_endtile
 
@@ -2452,14 +2452,18 @@ map_is_goal_tile
 	i := clock_data_hours
 	load v0
 	draw_decimal
-	v1 += 6
-	i := spr_text_colon
+	v1 += 5
+	i := spr_text_h
 	sprite v1 v2 5
-	v1 += 3
+	v1 += 5
 
 	i := clock_data_minutes
 	load v0
 	draw_decimal
+	v1 += 5
+	i := spr_text_m
+	sprite v1 v2 5
+
 	;
 
 # In:
@@ -2475,12 +2479,14 @@ map_is_goal_tile
 	bcd v0
 	i := bcd_dest_mid
 	load v0
+	if v0 == 0 then jump draw_decimal_skip_tens
 	i := hex v0
 	sprite v1 v2 5
+	: draw_decimal_skip_tens
 	i := bcd_dest_lo
 	load v0
 	i := hex v0
-	v1 += 6
+	v1 += 5
 	sprite v1 v2 5
 	;
 
