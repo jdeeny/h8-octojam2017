@@ -340,16 +340,19 @@
 
 	# This loops around idling, waiting for limb select and moving a limb onto a hold
 	: climbing_run
+
 		# Setup
 		Climbing_Limb := LIMB_NONE
 		Climbing_State := Climbing_State_Idle
 		climbing_draw_scene_hands
+		encouragement_draw
 
 		: climbing_main_loop
 		loop
 			v0 := Climbing_State
 			jump0 climbing_state_jumptable
 			: climbing_main_loop_continue
+			step_continue
 			#clock_draw
 			clock_tick
 			#clock_draw
@@ -372,14 +375,12 @@
 
 		: climbing_runstate_idle_notgoal
 		# Scan limb selection keys
-		ifkey KB_1 jump climbing_runstate_move_up
 		ifkey KEY_LH jump climbing_runstate_idle_setlimb_lefthand
 		ifkey KEY_RH jump climbing_runstate_idle_setlimb_righthand
 		ifkey KEY_LF jump climbing_runstate_idle_setlimb_leftfoot
 		ifkey KEY_RF jump climbing_runstate_idle_setlimb_rightfoot
 		jump climbing_main_loop_continue
 		: climbing_runstate_move_up
-			Climbing_Y += -1
 			jump climbing_main_loop_continue
 		: climbing_runstate_idle_setlimb_lefthand
 			Climbing_Limb := LIMB_LEFTHAND
@@ -1264,7 +1265,7 @@ slice_end
 
 
 	:const Screen_Table_Bytes 2
-	:const Screen_Count 6
+	:const Screen_Count 10
 	: screen_table
 		:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
 		:calc screen_table_end { HERE + screen_table_bytes }
@@ -1336,6 +1337,7 @@ slice_end
 
 	# Save the address of the next step at the beginning of the step
 	:macro step_end {
+		:byte FEATURE_END
 		:calc old-here { HERE }
 		:org step_next_addr
 		hilo old-here
@@ -1414,7 +1416,7 @@ slice_end
 	:calc Title_Select_Marker_Continue_X { Title_Select_Marker_X + Title_Select_Marker_Select_Offset + 7 }
 
 	screen_begin SCREEN_TITLE
-		step_begin 1 1
+		step_begin 0 0
 			feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
 
 			:calc title_x { TITLE_H8_XOFFSET }
@@ -1442,7 +1444,7 @@ slice_end
 
 	: screen_intro
 	screen_begin SCREEN_INTRO
-		step_begin 1 1
+		step_begin 0 0
 			feature_display_slice SLICE_TEXT_PITCH 35 Intro_Pitch_Y
 			feature_display_slice SLICE_TEXT_GRADE 6 Intro_Grade_Y
 			feature_display_slice SLICE_TEXT_COLON 22 Intro_Grade_Y
@@ -1487,31 +1489,15 @@ slice_end
 
 : screen_outro
 	screen_begin SCREEN_OUTRO
-		step_begin 1 1
+		step_begin 0 0
 			feature_display_slice SLICE_TEXT_SUCCESS 74 Intro_Pitch_Y
 		step_end
 	screen_end
 
 
-
-
-# : screen_presskey
-# screen_begin SCREEN_PRESSKEY
-# step_begin 1 1
-# 	feature_display_slice SLICE_TEXT_PRESS_KEY 37 55
-# step_end
-# screen_end
-
-# : screen_climbing
-# screen_begin SCREEN_CLIMBING
-# 	step_begin 1 1
-# 		feature_display_slice SLICE_TEXT_MAP 99 22
-# 	step_end
-# screen_end
-
 : screen_mapinfo_A
 screen_begin SCREEN_MAPINFO_A
-	step_begin 1 1
+	step_begin 0 0
 		feature_display_slice SLICE_TEXT_1 55 Intro_Pitch_Y
 		feature_display_slice SLICE_TEXT_V 43 Intro_Grade_Y
 		feature_display_slice SLICE_TEXT_- 47 Intro_Grade_Y
@@ -1523,7 +1509,7 @@ screen_end
 
 : screen_mapinfo_B
 screen_begin SCREEN_MAPINFO_B
-	step_begin 1 1
+	step_begin 0 0
 		feature_display_slice SLICE_TEXT_2 55 Intro_Pitch_Y
 		feature_display_slice SLICE_TEXT_V 43 Intro_Grade_Y
 		feature_display_slice SLICE_TEXT_I 47 Intro_Grade_Y
@@ -1535,9 +1521,54 @@ screen_end
 
 : screen_win
 screen_begin SCREEN_WIN
-	step_begin 1 1
+	step_begin 0 0
 		#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
 
+	step_end
+screen_end
+
+:const Encouragement_Y 20
+:calc Encouragement_Start_X { 127 }
+:calc Encouragement_X { 99 }
+:calc Encouragement_Steps { ( Encouragement_Start_X - Encouragement_X ) / 2 }
+
+: screen_komm
+screen_begin SCREEN_KOMM
+	step_begin 4 10
+		feature_display_slice SLICE_TEXT_KOMM Encouragement_X Encouragement_Y
+	step_end
+	step_begin 0 0
+		feature_display_slice SLICE_TEXT_KOMM Encouragement_X Encouragement_Y
+	step_end
+screen_end
+
+: screen_aufgehts
+screen_begin SCREEN_AUFGEHTS
+	step_begin 4 10
+		feature_display_slice SLICE_TEXT_AUFGEHTS Encouragement_X Encouragement_Y
+	step_end
+	step_begin 0 0
+		feature_display_slice SLICE_TEXT_AUFGEHTS Encouragement_X Encouragement_Y
+	step_end
+screen_end
+
+: screen_allez
+screen_begin SCREEN_ALLEZ
+	step_begin 4 10
+		feature_display_slice SLICE_TEXT_ALLEZ Encouragement_X Encouragement_Y
+	step_end
+	step_begin 0 0
+		feature_display_slice SLICE_TEXT_ALLEZ Encouragement_X Encouragement_Y
+	step_end
+screen_end
+
+: screen_zuzuzu
+screen_begin SCREEN_ZUZUZU
+	step_begin 4 4
+		feature_display_slice SLICE_TEXT_ZUZUZU Encouragement_X Encouragement_Y
+	step_end
+	step_begin 0 0
+		feature_display_slice SLICE_TEXT_ZUZUZU Encouragement_X Encouragement_Y
 	step_end
 screen_end
 
@@ -1774,6 +1805,22 @@ screen_end
 : screen_update
 # Advances any animations setup by step_begin
 : step_continue
+	# See if this step is done
+	i := screen_state_prescalar
+	load v2
+	if v0 == 0 then jump step_continue_no_prescalar
+	v2 += 1
+	if v2 != v0 then jump step_continue_prescalar_not_hit
+	v2 := 0
+	v1 += -1
+	if v1 == 0 then jump step_load_next
+
+	: step_continue_prescalar_not_hit
+	i := screen_state_prescalar
+	save v2
+
+	: step_continue_no_prescalar
+
 	# for each animator, do the animation
 	i := animator_data
 	load v0
@@ -2468,7 +2515,6 @@ screen_end
 	;
 : clock_tick_update_energy_moving
 	Climbing_Energy += -1
-	if Climbing_Energy == 0 then :breakpoint aaa main #do-exit-move
 	;
 
 : clock_draw
@@ -2687,3 +2733,11 @@ screen_end
 		climbing_draw_lefthand
 		climbing_draw_righthand
 		;
+
+: encouragement_draw
+	v0 := SCREEN_KOMM
+	vF := random 0b0000110
+	v0 += vF
+	screen_init
+
+	;
