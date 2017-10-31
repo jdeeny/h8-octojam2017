@@ -1475,6 +1475,7 @@ slice_end
 
 
 :const FEATURE_DISPLAY_SLICE 0
+:const FEATURE_ANIMATE_SLICE 2
 :const FEATURE_END 0xFF
 
 
@@ -1576,12 +1577,111 @@ screen_end
 	sprite v4 v5 7 jump slice_draw_sprite_return
 	sprite v4 v5 8 jump slice_draw_sprite_return
 
+# Load a feature, do what is needed
 : feature_draw
 	;
+
+
 : step_draw
 	;
 
-	:const SPR_TEXT_END 0xFF
+
+# Screen state:
+#		Stores status about screen step
+# 	prescalar, ticks to next, addr-of-next-hi, addr-of-next-lo, counts
+: screen_state
+: screen_state_prescalar 0
+: screen_state_ticks_to_next 0
+: screen_state_next 0 0
+: screen_state_counts 0
+
+: screen_advance
+	i := screen_state
+	load v4
+	v4 += 1
+	if v4 != v0 then jump screen_advance_save
+
+	v4 := 0
+	v1 += -1
+	if v1 != 0 then jump screen_advance_save
+
+	i := screen_state_next
+	load v1
+	step_load
+	;
+: screen_advance_save
+	i := screen_state
+	save v4
+	;
+
+# Draws any sprites and sets up animations
+: step_begin
+	#i := step-data
+
+	load v0	# load featureid
+	jump0 feature_handler_jumptable
+	: feature_handler_return
+
+	# for each feature
+	# either draw something
+	# or setup an animator
+	;
+
+: feature_handler_jumptable
+	jump feature_handler_display_slice
+
+: feature_handler_display_slice
+	load v2
+	slice_draw
+	jump feature_handler_return
+
+# Advances any animations setup by step_begin
+: step_continue
+	# for each animator, do the animation
+	;
+
+: screen_run
+	screen_advance
+	;
+
+# in: v0/v1 = address of step data
+# out: screen_state set to loaded step data
+: step_load
+	vF := 0xA0
+	v0 |= vF
+	:calc addr { HERE + 4 }
+	i := addr
+	save v1
+	i := addr
+	# i = step data
+	load v3
+	i := screen_state
+	save v3
+	v0 := 0
+	save v0		# reset counts
+	;
+
+: step_load_next
+	i := screen_state_next
+	load v1
+	step_load
+	;
+
+
+# Initialize and load appropriate screen info for later use in run
+# In: v0 = screen id
+: screen_init
+	i := screen_table
+	i += v0
+	load v1
+	step_load # load the first step
+	;
+
+
+
+
+
+:const SPR_TEXT_END 0xFF
 
 ## Draw all the items in the list for this intro screen
 #: intro_draw
