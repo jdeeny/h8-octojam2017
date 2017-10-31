@@ -110,10 +110,8 @@
 	: gameplay_loop
 		climbing_init
 		intro_display
-		:breakpoint postintro
 		climbing_init
 		climbing_draw_minimap
-		:breakpoint postminimap
 		wait_any_key_plus_debounce
 		wipe
 
@@ -1052,12 +1050,14 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 :const Title_Begin_Num 4
 :const Title_Continue_Num 5
 :const Title_Select_Marker_X 2
-:calc Title_Select_Marker_Start_X { Title_Select_Marker_X + 11 }
 
 :const Title_Select_Marker_Y 50
 :const Title_Select_Marker_Select_Offset 70
 :const Title_Select_Marker_Text_Offset 49
 :const Title_Delay 20
+
+:calc Title_Select_Start_X { Title_Select_Marker_X + 11 }
+:calc Title_Select_Start_Y { Title_Select_Marker_Y }
 
 :calc Title_Select_Marker_Continue_X { Title_Select_Marker_X + Title_Select_Marker_Select_Offset + 7 }
 
@@ -1480,8 +1480,9 @@ slice_end
 
 : screen_definitions
 
+: screen_title
 screen_begin SCREEN_TITLE
-	step_begin 5 100
+	step_begin 1 1
 		feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
 
 		:calc title_x { TITLE_H8_XOFFSET }
@@ -1496,6 +1497,7 @@ screen_begin SCREEN_TITLE
 		:calc title_x { TITLE_H8_XOFFSET + TITLE_H8_XSKIP }
 		feature_display_sprite16 spr_title_8bot title_x title_y
 
+		feature_display_slice SLICE_TEXT_START Title_Select_Start_X Title_Select_Start_Y
 		#feature_animate_slice slice_id x1 x2 y1 y2 frames easing?
 	step_end
 screen_end
@@ -2611,71 +2613,18 @@ map_end
 : title_draw
 	v0 := SCREEN_TITLE
 	screen_init
-	:breakpoint title_done
-#	clear
-#	v0 := TITLE_H8_XOFFSET
-#	v1 := TITLE_H8_YOFFSET
-#	draw spr_title_htop v0 v1 0
-#	v1 += 16
-#	draw spr_title_hbot v0 v1 0
-#	v0 += TITLE_H8_XSKIP
-#	draw spr_title_8bot v0 v1 0
-#	v1 += -16
-#	draw spr_title_8top v0 v1 0
-#	Climbing_TempX := TITLE_LH_XOFFSET
-#	Climbing_TempY := TITLE_LH_YOFFSET
-#	climbing_setup_drawlimb_lefthand
-#	climbing_drawlimb
-#	Climbing_TempX := TITLE_RH_XOFFSET
-#	Climbing_TempY := TITLE_RH_YOFFSET
-#	climbing_setup_drawlimb_righthand
-#	climbing_drawlimb
-#
-#	v1 := TITLE_SUB_XOFFSET
-#	v2 := TITLE_SUB_YOFFSET
-#	v0 := TITLE_SUB_HEIGHT
-#	i := spr_title_sub_be
-#	loop
-#		sprite v1 v2 TITLE_SUB_HEIGHT
-#		v1 += TITLE_SUB_WIDTH
-#		i += v0
-#		while v1 != TITLE_SUB_XEND
-#	again
-#
-#
-#	v0 := Title_Begin_Num
-#	v1 := Title_Select_Marker_Start_X
-#	v2 := Title_Select_Marker_Y
-#	v3 := 5
-#	i := spr_text_start_0
-#	loop
-#		sprite v1 v2 5
-#		v1 += 8
-#		i += v3
-#		v0 += -1
-#		while v0 != 0
-#	again
-#
-# 	i := flag_data_continue
-#	load v0
-#	if v0 == FLAGS_NOCONTINUE then jump title_draw_skip_continue
-#	v0 := Title_Continue_Num
-#	v1 := Title_Select_Marker_Continue_X
-#	v2 := Title_Select_Marker_Y
-#	v3 := 5
-#	i := spr_text_continue_0
-#	loop
-#		sprite v1 v2 5
-#		v1 += 8
-#		i += v3
-#		v0 += -1
-#		while v0 != 0
-#	again
-#
-#	: title_draw_skip_continue
-#
-#	title_select_draw_marker
 
+ 	i := flag_data_continue
+	load v0
+	if v0 == FLAGS_NOCONTINUE then jump title_draw_skip_continue
+	v0 := SLICE_TEXT_CONTINUE
+	v4 := Title_Select_Marker_Continue_X
+	v5 := Title_Select_Marker_Y
+	slice_draw
+
+	: title_draw_skip_continue
+
+	title_select_draw_marker
 	;
 
 
