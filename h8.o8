@@ -193,13 +193,13 @@
 	# This is done early because we need to know how many bytes will be consumed
 	# by the tile indexes and minimaps
 	# Map A: 5x6 tiles
-	:const MAP_A_WIDTH 5
-	:const MAP_A_HEIGHT 6
+	:const MAP_A_WIDTH 3
+	:const MAP_A_HEIGHT 3
 	:calc MAP_A_TILES { MAP_A_WIDTH * MAP_A_HEIGHT }
 
 	# Map B: 4x8 tiles
-	:const MAP_B_WIDTH 4
-	:const MAP_B_HEIGHT 4
+	:const MAP_B_WIDTH 3
+	:const MAP_B_HEIGHT 3
 	:calc MAP_B_TILES { MAP_B_WIDTH * MAP_B_HEIGHT }
 
 	:calc Maps_Total_Tiles { MAP_A_TILES + MAP_B_TILES }
@@ -1117,7 +1117,7 @@
 
 
 	:const Slice_Table_Bytes 4
-	:const Slice_Count 19
+	:const Slice_Count 22
 	: slice_table
 		:calc slice_table_bytes { Slice_Table_Bytes * Slice_Count }
 		:calc slice_table_end { HERE + slice_table_bytes }
@@ -1178,6 +1178,11 @@
 	slice_begin SLICE_TEXT_1 5
 		: spr_text_1 0xC0 0x40 0x40 0x40 0xE0
 	slice_end
+
+	slice_begin SLICE_TEXT_2 5
+		: spr_text_2 0xE0 0x20 0xE0 0x80 0xE0
+	slice_end
+
 
 	slice_begin SLICE_TEXT_GRADE 5
 		: spr_text_grade_0 0xEE 0x8A 0xAE 0xAC 0xEA		# "GRAD"
@@ -1256,6 +1261,14 @@
 
 	slice_begin SLICE_TEXT_V 5
 		: spr_text_v 0xA0 0xA0 0xA0 0xA0 0x40
+	slice_end
+
+	slice_begin SLICE_TEXT_I 5
+		: spr_text_i 0x80 0x80 0x80 0x80 0x80
+	slice_end
+
+	slice_begin SLICE_TEXT_+ 5
+		: spr_text_+ 0x00 0x40 0xE0 0x40 0x00
 	slice_end
 
 	slice_begin SLICE_TEXT_- 5
@@ -1536,9 +1549,12 @@
 	: screen_mapinfo_B
 	screen_begin SCREEN_MAPINFO_B
 		step_begin 1 1
-			feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Pitch_Y
-			feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Grade_Y
-			feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Par_Y
+			feature_display_slice SLICE_TEXT_2 45 Intro_Pitch_Y
+			feature_display_slice SLICE_TEXT_V 43 Intro_Grade_Y
+			feature_display_slice SLICE_TEXT_I 47 Intro_Grade_Y
+			feature_display_slice SLICE_TEXT_+ 51 Intro_Grade_Y
+			feature_display_slice SLICE_TEXT_48 42 Intro_Length_Y
+			feature_display_slice SLICE_TEXT_48 35 Intro_Par_Y
 		step_end
 	screen_end
 
