@@ -48,13 +48,13 @@
 	:alias title_selection v3
 	:alias title_alt_status v4
 
-	: map_load_A_stub
-		map_load_A
-		;
+: map_load_A_stub
+	map_load_A
+	;
 
-	: map_load_B_stub
-		map_load_B
-		;
+: map_load_B_stub
+	map_load_B
+	;
 
 
 
@@ -78,6 +78,8 @@
 			wipe
 
 			climbing_run
+
+			save_time
 
 			wipe
 			outro_display
@@ -1059,13 +1061,7 @@
 
 	: spr_minimap_divider 0xFF
 
-	: spr_shades_shine0l 0x60 0xC0 0x80
-	: spr_shades_shine1l 0x7E 0xF0 0xE0 0x60 0x40 0x40 0x40
-	: spr_shades_shine2l 0x1F 0x3F 0x7F 0x7F 0x7F 0x7F 0x7E 0x1C
-	: spr_shades_shine2r 0xFE 0xFE 0xFE 0xFE 0xFC 0xF8 0x70
-	: spr_shades_shine3l 0x01 0x0F 0x1F 0x1F 0x3F 0x3F 0x3E 0x1C
-	: spr_shades_shine3r 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x1C
-	: spr_shades_shine4r 0x00 0x01 0x01 0x01 0x03 0x07 0x0E 0x1C
+
 	: spr_shades_burst0 0x40 0xA0 0x40
 	: spr_shades_burst1 0xE0 0xE0 0xE0
 
@@ -1159,7 +1155,7 @@
 
 
 	:const Slice_Table_Bytes 4
-	:const Slice_Count 21
+	:const Slice_Count 26
 	: slice_table
 		:calc slice_table_bytes { Slice_Table_Bytes * Slice_Count }
 		:calc slice_table_end { HERE + slice_table_bytes }
@@ -1339,6 +1335,24 @@ slice_end
 #	: spr_text_allez2 0xA0 0xA0 0x20 0x00 0xA0
 #slice_end
 
+slice_begin SLICE_SHADES_SHINE0 3
+	: spr_shades_shine0 0x60 0xC0 0x80
+slice_end
+slice_begin SLICE_SHADES_SHINE1 7
+	: spr_shades_shine1 0x7E 0xF0 0xE0 0x60 0x40 0x40 0x40
+slice_end
+slice_begin SLICE_SHADES_SHINE2 8
+	: spr_shades_shine2a 0x1F 0x3F 0x7F 0x7F 0x7F 0x7F 0x7E 0x1C
+	: spr_shades_shine2b 0xFE 0xFE 0xFE 0xFC 0xF8 0x70 0x00 0x00
+slice_end
+slice_begin SLICE_SHADES_SHINE3 8
+	: spr_shades_shine3a 0x01 0x0F 0x1F 0x1F 0x3F 0x3F 0x3E 0x1C
+	: spr_shades_shine3b 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x1C
+slice_end
+slice_begin SLICE_SHADES_SHINE4 8
+	: spr_shades_shine4 0x00 0x01 0x01 0x01 0x03 0x07 0x0E 0x1C
+slice_end
+
 
 #define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
 #define_text SPR_TEXT_I : spr_text_I 0x80 0x80 0x80 0x80 0x80					# "I"
@@ -1355,7 +1369,7 @@ slice_end
 
 
 	:const Screen_Table_Bytes 2
-	:const Screen_Count 6
+	:const Screen_Count 7
 	: screen_table
 		:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
 		:calc screen_table_end { HERE + screen_table_bytes }
@@ -1532,56 +1546,81 @@ slice_end
 	:calc Intro_Length_Y { 28 }
 	:calc Intro_Par_Y { 36 }
 
-	: screen_intro
+: screen_intro_outro
+screen_begin SCREEN_INTRO_OUTRO
+	step_begin 0 0
+		feature_display_slice SLICE_TEXT_PITCH 35 Intro_Pitch_Y
+		feature_display_slice SLICE_TEXT_GRADE 6 Intro_Grade_Y
+		feature_display_slice SLICE_TEXT_COLON 22 Intro_Grade_Y
+		feature_display_slice SLICE_TEXT_PAR 6 Intro_Par_Y
+		feature_display_slice SLICE_TEXT_COLON 18 Intro_Par_Y
+		feature_display_slice SLICE_TEXT_LENGTH 6 Intro_Length_Y
+		feature_display_slice SLICE_TEXT_COLON 26 Intro_Length_Y
+		feature_display_slice SLICE_TEXT_m 50 Intro_Length_Y
+
+		feature_display_slice SLICE_TEXT_h 43 Intro_Par_Y
+		feature_display_slice SLICE_TEXT_00 48 Intro_Par_Y
+		feature_display_slice SLICE_TEXT_m 56 Intro_Par_Y
+		#feature_display_slice SLICE_TEXT_MAP 99 22
+		feature_display_slice SLICE_TEXT_PRESS_KEY 34 55
+
+
+	#	:calc Inter_PressKey_X { 37 }
+	#	:calc Inter_PressKey_Y { 55 }
+	#	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
+	#	:byte SPR_TEXT_END
+
+		#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
+
+	step_end
+screen_end
+
+: screen_intro
 	screen_begin SCREEN_INTRO
 		step_begin 0 0
-			feature_display_slice SLICE_TEXT_PITCH 35 Intro_Pitch_Y
-			feature_display_slice SLICE_TEXT_GRADE 6 Intro_Grade_Y
-			feature_display_slice SLICE_TEXT_COLON 22 Intro_Grade_Y
-			feature_display_slice SLICE_TEXT_PAR 6 Intro_Par_Y
-			feature_display_slice SLICE_TEXT_COLON 18 Intro_Par_Y
-			feature_display_slice SLICE_TEXT_LENGTH 6 Intro_Length_Y
-			feature_display_slice SLICE_TEXT_COLON 26 Intro_Length_Y
-			feature_display_slice SLICE_TEXT_m 50 Intro_Length_Y
-
-			feature_display_slice SLICE_TEXT_h 43 Intro_Par_Y
-			feature_display_slice SLICE_TEXT_00 48 Intro_Par_Y
-			feature_display_slice SLICE_TEXT_m 56 Intro_Par_Y
-			#feature_display_slice SLICE_TEXT_MAP 99 22
-			feature_display_slice SLICE_TEXT_PRESS_KEY 34 55
 			feature_display_slice SLICE_TEXT_READY 74 Intro_Pitch_Y
-
-
-		#	:calc Inter_PressKey_X { 37 }
-		#	:calc Inter_PressKey_Y { 55 }
-		#	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
-		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-		#	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
-		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-		#	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
-		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-		#	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
-		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-		#	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
-		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-		#	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
-		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-		#	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
-		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-		#	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
-		#	:byte SPR_TEXT_END
-
-			#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
-
 		step_end
 	screen_end
 
 
 : screen_outro
 	screen_begin SCREEN_OUTRO
-		step_begin 0 0
+		step_begin 1 20
 			feature_display_slice SLICE_TEXT_SUCCESS 74 Intro_Pitch_Y
+			:calc shades_end { 87 }
+			:calc shades_steps { ( 127 - shades_end ) / 2 }
+			feature_setup_animation_slide_x 0 SLICE_SHADES 127 25 shades_steps -2 3
 		step_end
+		step_begin 1 10
+			feature_display_slice SLICE_SHADES_SHINE0 87 25
+		step_end
+		step_begin 1 10
+			feature_display_slice SLICE_SHADES_SHINE1 87 25
+		step_end
+		step_begin 1 20
+			feature_display_slice SLICE_SHADES_SHINE2 87 25
+		step_end
+		step_begin 1 20
+			feature_display_slice SLICE_SHADES_SHINE3 87 25
+		step_end
+		step_begin 1 20
+			feature_display_slice SLICE_SHADES_SHINE4 94 25
+		step_end
+
 	screen_end
 
 
@@ -1742,24 +1781,24 @@ screen_end
 : screen_state_counts 0
 : screen_state_current 0 0
 
-: screen_advance
-	i := screen_state
-	load v4
-	v4 += 1
-	if v4 != v0 then jump screen_advance_save
-
-	v4 := 0
-	v1 += -1
-	if v1 != 0 then jump screen_advance_save
-
-	i := screen_state_next
-	load v1
-	step_load
-	;
-: screen_advance_save
-	i := screen_state
-	save v4
-	;
+#: screen_advance
+#	i := screen_state
+#	load v4
+#	v4 += 1
+#	if v4 != v0 then jump screen_advance_save
+#
+#	v4 := 0
+#	v1 += -1
+#	if v1 != 0 then jump screen_advance_save
+#
+#	i := screen_state_next
+#	load v1
+#	step_load
+#	;
+#: screen_advance_save
+#	i := screen_state
+#	save v4
+#	;
 
 : step_load_feature
 	i := screen_state_current
@@ -1965,9 +2004,9 @@ screen_end
 	animator_draw_slice
 	;
 
-: screen_run
-	screen_advance
-	;
+#: screen_run
+#	screen_advance
+#	;
 
 # in: v0/v1 = address of step data
 # out: screen_state set to loaded step data
@@ -1997,6 +2036,7 @@ screen_end
 	save v3
 	v0 := 0
 	save v0		# reset counts
+
 	step_init
 	;
 
@@ -2399,6 +2439,7 @@ screen_end
 
 			map_entry HOLD_3X4 45 27
 			map_entry HOLD_3X5 65 19
+			map_is_goal_tile
 
 		map_endtile
 
@@ -2409,7 +2450,6 @@ screen_end
 		map_endtile
 
 		map_begintile 1 1
-		map_is_goal_tile
 
 		map_endtile
 
@@ -2417,10 +2457,10 @@ screen_end
 
 	map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT SCREEN_MAPINFO_B main Map_Data_B_Address Maptile_Index_B_Address
 		map_begintile 2 0
-			map_is_goal_tile
 		map_endtile
 
 		map_begintile 2 1
+		map_is_goal_tile
 			map_is_player_start_tile
 			map_entry HOLD_3X5 20  4
 			map_entry HOLD_3X5 20 30 map_is_player_start_lh
@@ -2527,21 +2567,24 @@ screen_end
 		;
 
 	: intro_display
+		v0 := SCREEN_INTRO_OUTRO
+		screen_init
 		v0 := SCREEN_INTRO
 		screen_init
 		map_load_info_screen
 		screen_init
-		#v0 := SCREEN_PRESSKEY
-		#screen_init
 		;
 
-	: outro_display
-		v0 := SCREEN_OUTRO
-		screen_init
-		map_load_info_screen
-		screen_init
-		clock_draw_outro
-		;
+: outro_display
+	v0 := SCREEN_INTRO_OUTRO
+	screen_init
+	map_load_info_screen
+	screen_init
+
+	v0 := SCREEN_OUTRO
+	screen_init
+	clock_draw_outro
+	;
 
 	: win_display
 		v0 := SCREEN_WIN
@@ -2557,8 +2600,8 @@ screen_end
 :const Clock_Y 4
 :const Clock_Width 6
 
-:const Clock_Outro_X 40
-:const Clock_Outro_Y 17
+:const Clock_Outro_X 78
+:const Clock_Outro_Y 34
 
 	: clock_data
 	: clock_data_hours 0
@@ -2622,6 +2665,7 @@ screen_end
 	v1 := Clock_X
 	v2 := Clock_Y
 
+:	clock_draw_inner
 	i := clock_data_hours
 	load v0
 	draw_decimal
@@ -2665,20 +2709,12 @@ screen_end
 
 
 : clock_draw_outro
+	load_time_current
+
 	v1 := Clock_Outro_X
 	v2 := Clock_Outro_Y
 
-	i := clock_data_hours
-	load v0
-	draw_decimal
-	v1 += 6
-	i := spr_text_colon
-	sprite v1 v2 5
-	v1 += 3
-
-	i := clock_data_minutes
-	load v0
-	draw_decimal
+	clock_draw_inner
 	;
 
 
@@ -2843,3 +2879,40 @@ screen_end
 # 	screen_init
 #
 # 	;
+
+
+: time_data 0 0 0 0 0 0
+	:calc time_data_end_addr { ( 2 * MAPS_NUM ) + HERE }
+	:org time_data_end_addr
+	: time_data_end
+
+
+: load_time_current
+	i := climbing_data_currentmap
+	load v0
+	if v0 == MAP_B then v0 := 2
+
+# v0 = map # * 2 (0,2,4,8)
+: load_time
+	i := time_data
+	i += v0
+	load v1
+	i := clock_data
+	save v1
+	;
+
+# v0 := hours
+# v1 := minutes
+: save_time
+	i := climbing_data_currentmap
+	load v0
+	if v0 == MAP_B then v0 := 2
+	v2 := v0
+	i := clock_data
+	load v1
+	v0 += 1
+	v1 += 15
+	i := time_data
+	i += v2
+	save v1
+	;
