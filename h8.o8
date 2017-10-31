@@ -1530,35 +1530,78 @@ slice_end
 
 screen_begin SCREEN_TITLE
 	step_begin 5 100
-		#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
+		feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
+		#feature_display_sprite16 spr_title_htop TITLE_H8
 		#feature_animate_slice slice_id x1 x2 y1 y2 frames easing?
 	step_end
 screen_end
 
 
 
+# In:
+#		v0 := slice-id
+#		v4 := x
+#		v5 := y
+: slice_draw
+	i := slice_table
+	i += v0
+	load v3
+	vF := 0xA0
+	v0 |= vF
+	:calc addr { HERE + 4 }
+	i := addr
+	save v1
+	i := addr
 
-#define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
-#define_text SPR_TEXT_I : spr_text_I 0x80 0x80 0x80 0x80 0x80					# "I"
-#define_text SPR_TEXT_- : spr_text_- 0x00 0x00 0xE0 0x00 0x00					# "-"
-#define_text SPR_TEXT_+ : spr_text_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
-#define_text SPR_TEXT_X : spr_text_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
+	v0 <<= v3
+	v0 <<= v0
+	loop
+	while v2 != 0
+		jump0 slice_draw_sprite_by_height
+		: slice_draw_sprite_return
+		v4 += 8
+		v2 += -1
+		i += v3
+	again
+	;
 
-#slice_begin SLICE_TEXT_PRESS_KEY
-#define_text SPR_TEXT_DRUCKE_0 : spr_text_drucke_0 0xCE 0xAA 0xAE 0xAC 0xCA  # "DRUCKE EINE TASTE"
-#define_text SPR_TEXT_DRUCKE_1 : spr_text_drucke_1 0xAD 0x09 0xA9 0xA9 0xED
-#define_text SPR_TEXT_DRUCKE_2 : spr_text_drucke_2 0x5C 0x90 0x18 0x90 0x5C
-#define_text SPR_TEXT_DRUCKE_3 : spr_text_drucke_3 0xEA 0x8A 0xCB 0x8A 0xEA
-#define_text SPR_TEXT_DRUCKE_4 : spr_text_drucke_4 0x5C 0x50 0x58 0xD0 0x5C
-#define_text SPR_TEXT_DRUCKE_5 : spr_text_drucke_5 0xE4 0x4A 0x4E 0x4A 0x4A
-#define_text SPR_TEXT_DRUCKE_6 : spr_text_drucke_6 0xEE 0x84 0xE4 0x24 0xE4
-#define_text SPR_TEXT_DRUCKE_7 : spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
-#slice_end
+: slice_draw_sprite_by_height
+	sprite v4 v5 1 jump slice_draw_sprite_return
+	sprite v4 v5 1 jump slice_draw_sprite_return
+	sprite v4 v5 2 jump slice_draw_sprite_return
+	sprite v4 v5 3 jump slice_draw_sprite_return
+	sprite v4 v5 4 jump slice_draw_sprite_return
+	sprite v4 v5 5 jump slice_draw_sprite_return
+	sprite v4 v5 6 jump slice_draw_sprite_return
+	sprite v4 v5 7 jump slice_draw_sprite_return
+	sprite v4 v5 8 jump slice_draw_sprite_return
+
+: feature_draw
+	;
+: step_draw
+	;
+
+	:const SPR_TEXT_END 0xFF
+
+## Draw all the items in the list for this intro screen
+#: intro_draw
+#	v3 := 0
+#	loop
+#		Trampoline: intro_tramp_i:=intro_data
+#		i += v3
+#		load v2
+#	while v0 != SPR_TEXT_END
+##		i := spr_texts
+##		i += v0
+##		sprite v1 v2 Text_Height
+#		v3 += 3
+#	again
+#	;
 
 
 
 
-:const SPR_TEXT_END 0xFF
+
 
 ### Climbing legal moves table
 # This is entirely from the perspective of the left arm
@@ -2453,3 +2496,20 @@ map_end
 			load_continue_counter += -1
 	again
 	;
+
+#define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
+#define_text SPR_TEXT_I : spr_text_I 0x80 0x80 0x80 0x80 0x80					# "I"
+#define_text SPR_TEXT_- : spr_text_- 0x00 0x00 0xE0 0x00 0x00					# "-"
+#define_text SPR_TEXT_+ : spr_text_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
+#define_text SPR_TEXT_X : spr_text_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
+
+#slice_begin SLICE_TEXT_PRESS_KEY
+#define_text SPR_TEXT_DRUCKE_0 : spr_text_drucke_0 0xCE 0xAA 0xAE 0xAC 0xCA  # "DRUCKE EINE TASTE"
+#define_text SPR_TEXT_DRUCKE_1 : spr_text_drucke_1 0xAD 0x09 0xA9 0xA9 0xED
+#define_text SPR_TEXT_DRUCKE_2 : spr_text_drucke_2 0x5C 0x90 0x18 0x90 0x5C
+#define_text SPR_TEXT_DRUCKE_3 : spr_text_drucke_3 0xEA 0x8A 0xCB 0x8A 0xEA
+#define_text SPR_TEXT_DRUCKE_4 : spr_text_drucke_4 0x5C 0x50 0x58 0xD0 0x5C
+#define_text SPR_TEXT_DRUCKE_5 : spr_text_drucke_5 0xE4 0x4A 0x4E 0x4A 0x4A
+#define_text SPR_TEXT_DRUCKE_6 : spr_text_drucke_6 0xEE 0x84 0xE4 0x24 0xE4
+#define_text SPR_TEXT_DRUCKE_7 : spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
+#slice_end
