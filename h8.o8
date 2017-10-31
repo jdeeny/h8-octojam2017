@@ -167,6 +167,9 @@
 :calc Minimap_Total_Bytes { ( Minimap_Bytes * Maps_Total_Tiles ) }
 :calc Maptile_Index_Total_Bytes { 2 * Maps_Total_Tiles }
 
+:calc Intro_JumpTable_Total_Bytes { 2 * MAPS_NUM }
+:calc Outro_JumpTable_Total_Bytes { 2 * MAPS_NUM }
+:calc Next_JumpTable_Total_Bytes { 2 * MAPS_NUM }
 
 
 
@@ -205,6 +208,22 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 :calc minimap_end { HERE + Minimap_Total_Bytes }
 :org minimap_end
 
+## Intro jumptable
+: map_intro_jumptable
+:calc intro_end { HERE + Intro_JumpTable_Total_Bytes }
+:org intro_end
+
+## Outro jumptable
+: map_outro_jumptable
+:calc outro_end { HERE + Outro_JumpTable_Total_Bytes }
+:org outro_end
+
+## Nextmap jumptable
+: map_next_jumptable
+:calc map_next_end { HERE + Next_JumpTable_Total_Bytes }
+:org map_next_end
+
+
 :calc Map_Data_Addr_Base { map_data }
 :calc Map_Data_Addr_Current { Map_Data_Addr_Base }
 
@@ -213,6 +232,15 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 
 :calc Minimap_Addr_Base { minimap_data }
 :calc Minimap_Addr_Current { Minimap_Addr_Base }
+
+:calc Intro_Addr_Base { map_intro_jumptable }
+:calc Intro_Addr_Current { Intro_Addr_Base }
+
+:calc Outro_Addr_Base { map_outro_jumptable }
+:calc Outro_Addr_Current { Outro_Addr_Base }
+
+:calc Map_Next_Addr_Base { map_next_jumptable }
+:calc Map_Next_Addr_Current { Map_Next_Addr_Base }
 
 
 #########################
@@ -1047,7 +1075,7 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	loop vf := delay while vf != 0 again
 	;
 
-:const shades_y 8
+:const shades_y 24
 :calc shades_x_end { ( 128 - 16 ) / 2 }
 :calc shades_x_slow { ( ( 128 - shades_x_end ) / 12 ) + shades_x_end }
 : animate_shades
@@ -1090,6 +1118,9 @@ define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
 	draw_shades_wait
 	i := spr_shades_shine4r
 	sprite v0 v1 8
+
+	v2 := 15
+	draw_shades_wait
 
 	v0 := shades_x_end
 	draw_shades
@@ -1267,6 +1298,134 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 	climbing_limit_table_entry  6  6		# 62
 	climbing_limit_table_entry  9  9		# 63
 
+:calc Inter_Pitch_Y { 10 }
+:calc Inter_Grade_Y { 20 }
+:calc Inter_Par_Y { 30 }
+:macro text_entry spr-id x y {
+	:byte spr-id :byte x :byte y
+}
+
+: intro_all
+	text_entry SPR_TEXT_PITCH_0  6  Inter_Pitch_Y
+	text_entry SPR_TEXT_PITCH_1 14  Inter_Pitch_Y
+	text_entry SPR_TEXT_GRADE_0  6  Inter_Grade_Y
+	text_entry SPR_TEXT_GRADE_1 14  Inter_Grade_Y
+	text_entry SPR_TEXT_COLON   22  Inter_Grade_Y
+	text_entry SPR_TEXT_PAR_0		 6 Inter_Par_Y
+	text_entry SPR_TEXT_PAR_1		14 Inter_Par_Y
+	text_entry SPR_TEXT_COLON   18 Inter_Par_Y
+
+	:calc Inter_PressKey_X { 37 }
+	:calc Inter_PressKey_Y { 55 }
+	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
+	:byte SPR_TEXT_END
+
+:calc Outro_Erfolg_X { 52 }
+:calc Outro_Erfolg_Y { 16 }
+: outro_all
+	text_entry SPR_TEXT_ERFOLG_0 Outro_Erfolg_X Outro_Erfolg_Y
+	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
+	text_entry SPR_TEXT_ERFOLG_1 Outro_Erfolg_X Outro_Erfolg_Y
+	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
+	text_entry SPR_TEXT_ERFOLG_2 Outro_Erfolg_X Outro_Erfolg_Y
+
+	:calc Inter_PressKey_X { 37 }
+	:calc Inter_PressKey_Y { 55 }
+	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
+	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
+
+	:byte SPR_TEXT_END
+
+# Intro text specific to pitch A
+: intro_A
+	text_entry SPR_TEXT_PITCH_0  24  Inter_Pitch_Y
+	:byte SPR_TEXT_END
+
+# Intro text specific to pitch A
+: intro_B
+	:byte SPR_TEXT_END
+
+: outro_A
+	:byte SPR_TEXT_END
+
+: outro_B
+	:byte SPR_TEXT_END
+
+# Draw all the items in the list for this intro screen
+: intro_draw
+	v3 := 0
+	loop
+		Trampoline: intro_tramp_i:=intro_data
+		i += v3
+		load v2
+	while v0 != SPR_TEXT_END
+		i := spr_texts
+		i += v0
+		sprite v1 v2 Text_Height
+		v3 += 3
+	again
+	;
+
+
+: intro_draw_a
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_all
+	intro_draw
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_A
+	intro_draw
+	minimap_draw
+	;
+
+: intro_draw_b
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_all
+	intro_draw
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_B
+	intro_draw
+	minimap_draw
+	;
+
+: outro_draw_a
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_all
+	intro_draw
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_A
+	intro_draw
+	animate_shades
+	;
+
+: outro_draw_b
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_all
+	intro_draw
+	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_A
+	intro_draw
+	animate_shades
+	;
+
 
 ### Level Map
 
@@ -1418,17 +1577,44 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 	:org old-here
 }
 
+:macro map_intro_emit {
+	:calc old-here { HERE }
+	:calc addr { Map_Intro_Addr_Current }
+	:org addr
+		jump map-intro-address
+	:org old-here
+}
+
+:macro map_outro_emit {
+	:calc old-here { HERE }
+	:calc addr { Map_Outro_Addr_Current }
+	:org addr
+		jump map-outro-address
+	:org old-here
+}
+
+:macro map_next_emit {
+	:calc old-here { HERE }
+	:calc addr { Map_Next_Addr_Current }
+	:org addr
+		jump map-next-address
+	:org old-here
+}
+
 
 # Intended to reset any offsets/etc needed when creating the map
 # index-label: the label to set to the address of the map's tile index
 # minimap-label: the label to set to the address of the map's minimap
-:macro map_begin map-id map-width map-height intro-draw-function mapdata-label tileindex-label minimap-label {
+:macro map_begin map-id map-width map-height intro-draw-function outro-draw-function load-next-map-function mapdata-label tileindex-label minimap-label {
 	:calc map-current-width { map-width }
 	:calc map-current-height { map-height }
 	:calc map-current-tiles { map-current-height * map-current-width }
 	:calc mapdata-label { Map_Data_Addr_Current }
 	:calc tileindex-label { Map_TileIndex_Addr_Current }
 	:calc minimap-label { Minimap_Addr_Current }
+	:calc map-intro-address { intro-draw-function }
+	:calc map-outro-address { outro-draw-function }
+	:calc map-next-address { load-next-map-function }
 }
 
 :macro map_end {
@@ -1507,7 +1693,7 @@ define_text SPR_TEXT_ERFOLG_2 : spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 
 
 # Begin defining a map
-map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT map_a_draw_intro Map_Data_A_Address Maptile_Index_A_Address Minimap_A_Address
+map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT intro_draw_a outro_draw_a main Map_Data_A_Address Maptile_Index_A_Address Minimap_A_Address
 	map_begintile 1 2
 		map_entry HOLD_3X3 30 30 3
 		map_entry HOLD_3X3 30 60 3
@@ -1600,7 +1786,7 @@ map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT map_a_draw_intro Map_Data_A_Address Map
 	map_endtile
 map_end
 
-map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT map_b_draw_intro Map_Data_B_Address Maptile_Index_B_Address Minimap_B_Address
+map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT intro_draw_b outro_draw_b main Map_Data_B_Address Maptile_Index_B_Address Minimap_B_Address
 #: maptile_2_0
 	map_begintile 2 1
 		map_is_goal_tile
@@ -1671,131 +1857,8 @@ map_end
 	again
 	;
 
-: spr_placeholder
-0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
-0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
-0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
-0x55 0x55 0xAA 0xAA 0x55 0x55 0xAA 0xAA
 
 
-:calc Inter_Pitch_Y { 10 }
-:calc Inter_Grade_Y { 20 }
-:calc Inter_Par_Y { 30 }
-:macro text_entry spr-id x y {
-	:byte spr-id :byte x :byte y
-}
-
-: intro_all
-	text_entry SPR_TEXT_PITCH_0  6  Inter_Pitch_Y
-	text_entry SPR_TEXT_PITCH_1 14  Inter_Pitch_Y
-	text_entry SPR_TEXT_GRADE_0  6  Inter_Grade_Y
-	text_entry SPR_TEXT_GRADE_1 14  Inter_Grade_Y
-	text_entry SPR_TEXT_COLON   22  Inter_Grade_Y
-	text_entry SPR_TEXT_PAR_0		 6 Inter_Par_Y
-	text_entry SPR_TEXT_PAR_1		14 Inter_Par_Y
-	text_entry SPR_TEXT_COLON   18 Inter_Par_Y
-
-	:calc Inter_PressKey_X { 37 }
-	:calc Inter_PressKey_Y { 55 }
-	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
-	:byte SPR_TEXT_END
-
-:calc Outro_Erfolg_X { 52 }
-:calc Outro_Erfolg_Y { 20 }
-: outro_all
-	text_entry SPR_TEXT_ERFOLG_0 Outro_Erfolg_X Outro_Erfolg_Y
-	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
-	text_entry SPR_TEXT_ERFOLG_1 Outro_Erfolg_X Outro_Erfolg_Y
-	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
-	text_entry SPR_TEXT_ERFOLG_2 Outro_Erfolg_X Outro_Erfolg_Y
-
-	:calc Inter_PressKey_X { 37 }
-	:calc Inter_PressKey_Y { 55 }
-	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
-	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
-
-	:byte SPR_TEXT_END
-
-# Intro text specific to pitch A
-: intro_A
-	text_entry SPR_TEXT_PITCH_0  24  Inter_Pitch_Y
-	:byte SPR_TEXT_END
-
-# Intro text specific to pitch A
-: intro_B
-	:byte SPR_TEXT_END
-
-: outro_A
-	:byte SPR_TEXT_END
-
-: outro_B
-	:byte SPR_TEXT_END
-
-# Draw all the items in the list for this intro screen
-: intro_draw
-	v3 := 0
-	loop
-		Trampoline: intro_tramp_i:=intro_data
-		i += v3
-		load v2
-	while v0 != SPR_TEXT_END
-		i := spr_texts
-		i += v0
-		sprite v1 v2 Text_Height
-		v3 += 3
-	again
-	;
-
-: intro_draw_a
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_all
-	intro_draw
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_A
-	intro_draw
-	minimap_draw
-	;
-
-: intro_draw_b
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_all
-	intro_draw
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_B
-	intro_draw
-	minimap_draw
-	;
-
-: outro_draw_a
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_all
-	intro_draw
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_A
-	intro_draw
-	animate_shades
-	;
 
 
 
