@@ -1068,7 +1068,7 @@
 
 
 	:const Slice_Table_Bytes 4
-	:const Slice_Count 20
+	:const Slice_Count 21
 	: slice_table
 		:calc slice_table_bytes { Slice_Table_Bytes * Slice_Count }
 		:calc slice_table_end { HERE + slice_table_bytes }
@@ -1156,6 +1156,12 @@
 		: spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
 	slice_end
 
+	slice_begin SLICE_TEXT_READY 5
+		: spr_text_ready_0 0xCE 0xA8 0xEC 0xA8 0xCE # "BEREIT!"
+		: spr_text_ready_1 0xEE 0xA8 0xEC 0xC8 0xAE
+		: spr_text_ready_2 0xBA 0x92 0x92 0x90 0x92
+	slice_end
+
 
 		# H8 - Bergsteigersimulator
 	slice_begin SLICE_TEXT_SUBTITLE 5
@@ -1232,7 +1238,7 @@
 
 
 	:const Screen_Table_Bytes 2
-	:const Screen_Count 5
+	:const Screen_Count 7
 	: screen_table
 		:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
 		:calc screen_table_end { HERE + screen_table_bytes }
@@ -1403,10 +1409,10 @@
 	screen_end
 
 
-	:calc Intro_Pitch_Y { 6 }
-	:calc Intro_Grade_Y { 14 }
-	:calc Intro_Length_Y { 22 }
-	:calc Intro_Par_Y { 30 }
+	:calc Intro_Pitch_Y { 12 }
+	:calc Intro_Grade_Y { 20 }
+	:calc Intro_Length_Y { 28 }
+	:calc Intro_Par_Y { 36 }
 
 	: screen_intro_outro_base
 	screen_begin SCREEN_INTRO_OUTRO_BASE
@@ -1425,6 +1431,7 @@
 			feature_display_slice SLICE_TEXT_00 48 Intro_Par_Y
 			feature_display_slice SLICE_TEXT_m 56 Intro_Par_Y
 			#feature_display_slice SLICE_TEXT_MAP 99 22
+			feature_display_slice SLICE_TEXT_PRESS_KEY 37 55
 
 
 		#	:calc Inter_PressKey_X { 37 }
@@ -1450,6 +1457,23 @@
 
 		step_end
 	screen_end
+
+: screen_intro_specific
+	screen_begin SCREEN_INTRO_SPECIFIC
+		step_begin 1 1
+			feature_display_slice SLICE_TEXT_READY 54 2
+		step_end
+	screen_end
+
+: screen_outro_specific
+	screen_begin SCREEN_OUTRO_SPECIFIC
+		step_begin 1 1
+			feature_display_slice SLICE_TEXT_SUCCESS 54 2
+		step_end
+	screen_end
+
+
+
 
 # : screen_presskey
 # screen_begin SCREEN_PRESSKEY
@@ -2337,6 +2361,8 @@ map_is_goal_tile
 	: intro_display
 		v0 := SCREEN_INTRO_OUTRO_BASE
 		screen_init
+		v0 := SCREEN_INTRO_SPECIFIC
+		screen_init
 		map_load_info_screen
 		screen_init
 		#v0 := SCREEN_PRESSKEY
@@ -2345,6 +2371,8 @@ map_is_goal_tile
 
 	: outro_display
 		v0 := SCREEN_INTRO_OUTRO_BASE
+		screen_init
+		v0 := SCREEN_OUTRO_SPECIFIC
 		screen_init
 		map_load_info_screen
 		screen_init
