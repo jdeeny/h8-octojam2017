@@ -372,11 +372,15 @@
 
 		: climbing_runstate_idle_notgoal
 		# Scan limb selection keys
+		ifkey KB_1 jump climbing_runstate_move_up
 		ifkey KEY_LH jump climbing_runstate_idle_setlimb_lefthand
 		ifkey KEY_RH jump climbing_runstate_idle_setlimb_righthand
 		ifkey KEY_LF jump climbing_runstate_idle_setlimb_leftfoot
 		ifkey KEY_RF jump climbing_runstate_idle_setlimb_rightfoot
 		jump climbing_main_loop_continue
+		: climbing_runstate_move_up
+			Climbing_Y += -1
+			jump climbing_main_loop_continue
 		: climbing_runstate_idle_setlimb_lefthand
 			Climbing_Limb := LIMB_LEFTHAND
 			Climbing_State := Climbing_State_DebounceMove
@@ -1333,7 +1337,7 @@
 		:byte y
 	}
 
-	:macro feature-setup-animation-slide-x animator-id slice-id x y steps increment steps-per-ease {
+	:macro feature_setup_animation_slide_x animator-id slice-id x y steps increment steps-per-ease {
 		:byte FEATURE_SETUP_ANIMATION_SLIDE_X
 		:byte animator-id
 		:byte slice-id
@@ -1344,7 +1348,7 @@
 		:byte steps-per-ease
 	}
 
-	:macro feature-setup-animation-bounce-y animator-id slice-id x y limit {
+	:macro feature_setup_animation_bounce_y animator-id slice-id x y limit {
 		:byte FEATURE_SETUP_ANIMATION_BOUNCE_Y
 		:byte animator-id
 		:byte slice-id
@@ -1401,6 +1405,8 @@
 			:calc title_x { TITLE_H8_XOFFSET + TITLE_H8_XSKIP }
 			feature_display_sprite16 spr_title_8bot title_x title_y
 
+			feature_display_slice SLICE_TEXT_PRESS_KEY 35 52
+
 		step_end
 	screen_end
 
@@ -1451,361 +1457,365 @@
 		step_end
 	screen_end
 
-	: screen_presskey
-	screen_begin SCREEN_PRESSKEY
+: screen_presskey
+screen_begin SCREEN_PRESSKEY
+step_begin 1 1
+	feature_display_slice SLICE_TEXT_PRESS_KEY 37 55
+step_end
+screen_end
+
+: screen_mapinfo_A
+screen_begin SCREEN_MAPINFO_A
 	step_begin 1 1
-		feature_display_slice SLICE_TEXT_PRESS_KEY 37 55
+		feature_display_slice SLICE_TEXT_1 45 Intro_Pitch_Y
+		feature_display_slice SLICE_TEXT_V 43 Intro_Grade_Y
+		feature_display_slice SLICE_TEXT_- 47 Intro_Grade_Y
+		feature_display_slice SLICE_TEXT_48 42 Intro_Length_Y
+		feature_display_slice SLICE_TEXT_48 35 Intro_Par_Y
+
 	step_end
-	screen_end
+screen_end
 
-	: screen_mapinfo_A
-	screen_begin SCREEN_MAPINFO_A
-		step_begin 1 1
-			feature_display_slice SLICE_TEXT_1 45 Intro_Pitch_Y
-			feature_display_slice SLICE_TEXT_V 43 Intro_Grade_Y
-			feature_display_slice SLICE_TEXT_- 47 Intro_Grade_Y
-			feature_display_slice SLICE_TEXT_48 42 Intro_Length_Y
-			feature_display_slice SLICE_TEXT_48 35 Intro_Par_Y
+: screen_mapinfo_B
+screen_begin SCREEN_MAPINFO_B
+	step_begin 1 1
+		feature_display_slice SLICE_TEXT_2 45 Intro_Pitch_Y
+		feature_display_slice SLICE_TEXT_V 43 Intro_Grade_Y
+		feature_display_slice SLICE_TEXT_I 47 Intro_Grade_Y
+		feature_display_slice SLICE_TEXT_+ 51 Intro_Grade_Y
+		feature_display_slice SLICE_TEXT_48 42 Intro_Length_Y
+		feature_display_slice SLICE_TEXT_48 35 Intro_Par_Y
+	step_end
+screen_end
 
-		step_end
-	screen_end
+: screen_win
+screen_begin SCREEN_WIN
+	step_begin 1 1
+		#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
 
-	: screen_mapinfo_B
-	screen_begin SCREEN_MAPINFO_B
-		step_begin 1 1
-			feature_display_slice SLICE_TEXT_2 45 Intro_Pitch_Y
-			feature_display_slice SLICE_TEXT_V 43 Intro_Grade_Y
-			feature_display_slice SLICE_TEXT_I 47 Intro_Grade_Y
-			feature_display_slice SLICE_TEXT_+ 51 Intro_Grade_Y
-			feature_display_slice SLICE_TEXT_48 42 Intro_Length_Y
-			feature_display_slice SLICE_TEXT_48 35 Intro_Par_Y
-		step_end
-	screen_end
-
-	: screen_win
-	screen_begin SCREEN_WIN
-		step_begin 1 1
-			#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
-
-		step_end
-	screen_end
+	step_end
+screen_end
 
 
 
-	# In:
-	#		v0 := slice-id
-	#		v4 := x
-	#		v5 := y
-	: slice_draw
-		i := slice_table
-		i += v0
-		load v3
-		vF := 0xA0
-		v0 |= vF
-		:calc addr { HERE + 4 }
-		i := addr
-		save v1
-		i := addr
+# In:
+#		v0 := slice-id
+#		v4 := x
+#		v5 := y
+: slice_draw
+	i := slice_table
+	i += v0
+	load v3
+	vF := 0xA0
+	v0 |= vF
+	:calc addr { HERE + 4 }
+	i := addr
+	save v1
+	i := addr
 
-		v0 <<= v3
-		v0 <<= v0
-		loop
-		while v2 != 0
-			jump0 slice_draw_sprite_by_height
-			: slice_draw_sprite_return
-			v4 += 8
-			v2 += -1
-			i += v3
-		again
-		;
-
-	: slice_draw_sprite_by_height
-		sprite v4 v5 1 jump slice_draw_sprite_return
-		sprite v4 v5 1 jump slice_draw_sprite_return
-		sprite v4 v5 2 jump slice_draw_sprite_return
-		sprite v4 v5 3 jump slice_draw_sprite_return
-		sprite v4 v5 4 jump slice_draw_sprite_return
-		sprite v4 v5 5 jump slice_draw_sprite_return
-		sprite v4 v5 6 jump slice_draw_sprite_return
-		sprite v4 v5 7 jump slice_draw_sprite_return
-		sprite v4 v5 8 jump slice_draw_sprite_return
-
-
-	# Screen state:
-	#		Stores status about screen step
-	# 	prescalar, ticks to next, addr-of-next-hi, addr-of-next-lo, counts
-	: screen_state
-	: screen_state_next 0 0
-	: screen_state_prescalar 0
-	: screen_state_ticks_to_next 0
-	: screen_state_counts 0
-	: screen_state_current 0 0
-
-	: screen_advance
-		i := screen_state
-		load v4
-		v4 += 1
-		if v4 != v0 then jump screen_advance_save
-
-		v4 := 0
-		v1 += -1
-		if v1 != 0 then jump screen_advance_save
-
-		i := screen_state_next
-		load v1
-		step_load
-		;
-	: screen_advance_save
-		i := screen_state
-		save v4
-		;
-
-	: step_load_feature
-		i := screen_state_current
-		load v1
-
-		set_i_to_v0v1
-		# i = feature data
-		load v0
-		;
-
-	# Draws any sprites and sets up animations
-	: step_init
-		loop
-			step_load_feature
-		while v0 != FEATURE_END
-			jump0 feature_handler_jumptable
-			: feature_handler_return
-			feature_handler_advance_current		# vF set by handler
-
-		again
-		;
-
-	: feature_handler_jumptable
-		jump feature_handler_display_slice
-		jump feature_handler_display_sprite16
-		jump feature_handler_setup_animation_slide_x
-		jump feature_handler_setup_animation_bounce_y
-
-	: feature_handler_display_slice
-		load v2
-		v4 := v1
-		v5 := v2
-		slice_draw
-		vF := 4
-		jump feature_handler_return
-
-	: feature_handler_display_sprite16
-		load v3
-		set_i_to_v0v1
-		sprite v2 v3 0
-		vF := 5
-		jump feature_handler_return
-
-
-	:const ANIMATOR_TYPE_NONE 0
-	:const ANIMATOR_TYPE_SLIDE_X 2
-	:const ANIMATOR_TYPE_BOUNCE_Y 4
-
-	:const ANIMATOR_0 0
-	: animator_data
-
-	: animator_type 0
-	: animator_sliceid 0
-	: animator_posn 0 0
-	: animator_steps 0
-	: animator_incr 0
-	: animator_ease_target 0
-	: animator_ease_state 0
-	: animator_ease_counter 0
-
-
-	: feature_handler_setup_animation_slide_x
-		load v6
-		i := animator_data
-		i += v0
-
-		v0 := ANIMATOR_TYPE_SLIDE_X
-		save v0		# save type
-
-		v0 := v1
-		save v0		# save slice id
-
-		v0 := v2
-		v1 := v3
-		save v1		# save posn
-
+	loop
+	while v2 != 0
 		v0 := v4
 		v1 := v5
-		save v1		# save steps and increment
+		is_on_screen
+		if vF != 0 then return
+		v0 <<= v3
+		v0 <<= v0
+		jump0 slice_draw_sprite_by_height
+		: slice_draw_sprite_return
+		v4 += 8
+		v2 += -1
+		i += v3
+	again
+	;
 
-		v0 := v6
-		v1 := 0
-		v2 := 0
-		save v2		# save steps per ease and ease state & counter
-
-		animator_draw_slice
-
-		vF := 8
-		jump feature_handler_return
-
-	: feature_handler_setup_animation_bounce_y
-		load v4
-		i := animator_data
-		i += v0
-
-		v0 := ANIMATOR_TYPE_BOUNCE_Y
-		save v0
-		v0 := v1
-		save v0
-		v0 := v2
-		v1 := v3
-		save v1
-		v0 := 0
-		v1 := -1
-		v2 := v4
-		save v2
-
-		animator_draw_slice
-
-		vF := 6
-		jump feature_handler_return
+: slice_draw_sprite_by_height
+	sprite v4 v5 1 jump slice_draw_sprite_return
+	sprite v4 v5 1 jump slice_draw_sprite_return
+	sprite v4 v5 2 jump slice_draw_sprite_return
+	sprite v4 v5 3 jump slice_draw_sprite_return
+	sprite v4 v5 4 jump slice_draw_sprite_return
+	sprite v4 v5 5 jump slice_draw_sprite_return
+	sprite v4 v5 6 jump slice_draw_sprite_return
+	sprite v4 v5 7 jump slice_draw_sprite_return
+	sprite v4 v5 8 jump slice_draw_sprite_return
 
 
-	# In: vF := offset
-	: feature_handler_advance_current
-		i := screen_state_current
-		load v1
-		v1 += vF
-		if vF != 0 then v0 += 1
-		i := screen_state_current
-		save v1
-		;
+# Screen state:
+#		Stores status about screen step
+# 	prescalar, ticks to next, addr-of-next-hi, addr-of-next-lo, counts
+: screen_state
+: screen_state_next 0 0
+: screen_state_prescalar 0
+: screen_state_ticks_to_next 0
+: screen_state_counts 0
+: screen_state_current 0 0
 
-	: set_i_to_v0v1
-		vF := 0xA0
-		v0 |= vF
-		:calc addr { HERE + 4 }
-		i := addr
-		save v1
-		i := addr
-		;
+: screen_advance
+	i := screen_state
+	load v4
+	v4 += 1
+	if v4 != v0 then jump screen_advance_save
 
-	: screen_update
-	# Advances any animations setup by step_begin
-	: step_continue
-		# for each animator, do the animation
-		i := animator_data
-		load v0
-		jump0 animator_continue_handler_jumptable
-	: animator_continue_handler_jumptable
-		return	# none
-		jump animator_continue_handler_slide_x
-		jump animator_continue_handler_bounce_y
+	v4 := 0
+	v1 += -1
+	if v1 != 0 then jump screen_advance_save
 
-	: animator_draw_slice
-		i := animator_sliceid
-		load v2
-		v4 := v1
-		v5 := v2
-		slice_draw
-		;
+	i := screen_state_next
+	load v1
+	step_load
+	;
+: screen_advance_save
+	i := screen_state
+	save v4
+	;
 
-	: animator_continue_handler_slide_x
+: step_load_feature
+	i := screen_state_current
+	load v1
 
-		i := animator_steps
-		load v0
-		if v0 == 0 then return	# if steps = 0, we are done
+	set_i_to_v0v1
+	# i = feature data
+	load v0
+	;
 
-		animator_draw_slice
+# Draws any sprites and sets up animations
+: step_init
+	loop
+		step_load_feature
+	while v0 != FEATURE_END
+		jump0 feature_handler_jumptable
+		: feature_handler_return
+		feature_handler_advance_current		# vF set by handler
 
-		i := animator_sliceid
-		load v4
-		v3 += -1
-		v1 += v4
-		i := animator_sliceid
-		save v3
+	again
+	;
 
-		animator_draw_slice
-		;
+: feature_handler_jumptable
+	jump feature_handler_display_slice
+	jump feature_handler_display_sprite16
+	jump feature_handler_setup_animation_slide_x
+	jump feature_handler_setup_animation_bounce_y
 
-	: animator_continue_handler_bounce_y
+: feature_handler_display_slice
+	load v2
+	v4 := v1
+	v5 := v2
+	slice_draw
+	vF := 4
+	jump feature_handler_return
 
-		animator_draw_slice
-		i := animator_sliceid
-		load v5
-
-		v2 += v4
-		v3 += 1
-		if v3 != v5 then jump animator_continue_handler_bounce_y_not_at_limit
-		v3 := 0
-		#vF := 0
-		v4 =- v3 #vF
-		: animator_continue_handler_bounce_y_not_at_limit
-		i := animator_sliceid
-		save v5
-
-		animator_draw_slice
-		;
-
-	: screen_run
-		screen_advance
-		;
-
-	# in: v0/v1 = address of step data
-	# out: screen_state set to loaded step data
-	: step_load
-		# Save the address of the first feature of the step ( 4 bytes later )
-		v2 := v0
-		v3 := v1
-		vF := 4
-		v1 += vF
-		if vF != 0 then v0 += 1
-		i := screen_state_current
-		save v1
-
-		# Restore v0/v1
-		v0 := v2
-		v1 := v3
-
-		vF := 0xA0
-		v0 |= vF
-		:calc addr { HERE + 4 }
-		i := addr
-		save v1
-		i := addr
-		# i = step data
-		load v3
-		i := screen_state
-		save v3
-		v0 := 0
-		save v0		# reset counts
-		step_init
-		;
-
-	: step_load_next
-		i := screen_state_next
-		load v1
-		step_load
-		;
+: feature_handler_display_sprite16
+	load v3
+	set_i_to_v0v1
+	sprite v2 v3 0
+	vF := 5
+	jump feature_handler_return
 
 
-	# Begin showing a screen
-	# In: v0 = screen id
-	: screen_init
-		# look up address of first step of the screen in screen table
-		i := screen_table
-		i += v0
-		load v1
+:const ANIMATOR_TYPE_NONE 0
+:const ANIMATOR_TYPE_SLIDE_X 2
+:const ANIMATOR_TYPE_BOUNCE_Y 4
 
-		step_load # load the first step
-		;
+:const ANIMATOR_0 0
+: animator_data
+
+: animator_type 0
+: animator_sliceid 0
+: animator_posn 0 0
+: animator_steps 0
+: animator_incr 0
+: animator_ease_target 0
+: animator_ease_state 0
+: animator_ease_counter 0
+
+
+: feature_handler_setup_animation_slide_x
+	load v6
+	i := animator_data
+	i += v0
+
+	v0 := ANIMATOR_TYPE_SLIDE_X
+	save v0		# save type
+
+	v0 := v1
+	save v0		# save slice id
+
+	v0 := v2
+	v1 := v3
+	save v1		# save posn
+
+	v0 := v4
+	v1 := v5
+	save v1		# save steps and increment
+
+	v0 := v6
+	v1 := 0
+	v2 := 0
+	save v2		# save steps per ease and ease state & counter
+
+	animator_draw_slice
+
+	vF := 8
+	jump feature_handler_return
+
+: feature_handler_setup_animation_bounce_y
+	load v4
+	i := animator_data
+	i += v0
+
+	v0 := ANIMATOR_TYPE_BOUNCE_Y
+	save v0
+	v0 := v1
+	save v0
+	v0 := v2
+	v1 := v3
+	save v1
+	v0 := 0
+	v1 := -1
+	v2 := v4
+	save v2
+
+	animator_draw_slice
+
+	vF := 6
+	jump feature_handler_return
+
+
+# In: vF := offset
+: feature_handler_advance_current
+	i := screen_state_current
+	load v1
+	v1 += vF
+	if vF != 0 then v0 += 1
+	i := screen_state_current
+	save v1
+	;
+
+: set_i_to_v0v1
+	vF := 0xA0
+	v0 |= vF
+	:calc addr { HERE + 4 }
+	i := addr
+	save v1
+	i := addr
+	;
+
+: screen_update
+# Advances any animations setup by step_begin
+: step_continue
+	# for each animator, do the animation
+	i := animator_data
+	load v0
+	jump0 animator_continue_handler_jumptable
+: animator_continue_handler_jumptable
+	return	# none
+	jump animator_continue_handler_slide_x
+	jump animator_continue_handler_bounce_y
+
+: animator_draw_slice
+	i := animator_sliceid
+	load v2
+	v4 := v1
+	v5 := v2
+	slice_draw
+	;
+
+: animator_continue_handler_slide_x
+
+	i := animator_steps
+	load v0
+	if v0 == 0 then return	# if steps = 0, we are done
+
+	animator_draw_slice
+
+	i := animator_sliceid
+	load v4
+	v3 += -1
+	v1 += v4
+	i := animator_sliceid
+	save v3
+
+	animator_draw_slice
+	;
+
+: animator_continue_handler_bounce_y
+
+	animator_draw_slice
+	i := animator_sliceid
+	load v5
+
+	v2 += v4
+	v3 += 1
+	if v3 != v5 then jump animator_continue_handler_bounce_y_not_at_limit
+	v3 := 0
+	#vF := 0
+	v4 =- v3 #vF
+	: animator_continue_handler_bounce_y_not_at_limit
+	i := animator_sliceid
+	save v5
+
+	animator_draw_slice
+	;
+
+: screen_run
+	screen_advance
+	;
+
+# in: v0/v1 = address of step data
+# out: screen_state set to loaded step data
+: step_load
+	# Save the address of the first feature of the step ( 4 bytes later )
+	v2 := v0
+	v3 := v1
+	vF := 4
+	v1 += vF
+	if vF != 0 then v0 += 1
+	i := screen_state_current
+	save v1
+
+	# Restore v0/v1
+	v0 := v2
+	v1 := v3
+
+	vF := 0xA0
+	v0 |= vF
+	:calc addr { HERE + 4 }
+	i := addr
+	save v1
+	i := addr
+	# i = step data
+	load v3
+	i := screen_state
+	save v3
+	v0 := 0
+	save v0		# reset counts
+	step_init
+	;
+
+: step_load_next
+	i := screen_state_next
+	load v1
+	step_load
+	;
+
+
+# Begin showing a screen
+# In: v0 = screen id
+: screen_init
+	# look up address of first step of the screen in screen table
+	i := screen_table
+	i += v0
+	load v1
+
+	step_load # load the first step
+	;
 
 
 
 
 
-	:const SPR_TEXT_END 0xFF
+:const SPR_TEXT_END 0xFF
 
 
 
@@ -2096,7 +2106,7 @@
 	# w is the width of the tile
 	# This fills the table with the delta between this hold and the previous
 	# so that the sprite index registers can be incrementally changed, saving an instruction
-	:macro map_entry spr_id x y w {
+	:macro map_entry spr_id x y {
 		:calc hold-x { x }
 		:calc hold-y { y }
 		:byte spr_id
@@ -2152,32 +2162,36 @@
 		# bottom
 		map_begintile 1 2
 			map_is_player_start_tile
-			map_entry HOLD_3X8 37 108 8
-			map_entry HOLD_3X8 47 118 8 map_is_player_start_lf
-			map_entry HOLD_3X8 75 120 8 map_is_player_start_rf
-			map_entry HOLD_3X8 89 104 8
+			map_entry HOLD_3X8 37 108
+			map_entry HOLD_3X8 47 118 map_is_player_start_lf
+			map_entry HOLD_3X8 75 120 map_is_player_start_rf
+			map_entry HOLD_3X8 89 104
 
-			map_entry HOLD_3X3 28 95 3
-			map_entry HOLD_3X3 99 99 3
+			map_entry HOLD_3X5 28 95
+			map_entry HOLD_3X6 99 99
 
-			map_entry HOLD_3X4 35 92 4 map_is_player_start_lh
-			map_entry HOLD_3X4 80 80 4 map_is_player_start_rh
+			map_entry HOLD_3X4 35 92 map_is_player_start_lh
+			map_entry HOLD_3X5 80 80 map_is_player_start_rh
 
-			map_entry HOLD_3X3 41 74 3
-			map_entry HOLD_3X3 59 59 3
-			map_entry HOLD_3X3 73 77 3
-
-
-			map_entry HOLD_3X3 39 59 3
-			map_entry HOLD_3X3 68 55 3
+			map_entry HOLD_3X5 41 74
+			map_entry HOLD_3X7 59 59
+			map_entry HOLD_3X5 73 77
 
 
-			map_entry HOLD_3X3 25 42 3
-			map_entry HOLD_3X3 65 47 3
+			map_entry HOLD_3X6 39 59
+			map_entry HOLD_3X7 68 55
+
+
+			map_entry HOLD_3X7 25 42
+			map_entry HOLD_3X6 65 47
+
+			map_entry HOLD_3X4 45 27
+			map_entry HOLD_3X5 65 19
+
 
 		map_endtile
 
-		map_begintile 1 0
+		map_begintile 1 1
 			map_is_goal_tile
 		map_endtile
 
@@ -2191,29 +2205,29 @@
 
 		map_begintile 2 1
 			map_is_player_start_tile
-			map_entry HOLD_3X5 20  4 5
-			map_entry HOLD_3X5 20 30 5 map_is_player_start_lh
-			map_entry HOLD_3X5 20 60 5 map_is_player_start_lf
-			map_entry HOLD_3X5 20 90 5
-			map_entry HOLD_3X5 20 110 5
+			map_entry HOLD_3X5 20  4
+			map_entry HOLD_3X5 20 30 map_is_player_start_lh
+			map_entry HOLD_3X5 20 60 map_is_player_start_lf
+			map_entry HOLD_3X5 20 90
+			map_entry HOLD_3X5 20 110
 
-			map_entry HOLD_3X5 50  4 5
-			map_entry HOLD_3X5 50 30 5 map_is_player_start_rh
-			map_entry HOLD_3X5 50 60 5 map_is_player_start_rf
-			map_entry HOLD_3X5 50 90 5
-			map_entry HOLD_3X5 50 110 5
+			map_entry HOLD_3X5 50  4
+			map_entry HOLD_3X5 50 30 map_is_player_start_rh
+			map_entry HOLD_3X5 50 60 map_is_player_start_rf
+			map_entry HOLD_3X5 50 90
+			map_entry HOLD_3X5 50 110
 
-			map_entry HOLD_3X5 80  4 5
-			map_entry HOLD_3X5 80 30 5
-			map_entry HOLD_3X5 80 60 5
-			map_entry HOLD_3X5 80 90 5
-			map_entry HOLD_3X5 80 110 5
+			map_entry HOLD_3X5 80  4
+			map_entry HOLD_3X5 80 30
+			map_entry HOLD_3X5 80 60
+			map_entry HOLD_3X5 80 90
+			map_entry HOLD_3X5 80 110
 
-			map_entry HOLD_3X5 110  4 5
-			map_entry HOLD_3X5 110 30 5
-			map_entry HOLD_3X5 110 60 5
-			map_entry HOLD_3X5 110 90 5
-			map_entry HOLD_3X5 110 110 5
+			map_entry HOLD_3X5 110  4
+			map_entry HOLD_3X5 110 30
+			map_entry HOLD_3X5 110 60
+			map_entry HOLD_3X5 110 90
+			map_entry HOLD_3X5 110 110
 		map_endtile
 	map_end
 
@@ -2230,11 +2244,18 @@
 	# Waits for a keypress, then waits until no keys are pressed
 	: wait_any_key_plus_debounce
 		v0 := 0
+		vF := 4
+		delay := vF
+		step_continue
+
 		loop
+			vF := delay
+			while vF != 0
 			while v0 -key
 			v0 += 1
 			if v0 == 16 then v0 := 0
 		again
+		if v0 -key then jump wait_any_key_plus_debounce
 		loop
 			v0 := 0
 			v1 := 0
@@ -2312,7 +2333,7 @@
 		Trampoline: load_next_tramp_jump
 		;
 
-	:const Clock_Ticks_Overflow 147
+	:const Clock_Ticks_Overflow 117
 	:const Clock_X 96
 	:const Clock_Y 4
 	:const Clock_Width 6
