@@ -1205,7 +1205,7 @@ slice_begin SLICE_TEXT_48 5
 slice_end
 
 slice_begin SLICE_TEXT_m 5
-: spr_text_m 0x00 0x00 0x00 0x50 0xA8
+: spr_text_m 0x00 0x00 0xD0 0xA8 0x88
 slice_end
 
 slice_begin SLICE_TEXT_V 5
