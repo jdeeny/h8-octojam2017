@@ -215,19 +215,6 @@
 :calc Climbing_Center_Y { climbing_height / 2 }
 
 
-# :calc Player_Start_LeftHand_X { Climbing_Center_X - 10 }
-# :calc Player_Start_LeftHand_Y { Climbing_Center_Y - 10 }
-# :calc Player_Start_RightHand_X { Climbing_Center_X + 10 }
-# :calc Player_Start_RightHand_Y { Climbing_Center_Y - 10 }
-# :calc Player_Start_LeftFoot_X { Climbing_Center_X - 10 }
-# :calc Player_Start_LeftFoot_Y { Climbing_Center_Y + 10 }
-# :calc Player_Start_RightFoot_X { Climbing_Center_X + 10 }
-# :calc Player_Start_RightFoot_Y { Climbing_Center_Y + 10 }
-# :const Player_Start_TileX 2
-# :const Player_Start_TileY 2
-# :calc Player_Start_X { 60 }
-# :calc Player_Start_Y { 15 }
-
 
 :const Map_Data_Bytes 14
 :calc Map_Data_Total_Bytes { Map_Data_Bytes * MAPS_NUM }
@@ -260,6 +247,8 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 :const HOLD_END 0xFF
 ### End Hold Definitions
 
+
+
 ## Map data - player start posns
 : map_data
 :calc map_data_end { HERE + Map_Data_Total_Bytes }
@@ -279,7 +268,6 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 : map_next_jumptable
 :calc map_next_end { HERE + Next_JumpTable_Total_Bytes }
 :org map_next_end
-
 
 :calc Map_Data_Addr_Base { map_data }
 :calc Map_Data_Addr_Current { Map_Data_Addr_Base }
@@ -347,8 +335,9 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
   save v1
 }
 
-
 ### End Code Modification
+
+
 
 ################
 ### Climbing ###
@@ -602,49 +591,24 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 	jump climbing_main_loop_continue
 
 
-: climbing_draw_scene_hands
+: climbing_draw_scene
 	clear
-	# Draw score or something
-	#i := spr_placeholder
-	#v0 := 96
-	#v1 := 0
-	#sprite v0 v1 0
-	#v0 += 16
-	#sprite v0 v1 0
-	#v0 := 96
-	#v1 := 16
-	#sprite v0 v1 0
-	#v0 += 16
-	#sprite v0 v1 0
 	clock_draw
-
-	# Draw Minimap
-	climbing_draw_minimap #minimap_draw
-
-	# Draw holds
+	climbing_draw_minimap
 	climbing_draw_holds
+	;
 
-	# Draw the initial limbs
+: climbing_draw_scene_hands
+	climbing_draw_scene
 	climbing_draw_lefthand
 	climbing_draw_righthand
 	;
 
 : climbing_draw_scene_feet
-	clear
-	# Draw score or something
-	clock_draw
-
-	# Draw Minimap
-	climbing_draw_minimap #minimap_draw
-
-	# Draw holds
-	climbing_draw_holds
-
-	# Draw the initial limbs
+	climbing_draw_scene
 	climbing_draw_leftfoot
 	climbing_draw_rightfoot
 	;
-
 
 
 # Draws all the holds in a map tile
@@ -758,6 +722,8 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 	;
 
 
+
+
 # Does everything needed to draw the left hand/arm cold (ie not in the climbing move loop)
 # TODO: Could surely be made more compact
 : climbing_draw_lefthand
@@ -868,40 +834,6 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 	# Hopefully there's some code in the renderer that's like '0? Guess I won't bother!
 ;
 
-#: climbing_drawlimb_arm
-#	v0 := Climbing_TempY
-#	loop
-#		v0 += 8
-#		vF := 63
-#		vF &= v0
-#		while vF == v0
-#		sprite Climbing_TempX v0 8
-#	again
-#	;
-#
-#: climbing_drawlimb_leg
-#	v0 := Climbing_TempY
-#	loop
-#		vF := 8
-#		vF -= v0
-#		while vF == 0
-#		v0 += -8
-#		sprite Climbing_TempX v0 8
-#	again
-#	v0 <<= v0
-#	v0 <<= v0
-#	vF := 0
-#	jump0 climbing_drawlimb_leg_remainder
-#	: climbing_drawlimb_leg_remainder
-#		return return
-#		sprite Climbing_TempX vF 1 return
-#		sprite Climbing_TempX vF 2 return
-#		sprite Climbing_TempX vF 3 return
-#		sprite Climbing_TempX vF 4 return
-#		sprite Climbing_TempX vF 5 return
-#		sprite Climbing_TempX vF 6 return
-#		sprite Climbing_TempX vF 7 return
-
 
 # Sets the movement limits based on the current limb selection
 :	climbing_set_limits
@@ -1011,51 +943,8 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 	Climbing_Y += 128
 	;
 
-
-
-
 ### End Climbing
 
-####################
-### Title Screen ###
-####################
-:const TITLE_CHAR_WIDTH 16
-
-:const TITLE_H8_YOFFSET 12
-:const TITLE_H8_SPACING 6
-:calc TITLE_H8_XSKIP { TITLE_H8_SPACING + 16 }
-:calc TITLE_H8_XOFFSET { 64 - ( ( TITLE_CHAR_WIDTH + TITLE_H8_XSKIP ) / 2 ) }
-
-:calc TITLE_LH_XOFFSET { TITLE_H8_XOFFSET / 3 }
-:calc TITLE_LH_YOFFSET { 64 - 6 }
-:calc TITLE_RH_XOFFSET { TITLE_H8_XOFFSET + 19 }
-:calc TITLE_RH_YOFFSET { TITLE_H8_YOFFSET + 27 }
-
-
-:const TITLE_SUB_WIDTH 8
-:const TITLE_SUB_HEIGHT 5
-:const TITLE_SUB_TILES 10
-:calc TITLE_SUB_TOTAL_WIDTH { ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) - 3 } # Subtract for empty cols at end
-:calc TITLE_SUB_XOFFSET { 64 - ( TITLE_SUB_TOTAL_WIDTH / 2 ) }
-:calc TITLE_SUB_YOFFSET { TITLE_H8_YOFFSET - 10 }
-:calc TITLE_SUB_XEND { TITLE_SUB_XOFFSET + ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) }
-
-:const Title_Begin_Num 4
-:const Title_Continue_Num 5
-:const Title_Select_Marker_X 2
-
-:const Title_Select_Marker_Y 50
-:const Title_Select_Marker_Select_Offset 70
-:const Title_Select_Marker_Text_Offset 49
-:const Title_Delay 20
-
-:calc Title_Select_Start_X { Title_Select_Marker_X + 11 }
-:calc Title_Select_Start_Y { Title_Select_Marker_Y }
-
-:calc Title_Select_Marker_Continue_X { Title_Select_Marker_X + Title_Select_Marker_Select_Offset + 7 }
-
-
-### End Title Screen
 
 
 
@@ -1127,153 +1016,92 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 
 
 
-: draw_shades
-	i := spr_shades_left
-	sprite v0 v1 8
-	v0 += 8
-	vF := 0x80
-	vF &= v0
-	if vF != 0 then jump draw_shades_done
-	i := spr_shades_right
-	sprite v0 v1 8
-	: draw_shades_done
-	v0 += -8
-	;
-
-: draw_shades_wait
-	delay := v2
-	loop vf := delay while vf != 0 again
-	;
-
-:const shades_y 24
-:calc shades_x_end { ( 128 - 16 ) / 2 }
-:calc shades_x_slow { ( ( 128 - shades_x_end ) / 12 ) + shades_x_end }
-: animate_shades
-	v0 := 127
-	v1 := shades_y
-	v2 := 1
-	loop
-		while v0 != shades_x_end
-		if v0 == shades_x_slow then v2 := 2
-		draw_shades
-		draw_shades_wait
-		draw_shades
-		v0 += -1
-	again
-	draw_shades
-
-	v2 := 15
-	draw_shades_wait
-	i := spr_shades_shine0l
-	sprite v0 v1 3
-	v2 := 3
-	draw_shades_wait
-	i := spr_shades_shine1l
-	sprite v0 v1 7
-	draw_shades_wait
-	i := spr_shades_shine2l
-	sprite v0 v1 8
-	i := spr_shades_shine2r
-	v0 += 8
-	sprite v0 v1 7
-	v2 := 6
-
-	draw_shades_wait
-	v0 += -8
-	i := spr_shades_shine3l
-	sprite v0 v1 8
-	i := spr_shades_shine3r
-	v0 += 8
-	sprite v0 v1 8
-	draw_shades_wait
-	i := spr_shades_shine4r
-	sprite v0 v1 8
-
-	v2 := 15
-	draw_shades_wait
-
-	v0 := shades_x_end
-	draw_shades
-	v2 := 2
-	loop
-		while v0 != 127
-		if v0 == shades_x_slow then v2 := 1
-		draw_shades
-		draw_shades_wait
-		draw_shades
-		v0 += 1
-	again
-	;
-
-
-
-: title_select_draw_marker
-	i := spr_select_marker
-	if title_alt_status == 1 then i := spr_select_marker_alt
-	v0 := Title_Select_Marker_X
-	v1 := Title_Select_Marker_Y
-	if title_selection == 1 then v0 += Title_Select_Marker_Select_Offset
-	sprite v0 v1 5
-	v0 += Title_Select_Marker_Text_Offset
-	sprite v0 v1 5
-	;
+#: draw_shades
+#	i := spr_shades_left
+#	sprite v0 v1 8
+#	v0 += 8
+#	vF := 0x80
+#	vF &= v0
+#	if vF != 0 then jump draw_shades_done
+#	i := spr_shades_right
+#	sprite v0 v1 8
+#	: draw_shades_done
+#	v0 += -8
+#	;
+#
+#: draw_shades_wait
+#	delay := v2
+#	loop vf := delay while vf != 0 again
+#	;
+#
+#:const shades_y 24
+#:calc shades_x_end { ( 128 - 16 ) / 2 }
+#:calc shades_x_slow { ( ( 128 - shades_x_end ) / 12 ) + shades_x_end }
+#: animate_shades
+#	v0 := 127
+#	v1 := shades_y
+#	v2 := 1
+#	loop
+#		while v0 != shades_x_end
+#		if v0 == shades_x_slow then v2 := 2
+#		draw_shades
+#		draw_shades_wait
+#		draw_shades
+#		v0 += -1
+#	again
+#	draw_shades
+#
+#	v2 := 15
+#	draw_shades_wait
+#	i := spr_shades_shine0l
+#	sprite v0 v1 3
+#	v2 := 3
+#	draw_shades_wait
+#	i := spr_shades_shine1l
+#	sprite v0 v1 7
+#	draw_shades_wait
+#	i := spr_shades_shine2l
+#	sprite v0 v1 8
+#	i := spr_shades_shine2r
+#	v0 += 8
+#	sprite v0 v1 7
+#	v2 := 6
+#
+#	draw_shades_wait
+#	v0 += -8
+#	i := spr_shades_shine3l
+#	sprite v0 v1 8
+#	i := spr_shades_shine3r
+#	v0 += 8
+#	sprite v0 v1 8
+#	draw_shades_wait
+#	i := spr_shades_shine4r
+#	sprite v0 v1 8
+#
+#	v2 := 15
+#	draw_shades_wait
+#
+#	v0 := shades_x_end
+#	draw_shades
+#	v2 := 2
+#	loop
+#		while v0 != 127
+#		if v0 == shades_x_slow then v2 := 1
+#		draw_shades
+#		draw_shades_wait
+#		draw_shades
+#		v0 += 1
+#	again
+#	;
 
 
-: title_select
-	title_selection := 0
-	title_alt_status := 0
-	: title_select_continue
 
-	v0 := KEY_LEFT
-	if v0 key then jump title_select_swap
-	v0 := KEY_RIGHT
-	if v0 key then jump title_select_swap
-	v0 := KEY_UP
-	if v0 key then jump title_select_go
-	v0 := KEY_DOWN
-	if v0 key then jump title_select_go
-	vF := delay
-	if vF != 0 then jump title_select_continue
-	title_select_shake
-	vF := Title_Delay
-	delay := vF
-	jump title_select_continue
-
-	: title_select_go
-		v0 := KEY_UP
-		if v0 key then jump title_select_go
-		v0 := KEY_DOWN
-		if v0 key then jump title_select_go
-		;
-
-	: title_select_swap
-		v0 := KEY_LEFT
-		if v0 key then jump title_select_swap
-		v0 := KEY_RIGHT
-		if v0 key then jump title_select_swap
-
-		i := flag_data_continue
-		load v0
-		if v0 == FLAGS_NOCONTINUE then jump title_select_skip_swap
-		title_select_draw_marker
-		vF := 1
-		title_selection =- vF
-		title_select_draw_marker
-		: title_select_skip_swap
-	jump title_select_continue
-
-: title_select_shake
-	title_select_draw_marker
-	vF := 1
-	v4 =- vF
-	title_select_draw_marker
-;
 
 
 
 
 :const Slice_Table_Bytes 4
-:const Slice_Count 10
+:const Slice_Count 11
 : slice_table
 	:calc slice_table_bytes { Slice_Table_Bytes * Slice_Count }
 	:calc slice_table_end { HERE + slice_table_bytes }
@@ -1368,10 +1196,28 @@ slice_begin SLICE_TEXT_PITCH_NAME_A 5
 	: spr_text_pitch_name_a2 0x00 0x55 0x00 0x00 0x00
 slice_end
 
+slice_begin SLICE_TEXT_PRESS_KEY 5
+	: spr_text_drucke_0 0xCE 0xAA 0xAE 0xAC 0xCA  # "DRUCKE EINE TASTE"
+	: spr_text_drucke_1 0xAD 0x09 0xA9 0xA9 0xED
+	: spr_text_drucke_2 0x5C 0x90 0x18 0x90 0x5C
+	: spr_text_drucke_3 0xEA 0x8A 0xCB 0x8A 0xEA
+	: spr_text_drucke_4 0x5C 0x50 0x58 0xD0 0x5C
+	: spr_text_drucke_5 0xE4 0x4A 0x4E 0x4A 0x4A
+	: spr_text_drucke_6 0xEE 0x84 0xE4 0x24 0xE4
+	: spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
+slice_end
+
 slice_begin SLICE_SHADES 8
 : spr_shades_left 0x7F 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
 : spr_shades_right 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
 slice_end
+
+#define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
+#define_text SPR_TEXT_I : spr_text_I 0x80 0x80 0x80 0x80 0x80					# "I"
+#define_text SPR_TEXT_- : spr_text_- 0x00 0x00 0xE0 0x00 0x00					# "-"
+#define_text SPR_TEXT_+ : spr_text_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
+#define_text SPR_TEXT_X : spr_text_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
+
 
 
 
@@ -1381,7 +1227,7 @@ slice_end
 
 
 :const Screen_Table_Bytes 2
-:const Screen_Count 5
+:const Screen_Count 6
 : screen_table
 	:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
 	:calc screen_table_end { HERE + screen_table_bytes }
@@ -1480,6 +1326,34 @@ slice_end
 : screen_definitions
 
 : screen_title
+
+:const TITLE_CHAR_WIDTH 16
+:const TITLE_H8_YOFFSET 12
+:const TITLE_H8_SPACING 6
+:calc TITLE_H8_XSKIP { TITLE_H8_SPACING + 16 }
+:calc TITLE_H8_XOFFSET { 64 - ( ( TITLE_CHAR_WIDTH + TITLE_H8_XSKIP ) / 2 ) }
+:calc TITLE_LH_XOFFSET { TITLE_H8_XOFFSET / 3 }
+:calc TITLE_LH_YOFFSET { 64 - 6 }
+:calc TITLE_RH_XOFFSET { TITLE_H8_XOFFSET + 19 }
+:calc TITLE_RH_YOFFSET { TITLE_H8_YOFFSET + 27 }
+:const TITLE_SUB_WIDTH 8
+:const TITLE_SUB_HEIGHT 5
+:const TITLE_SUB_TILES 10
+:calc TITLE_SUB_TOTAL_WIDTH { ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) - 3 } # Subtract for empty cols at end
+:calc TITLE_SUB_XOFFSET { 64 - ( TITLE_SUB_TOTAL_WIDTH / 2 ) }
+:calc TITLE_SUB_YOFFSET { TITLE_H8_YOFFSET - 10 }
+:calc TITLE_SUB_XEND { TITLE_SUB_XOFFSET + ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) }
+:const Title_Begin_Num 4
+:const Title_Continue_Num 5
+:const Title_Select_Marker_X 2
+:const Title_Select_Marker_Y 50
+:const Title_Select_Marker_Select_Offset 70
+:const Title_Select_Marker_Text_Offset 49
+:const Title_Delay 20
+:calc Title_Select_Start_X { Title_Select_Marker_X + 11 }
+:calc Title_Select_Start_Y { Title_Select_Marker_Y }
+:calc Title_Select_Marker_Continue_X { Title_Select_Marker_X + Title_Select_Marker_Select_Offset + 7 }
+
 screen_begin SCREEN_TITLE
 	step_begin 1 1
 		feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
@@ -1539,22 +1413,29 @@ screen_begin SCREEN_INTRO_OUTRO_BASE
 	step_end
 screen_end
 
+: screen_presskey
+screen_begin SCREEN_PRESSKEY
+step_begin 1 1
+	feature_display_slice SLICE_TEXT_PRESS_KEY 37 55
+step_end
+screen_end
+
 : screen_mapinfo_A
 screen_begin SCREEN_MAPINFO_A
-step_begin 1 1
-	feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Pitch_Y
-	feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Grade_Y
-	feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Par_Y
-step_end
+	step_begin 1 1
+		feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Pitch_Y
+		feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Grade_Y
+		feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Par_Y
+	step_end
 screen_end
 
 : screen_mapinfo_B
 screen_begin SCREEN_MAPINFO_B
-step_begin 1 1
-	feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Pitch_Y
-	feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Grade_Y
-	feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Par_Y
-step_end
+	step_begin 1 1
+		feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Pitch_Y
+		feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Grade_Y
+		feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Par_Y
+	step_end
 screen_end
 
 : screen_win
@@ -1657,6 +1538,9 @@ screen_end
 : feature_handler_jumptable
 	jump feature_handler_display_slice
 	jump feature_handler_display_sprite16
+	jump feature_handler_setup_animation_slide_x
+	jump feature_handler_setup_animation_bounce_y
+	jump feature_handler_setup_animation_cycle
 
 : feature_handler_display_slice
 	load v2
@@ -1674,6 +1558,51 @@ screen_end
 	vF := 5
 	feature_handler_advance_current
 	jump feature_handler_return
+
+
+:const ANIMATOR_TYPE_NONE 0
+:const ANIMATOR_TYPE_SLIDE_X 2
+:const ANIMATOR_TYPE_BOUNCE_Y 4
+:const ANIMATOR_TYPE_CYCLE 6
+
+:const ANIMATOR_0 0
+: animator_data
+: animator_data_0 0 0 0 0 0 0 0 0
+
+: feature_handler_setup_animation_slide_x
+	# animator id, spr id, x, y, steps, increment, steps_per_ease
+	load v6
+	i := animator_data
+	i += v0
+
+	v0 := 0
+	v7 := ANIMATOR_TYPE_SLIDE_X
+	save v7	# ease_step, spr_id, x, y, steps, increment, steps_per_ease, type
+
+	jump feature_handler_return
+
+: feature_handler_setup_animation_bounce_y
+	# animator id, spr id, x, y, steps, increment, steps_per_ease
+	load v6
+	i := animator_data
+	i += v0
+
+	v0 := 0
+	v7 := ANIMATOR_TYPE_BOUNCE_Y
+	save v7	# ease_step, spr_id, x, y, steps, increment, steps_per_ease, type
+	jump feature_handler_return
+
+: feature_handler_setup_animation_cycle
+	# animator id, spr id, x, y, steps, increment, steps_per_ease
+	load v6
+	i := animator_data
+	i += v0
+
+	v0 := 0
+	v7 := ANIMATOR_TYPE_BOUNCE_Y
+	save v7	# ease_step, spr_id, x, y, steps, increment, steps_per_ease, type
+	jump feature_handler_return
+
 
 # In: vF := offset
 : feature_handler_advance_current
@@ -1697,8 +1626,27 @@ screen_end
 # Advances any animations setup by step_begin
 : step_continue
 	# for each animator, do the animation
+	i := animator_data
+	load v7
+
 	;
 
+
+: animator_continue_handler_jumptable
+	return	# none
+	jump animator_continue_handler_slide_x
+	jump animator_continue_handler_bounce_y
+	jump animator_continue_handler_cycle
+
+: animator_continue_handler_slide_x
+	;
+
+: animator_continue_handler_bounce_y
+	;
+
+: animator_continue_handler_cycle
+	;
+	
 : screen_run
 	screen_advance
 	;
@@ -2378,6 +2326,8 @@ map_end
 	screen_init
 	map_load_info_screen
 	screen_init
+	v0 := SCREEN_PRESSKEY
+	screen_init
 	;
 
 : outro_display
@@ -2636,20 +2586,64 @@ map_end
 	title_select_draw_marker
 	;
 
+: title_select_draw_marker
+	i := spr_select_marker
+	if title_alt_status == 1 then i := spr_select_marker_alt
+	v0 := Title_Select_Marker_X
+	v1 := Title_Select_Marker_Y
+	if title_selection == 1 then v0 += Title_Select_Marker_Select_Offset
+	sprite v0 v1 5
+	v0 += Title_Select_Marker_Text_Offset
+	sprite v0 v1 5
+	;
 
-#define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
-#define_text SPR_TEXT_I : spr_text_I 0x80 0x80 0x80 0x80 0x80					# "I"
-#define_text SPR_TEXT_- : spr_text_- 0x00 0x00 0xE0 0x00 0x00					# "-"
-#define_text SPR_TEXT_+ : spr_text_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
-#define_text SPR_TEXT_X : spr_text_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
 
-#slice_begin SLICE_TEXT_PRESS_KEY
-#define_text SPR_TEXT_DRUCKE_0 : spr_text_drucke_0 0xCE 0xAA 0xAE 0xAC 0xCA  # "DRUCKE EINE TASTE"
-#define_text SPR_TEXT_DRUCKE_1 : spr_text_drucke_1 0xAD 0x09 0xA9 0xA9 0xED
-#define_text SPR_TEXT_DRUCKE_2 : spr_text_drucke_2 0x5C 0x90 0x18 0x90 0x5C
-#define_text SPR_TEXT_DRUCKE_3 : spr_text_drucke_3 0xEA 0x8A 0xCB 0x8A 0xEA
-#define_text SPR_TEXT_DRUCKE_4 : spr_text_drucke_4 0x5C 0x50 0x58 0xD0 0x5C
-#define_text SPR_TEXT_DRUCKE_5 : spr_text_drucke_5 0xE4 0x4A 0x4E 0x4A 0x4A
-#define_text SPR_TEXT_DRUCKE_6 : spr_text_drucke_6 0xEE 0x84 0xE4 0x24 0xE4
-#define_text SPR_TEXT_DRUCKE_7 : spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
-#slice_end
+: title_select
+	title_selection := 0
+	title_alt_status := 0
+	: title_select_continue
+
+	v0 := KEY_LEFT
+	if v0 key then jump title_select_swap
+	v0 := KEY_RIGHT
+	if v0 key then jump title_select_swap
+	v0 := KEY_UP
+	if v0 key then jump title_select_go
+	v0 := KEY_DOWN
+	if v0 key then jump title_select_go
+	vF := delay
+	if vF != 0 then jump title_select_continue
+	title_select_shake
+	vF := Title_Delay
+	delay := vF
+	jump title_select_continue
+
+	: title_select_go
+		v0 := KEY_UP
+		if v0 key then jump title_select_go
+		v0 := KEY_DOWN
+		if v0 key then jump title_select_go
+		;
+
+	: title_select_swap
+		v0 := KEY_LEFT
+		if v0 key then jump title_select_swap
+		v0 := KEY_RIGHT
+		if v0 key then jump title_select_swap
+
+		i := flag_data_continue
+		load v0
+		if v0 == FLAGS_NOCONTINUE then jump title_select_skip_swap
+		title_select_draw_marker
+		vF := 1
+		title_selection =- vF
+		title_select_draw_marker
+		: title_select_skip_swap
+	jump title_select_continue
+
+: title_select_shake
+	title_select_draw_marker
+	vF := 1
+	v4 =- vF
+	title_select_draw_marker
+;
