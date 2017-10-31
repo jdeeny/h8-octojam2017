@@ -1238,7 +1238,7 @@
 
 
 	:const Screen_Table_Bytes 2
-	:const Screen_Count 7
+	:const Screen_Count 6
 	: screen_table
 		:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
 		:calc screen_table_end { HERE + screen_table_bytes }
@@ -1414,8 +1414,8 @@
 	:calc Intro_Length_Y { 28 }
 	:calc Intro_Par_Y { 36 }
 
-	: screen_intro_outro_base
-	screen_begin SCREEN_INTRO_OUTRO_BASE
+	: screen_intro
+	screen_begin SCREEN_INTRO
 		step_begin 1 1
 			feature_display_slice SLICE_TEXT_PITCH 35 Intro_Pitch_Y
 			feature_display_slice SLICE_TEXT_GRADE 6 Intro_Grade_Y
@@ -1431,6 +1431,7 @@
 			feature_display_slice SLICE_TEXT_m 56 Intro_Par_Y
 			#feature_display_slice SLICE_TEXT_MAP 99 22
 			feature_display_slice SLICE_TEXT_PRESS_KEY 34 55
+			feature_display_slice SLICE_TEXT_READY 74 Intro_Pitch_Y
 
 
 		#	:calc Inter_PressKey_X { 37 }
@@ -1457,15 +1458,9 @@
 		step_end
 	screen_end
 
-: screen_intro_specific
-	screen_begin SCREEN_INTRO_SPECIFIC
-		step_begin 1 1
-			feature_display_slice SLICE_TEXT_READY 74 Intro_Pitch_Y
-		step_end
-	screen_end
 
-: screen_outro_specific
-	screen_begin SCREEN_OUTRO_SPECIFIC
+: screen_outro
+	screen_begin SCREEN_OUTRO
 		step_begin 1 1
 			feature_display_slice SLICE_TEXT_SUCCESS 74 Intro_Pitch_Y
 		step_end
@@ -2358,9 +2353,7 @@ map_is_goal_tile
 		;
 
 	: intro_display
-		v0 := SCREEN_INTRO_OUTRO_BASE
-		screen_init
-		v0 := SCREEN_INTRO_SPECIFIC
+		v0 := SCREEN_INTRO
 		screen_init
 		map_load_info_screen
 		screen_init
@@ -2369,12 +2362,11 @@ map_is_goal_tile
 		;
 
 	: outro_display
-		v0 := SCREEN_INTRO_OUTRO_BASE
-		screen_init
-		v0 := SCREEN_OUTRO_SPECIFIC
+		v0 := SCREEN_OUTRO
 		screen_init
 		map_load_info_screen
 		screen_init
+		clock_draw_outro
 		;
 
 	: win_display
@@ -2386,10 +2378,13 @@ map_is_goal_tile
 		Trampoline: load_next_tramp_jump
 		;
 
-	:const Clock_Ticks_Overflow 117
-	:const Clock_X 96
-	:const Clock_Y 4
-	:const Clock_Width 6
+:const Clock_Ticks_Overflow 117
+:const Clock_X 96
+:const Clock_Y 4
+:const Clock_Width 6
+
+:const Clock_Outro_X 40
+:const Clock_Outro_Y 17
 
 	: clock_data
 	: clock_data_hours 0
@@ -2450,44 +2445,64 @@ map_is_goal_tile
 	if Climbing_Energy == 0 then :breakpoint aaa main #do-exit-move
 	;
 
-	: clock_draw
-		v1 := Clock_X
-		v2 := Clock_Y
+: clock_draw
+	v1 := Clock_X
+	v2 := Clock_Y
 
-		i := clock_data_hours
-		load v0
-		draw_decimal
-		v1 += 6
-		i := spr_text_colon
-		sprite v1 v2 5
-		v1 += 3
+	i := clock_data_hours
+	load v0
+	draw_decimal
+	v1 += 6
+	i := spr_text_colon
+	sprite v1 v2 5
+	v1 += 3
 
-		i := clock_data_minutes
-		load v0
-		draw_decimal
-		;
+	i := clock_data_minutes
+	load v0
+	draw_decimal
+	;
 
-	# In:
-	# v0 = value
-	# v3 = x
-	# v4 = y
-	: bcd_dest
-	: bcd_dest_hi 0
-	: bcd_dest_mid 0
-	: bcd_dest_lo 0
-	: draw_decimal
-		i := bcd_dest
-		bcd v0
-		i := bcd_dest_mid
-		load v0
-		i := hex v0
-		sprite v1 v2 5
-		i := bcd_dest_lo
-		load v0
-		i := hex v0
-		v1 += 6
-		sprite v1 v2 5
-		;
+# In:
+# v0 = value
+# v3 = x
+# v4 = y
+: bcd_dest
+: bcd_dest_hi 0
+: bcd_dest_mid 0
+: bcd_dest_lo 0
+: draw_decimal
+	i := bcd_dest
+	bcd v0
+	i := bcd_dest_mid
+	load v0
+	i := hex v0
+	sprite v1 v2 5
+	i := bcd_dest_lo
+	load v0
+	i := hex v0
+	v1 += 6
+	sprite v1 v2 5
+	;
+
+
+: clock_draw_outro
+	v1 := Clock_Outro_X
+	v2 := Clock_Outro_Y
+
+	i := clock_data_hours
+	load v0
+	draw_decimal
+	v1 += 6
+	i := spr_text_colon
+	sprite v1 v2 5
+	v1 += 3
+
+	i := clock_data_minutes
+	load v0
+	draw_decimal
+	;
+
+
 
 
 	# in: v0 = x, v1 = y
@@ -2631,4 +2646,12 @@ map_is_goal_tile
 	: title_draw
 		v0 := SCREEN_TITLE
 		screen_init
+		i := climbing_data_lefthand
+		v0 := 27
+		v1 := 54
+		v2 := 71
+		v3 := 39
+		save v3
+		climbing_draw_lefthand
+		climbing_draw_righthand
 		;
