@@ -44,13 +44,58 @@
 :macro draw label x y h { i := label sprite x y h }
 :macro ifkey keynum { vF := keynum if vF key then }
 
+:const FLAGS_MAGIC 0x69
+:const FLAGS_NOCONTINUE 0xFF
+:const FLAGS_HIGHSCORE0_HOURS 2
+:const FLAGS_HIGHSCORE0_MINS 15
+:const FLAGS_HIGHSCORE1_HOURS 5
+:const FLAGS_HIGHSCORE1_MINS 47
+:const FLAGS_HIGHSCORE2_HOURS 19
+:const FLAGS_HIGHSCORE2_MINS 52
+
+: flag_data
+	:byte FLAGS_MAGIC
+: flag_data_continue
+	:byte FLAGS_NOCONTINUE
+	:byte FLAGS_HIGHSCORE0_HOURS
+	:byte FLAGS_HIGHSCORE0_MINS
+	:byte FLAGS_HIGHSCORE1_HOURS
+	:byte FLAGS_HIGHSCORE1_MINS
+	:byte FLAGS_HIGHSCORE2_HOURS
+	:byte FLAGS_HIGHSCORE2_MINS
+
+: flags_load
+	loadflags v0
+	if v0 != FLAGS_MAGIC then flags_save		# Save defaults if the magic byte doesn't match
+	loadflags v7
+	i := flag_data
+	save v7
+	;
+
+: flags_save
+	i := flag_data
+	load v7
+	saveflags v7
+	;
+
+
+
+
 : main
 	hires
+	flags_load
+
 	map_load_A
 
 	title_draw
+	i := flag_data_continue
+	load v0
+	if v0 == FLAGS_NOCONTINUE then jump main_no_continue
 	title_select
-	#wait_any_key_plus_debounce
+	jump main_select_done
+	: main_no_continue
+		wait_any_key_plus_debounce
+	: main_select_done
 	wipe
 
 	: gameplay_loop
