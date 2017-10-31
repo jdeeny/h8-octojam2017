@@ -570,28 +570,6 @@
 	jump climbing_main_loop_continue
 
 
-	: climbing_draw_scene
-		clear
-		clock_draw
-		climbing_draw_minimap
-		climbing_draw_holds
-		;
-
-	: climbing_draw_scene_hands
-		climbing_draw_scene
-		climbing_draw_lefthand
-		climbing_draw_righthand
-		;
-
-	: climbing_draw_scene_feet
-		Climbing_Y += 16
-		climbing_draw_scene
-		climbing_draw_leftfoot
-		climbing_draw_rightfoot
-		Climbing_Y += -16
-		;
-
-
 	# Draws all the holds in a map tile
 	# The index to the map tile is set by modifying the code
 	: climbing_draw_tile_holds
@@ -699,6 +677,12 @@
 	: climbing_draw_minimap
 		Trampoline-Set-call-Const climbing_draw_tile_hold_tramp_call_climbing_draw_hold climbing_draw_minimap_dot
 		climbing_draw_holds_inner
+		# i := spr_minimap_divider
+		# :calc xcorner { Minimap_X_Offset + 8 }
+		# :calc ycorner { Minimap_Y_Offset - 2 }
+		# v0 := xcorner
+		# v1 := ycorner
+		# sprite v0 v1 1
 		;
 
 
@@ -982,6 +966,8 @@
 
 	: spr_heart 0x6C 0xFE 0x7C 0x38 0x10
 
+	: spr_minimap_divider 0xFF
+
 	: spr_shades_shine0l 0x60 0xC0 0x80
 	: spr_shades_shine1l 0x7E 0xF0 0xE0 0x60 0x40 0x40 0x40
 	: spr_shades_shine2l 0x1F 0x3F 0x7F 0x7F 0x7F 0x7F 0x7E 0x1C
@@ -1148,6 +1134,12 @@
 		: spr_text_2 0xE0 0x20 0xE0 0x80 0xE0
 	slice_end
 
+#	slice_begin SLICE_TEXT_MAP 7
+#		: spr_text_map0 0xA4 0xCA 0x8E 0xCA 0xAA 0 0xFF
+#		: spr_text_map1 0xEE 0xA4 0xE4 0xC4 0xA4 0 0xFF
+#		: spr_text_map2 0xE0 0x80 0xC0 0x80 0xE0 0 0xE0
+#	slice_end
+
 
 	slice_begin SLICE_TEXT_GRADE 5
 		: spr_text_grade_0 0xEE 0x8A 0xAE 0xAC 0xEA		# "GRAD"
@@ -1240,7 +1232,7 @@
 
 
 	:const Screen_Table_Bytes 2
-	:const Screen_Count 6
+	:const Screen_Count 5
 	: screen_table
 		:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
 		:calc screen_table_end { HERE + screen_table_bytes }
@@ -1432,6 +1424,8 @@
 			feature_display_slice SLICE_TEXT_h 43 Intro_Par_Y
 			feature_display_slice SLICE_TEXT_00 48 Intro_Par_Y
 			feature_display_slice SLICE_TEXT_m 56 Intro_Par_Y
+			#feature_display_slice SLICE_TEXT_MAP 99 22
+
 
 		#	:calc Inter_PressKey_X { 37 }
 		#	:calc Inter_PressKey_Y { 55 }
@@ -1457,12 +1451,19 @@
 		step_end
 	screen_end
 
-: screen_presskey
-screen_begin SCREEN_PRESSKEY
-step_begin 1 1
-	feature_display_slice SLICE_TEXT_PRESS_KEY 37 55
-step_end
-screen_end
+# : screen_presskey
+# screen_begin SCREEN_PRESSKEY
+# step_begin 1 1
+# 	feature_display_slice SLICE_TEXT_PRESS_KEY 37 55
+# step_end
+# screen_end
+
+# : screen_climbing
+# screen_begin SCREEN_CLIMBING
+# 	step_begin 1 1
+# 		feature_display_slice SLICE_TEXT_MAP 99 22
+# 	step_end
+# screen_end
 
 : screen_mapinfo_A
 screen_begin SCREEN_MAPINFO_A
@@ -1496,6 +1497,31 @@ screen_begin SCREEN_WIN
 	step_end
 screen_end
 
+
+
+
+: climbing_draw_scene
+	clear
+	clock_draw
+	climbing_draw_minimap
+	climbing_draw_holds
+	#v0 := SCREEN_CLIMBING
+	#screen_init
+	;
+
+: climbing_draw_scene_hands
+	climbing_draw_scene
+	climbing_draw_lefthand
+	climbing_draw_righthand
+	;
+
+: climbing_draw_scene_feet
+	Climbing_Y += 16
+	climbing_draw_scene
+	climbing_draw_leftfoot
+	climbing_draw_rightfoot
+	Climbing_Y += -16
+	;
 
 
 # In:
@@ -2187,12 +2213,12 @@ screen_end
 
 			map_entry HOLD_3X4 45 27
 			map_entry HOLD_3X5 65 19
-
+map_is_goal_tile
 
 		map_endtile
 
 		map_begintile 1 1
-			map_is_goal_tile
+
 		map_endtile
 
 	map_end
@@ -2313,8 +2339,8 @@ screen_end
 		screen_init
 		map_load_info_screen
 		screen_init
-		v0 := SCREEN_PRESSKEY
-		screen_init
+		#v0 := SCREEN_PRESSKEY
+		#screen_init
 		;
 
 	: outro_display
