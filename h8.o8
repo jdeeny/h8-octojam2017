@@ -90,6 +90,9 @@
 
 		jump gameplay_loop
 
+		: do-win
+			win_display
+
 		: the-end
 		loop
 		again
@@ -1620,6 +1623,12 @@ screen_end
 		step_begin 1 20
 			feature_display_slice SLICE_SHADES_SHINE4 94 25
 		step_end
+		step_begin 0 0
+			feature_display_slice SLICE_SHADES 87 25
+			:calc shades_end { 87 }
+			:calc shades_steps { shades_steps + 1 }
+			feature_setup_animation_slide_x 0 SLICE_SHADES shades_end 25 shades_steps 2 3
+		step_end
 
 	screen_end
 
@@ -2455,7 +2464,7 @@ screen_end
 
 	map_end
 
-	map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT SCREEN_MAPINFO_B main Map_Data_B_Address Maptile_Index_B_Address
+	map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT SCREEN_MAPINFO_B do-win Map_Data_B_Address Maptile_Index_B_Address
 		map_begintile 2 0
 		map_endtile
 
@@ -2586,14 +2595,15 @@ screen_end
 	clock_draw_outro
 	;
 
-	: win_display
-		v0 := SCREEN_WIN
-		screen_init
-		;
+: win_display
+	v0 := SCREEN_WIN
+	screen_init
 
-	: load_next_map
-		Trampoline: load_next_tramp_jump
-		;
+	;
+
+: load_next_map
+	Trampoline: load_next_tramp_jump
+	;
 
 :const Clock_Ticks_Overflow 117
 :const Clock_X 96
