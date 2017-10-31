@@ -44,14 +44,6 @@
 	:macro draw label x y h { i := label sprite x y h }
 	:macro ifkey keynum { vF := keynum if vF key then }
 
-	:const FLAGS_MAGIC 0x69
-	:const FLAGS_NOCONTINUE 0xFF
-	:const FLAGS_HIGHSCORE0_HOURS 2
-	:const FLAGS_HIGHSCORE0_MINS 15
-	:const FLAGS_HIGHSCORE1_HOURS 5
-	:const FLAGS_HIGHSCORE1_MINS 47
-	:const FLAGS_HIGHSCORE2_HOURS 19
-	:const FLAGS_HIGHSCORE2_MINS 52
 
 	:alias title_selection v3
 	:alias title_alt_status v4
@@ -66,45 +58,14 @@
 
 
 
-	: flag_data
-		:byte FLAGS_MAGIC
-	: flag_data_continue
-		:byte FLAGS_NOCONTINUE
-		:byte FLAGS_HIGHSCORE0_HOURS
-		:byte FLAGS_HIGHSCORE0_MINS
-		:byte FLAGS_HIGHSCORE1_HOURS
-		:byte FLAGS_HIGHSCORE1_MINS
-		:byte FLAGS_HIGHSCORE2_HOURS
-		:byte FLAGS_HIGHSCORE2_MINS
-
-	: flags_load
-		loadflags v0
-		if v0 != FLAGS_MAGIC then flags_save		# Save defaults if the magic byte doesn't match
-		loadflags v7
-		i := flag_data
-		v1 := 1
-		save v7
-		;
-
-	: flags_save
-		i := flag_data
-		load v7
-		saveflags v7
-		;
-
-
-
 
 	: main
 		hires
-		flags_load
-
 		map_load_A
 		climbing_init
 
-		#title_draw
-		#title_select
-		#if title_selection != 0 then load_continue_map
+		title_draw
+		wait_any_key_plus_debounce
 		wipe
 
 		: gameplay_loop
@@ -1117,7 +1078,7 @@
 
 
 	:const Slice_Table_Bytes 4
-	:const Slice_Count 22
+	:const Slice_Count 20
 	: slice_table
 		:calc slice_table_bytes { Slice_Table_Bytes * Slice_Count }
 		:calc slice_table_end { HERE + slice_table_bytes }
@@ -1200,22 +1161,7 @@
 	slice_end
 
 
-	slice_begin SLICE_TEXT_START 5
-		: spr_text_start_0 0x49 0xA9 0xED 0xAB 0xA9 # "ANFANG"
-		: spr_text_start_1 0xE4 0x8A 0xEE 0x8A 0x8A
-		: spr_text_start_2 0x97 0x94 0xD4 0xB5 0x97
-	slice_end
-
-	slice_begin SLICE_TEXT_CONTINUE 5
-		: spr_text_continue_0 0xEE 0x8A 0xCA 0x8A 0x8E # "FORTSETZEN"
-		: spr_text_continue_1 0xEE 0xA4 0xE4 0xC4 0xA4
-		: spr_text_continue_2 0xEE 0x88 0xEC 0x28 0xEE
-		: spr_text_continue_3 0xEE 0x42 0x44 0x48 0x4E
-		: spr_text_continue_4 0xE9 0x89 0xCD 0x8B 0xE9
-	slice_end
-
-
-	# H8 - Bergsteigersimulator
+		# H8 - Bergsteigersimulator
 	slice_begin SLICE_TEXT_SUBTITLE 5
 		: spr_title_sub_be	0xCE 0xA8 0xCC 0xA8 0xCE # BE
 		: spr_title_sub_rg	0xCE 0xA8 0xCA 0xAA 0xAE # RG
@@ -1290,7 +1236,7 @@
 
 
 	:const Screen_Table_Bytes 2
-	:const Screen_Count 9
+	:const Screen_Count 6
 	: screen_table
 		:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
 		:calc screen_table_end { HERE + screen_table_bytes }
@@ -1455,28 +1401,6 @@
 			:calc title_x { TITLE_H8_XOFFSET + TITLE_H8_XSKIP }
 			feature_display_sprite16 spr_title_8bot title_x title_y
 
-			#feature_display_slice SLICE_TEXT_START Title_Select_Start_X Title_Select_Start_Y
-			#feature-setup-animation-slide-x 0 SLICE_TEXT_START 20 10 50 1 5
-			#feature-setup-animation-bounce-y 0 SLICE_TEXT_START 80 50 6
-		step_end
-	screen_end
-
-	screen_begin SCREEN_TITLE_SELECT_START_ONLY
-		step_begin 1 1
-			feature-setup-animation-bounce-y 0 SLICE_TEXT_START 80 50 6
-		step_end
-	screen_end
-
-	screen_begin SCREEN_TITLE_SELECT_START
-		step_begin 1 1
-			feature_display_slice SLICE_TEXT_START Title_Select_Start_X Title_Select_Start_Y
-			feature-setup-animation-bounce-y 0 SLICE_TEXT_START 80 50 6
-		step_end
-	screen_end
-
-	screen_begin SCREEN_TITLE_SELECT_CONTINUE
-		step_begin 1 1
-			feature-setup-animation-bounce-y 0 SLICE_TEXT_CONTINUE 80 50 6
 		step_end
 	screen_end
 
@@ -2628,110 +2552,9 @@
 		save v0
 		;
 
-	:alias load_continue_counter vE
-	: load_continue_map
-		i := flag_data_continue
-		load v0
-		load_continue_counter := v0
-		loop
-			while load_continue_counter != 0
-				load_next_map
-				load_continue_counter += -1
-		again
-		;
 
 
 	: title_draw
 		v0 := SCREEN_TITLE
 		screen_init
-
-		i := flag_data_continue
-		load v0
-		if v0 == FLAGS_NOCONTINUE then jump title_draw_skip_continue
-
-		v0 := SCREEN_TITLE_SELECT_START
-		screen_init
-
-		: title_draw_no_continue
-
-		loop
-			screen_update
-			vf := 1
-			delay := vf
-			loop vf := delay while vf != 0 again
-		again
-
-	 	i := flag_data_continue
-		load v0
-		if v0 == FLAGS_NOCONTINUE then jump title_draw_skip_continue
-		v0 := SLICE_TEXT_CONTINUE
-		v4 := Title_Select_Marker_Continue_X
-		v5 := Title_Select_Marker_Y
-		slice_draw
-
-		: title_draw_skip_continue
-
-		title_select_draw_marker
 		;
-
-	: title_select_draw_marker
-		i := spr_select_marker
-		if title_alt_status == 1 then i := spr_select_marker_alt
-		v0 := Title_Select_Marker_X
-		v1 := Title_Select_Marker_Y
-		if title_selection == 1 then v0 += Title_Select_Marker_Select_Offset
-		sprite v0 v1 5
-		v0 += Title_Select_Marker_Text_Offset
-		sprite v0 v1 5
-		;
-
-
-	: title_select
-		title_selection := 0
-		title_alt_status := 0
-		: title_select_continue
-
-		v0 := KEY_LEFT
-		if v0 key then jump title_select_swap
-		v0 := KEY_RIGHT
-		if v0 key then jump title_select_swap
-		v0 := KEY_UP
-		if v0 key then jump title_select_go
-		v0 := KEY_DOWN
-		if v0 key then jump title_select_go
-		vF := delay
-		if vF != 0 then jump title_select_continue
-		title_select_shake
-		vF := Title_Delay
-		delay := vF
-		jump title_select_continue
-
-		: title_select_go
-			v0 := KEY_UP
-			if v0 key then jump title_select_go
-			v0 := KEY_DOWN
-			if v0 key then jump title_select_go
-			;
-
-		: title_select_swap
-			v0 := KEY_LEFT
-			if v0 key then jump title_select_swap
-			v0 := KEY_RIGHT
-			if v0 key then jump title_select_swap
-
-			i := flag_data_continue
-			load v0
-			if v0 == FLAGS_NOCONTINUE then jump title_select_skip_swap
-			title_select_draw_marker
-			vF := 1
-			title_selection =- vF
-			title_select_draw_marker
-			: title_select_skip_swap
-		jump title_select_continue
-
-	: title_select_shake
-		title_select_draw_marker
-		vF := 1
-		v4 =- vF
-		title_select_draw_marker
-	;
