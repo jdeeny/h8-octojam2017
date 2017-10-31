@@ -1593,7 +1593,6 @@ screen_end
 
 
 : feature_handler_setup_animation_slide_x
-:breakpoint setupslide
 	load v6
 	i := animator_data
 	i += v0
@@ -1616,9 +1615,15 @@ screen_end
 	v1 := 0
 	v2 := 0
 	save v2		# save steps per ease and ease state & counter
+
+	i := animator_sliceid
+	load v2
+	v4 := v1
+	v5 := v2
+	slice_draw
+
 	vF := 8
 	feature_handler_advance_current
-	:breakpoint setupslidedone
 
 	jump feature_handler_return
 
@@ -1663,6 +1668,7 @@ screen_end
 	i := addr
 	;
 
+: screen_update
 # Advances any animations setup by step_begin
 : step_continue
 	# for each animator, do the animation
@@ -1676,6 +1682,7 @@ screen_end
 	jump animator_continue_handler_cycle
 
 : animator_continue_handler_slide_x
+
 	i := animator_steps
 	load v0
 	if v0 == 0 then return	# if steps = 0, we are done
@@ -1684,12 +1691,13 @@ screen_end
 	v4 := v1
 	v5 := v2
 	slice_draw
+
 	i := animator_sliceid
-	load v6
-	v5 += -1
-	v1 += v6
+	load v4
+	v3 += -1
+	v1 += v4
 	i := animator_sliceid
-	save v5
+	save v3
 	v4 := v1
 	v5 := v2
 	slice_draw
@@ -2557,7 +2565,12 @@ map_end
 	v0 := SCREEN_TITLE
 	screen_init
 
-	screen_run
+	loop
+		screen_update
+		vf := 1
+		delay := vf
+		loop vf := delay while vf != 0 again
+	again
 
  	i := flag_data_continue
 	load v0
