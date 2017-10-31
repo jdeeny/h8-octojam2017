@@ -928,11 +928,10 @@
 	0x28 0x56 0xD4 0xD5 0xFD 0xFF 0xFF 0x7E
 
 	: spr_rightfoot
-	0x7E 0x7F 0x00 0x00 0x00 0x00 0x00 0x00
-
+	0x7E 0x7F 0x7F 0x00 0x00 0x00 0x00 0x00
 	# left foot contains a memory pointer for a block of 6 0s
 	: spr_leftfoot
-	0x7E 0xFE 0x00 0x00 0x00 0x00 0x00 0x00
+	0x7E 0xFE 0xFE 0x00 0x00 0x00 0x00 0x00 
 
 	: spr_armleg
 	0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C
@@ -2283,16 +2282,19 @@ screen_end
 		# bottom
 		map_begintile 1 2
 			map_is_player_start_tile
+			map_entry HOLD_3X8 47 18
+			map_entry HOLD_3X8 75 20
+
 			map_entry HOLD_3X8 37 108
-			map_entry HOLD_3X8 47 118 map_is_player_start_lf
-			map_entry HOLD_3X8 75 120 map_is_player_start_rf
+			map_entry HOLD_3X8 47 48 map_is_player_start_lf
+			map_entry HOLD_3X8 75 60 map_is_player_start_rf
 			map_entry HOLD_3X8 89 104
 
 			map_entry HOLD_3X5 28 95
 			map_entry HOLD_3X6 99 99
 
-			map_entry HOLD_3X4 35 92 map_is_player_start_lh
-			map_entry HOLD_3X5 80 80 map_is_player_start_rh
+			map_entry HOLD_3X4 35 32 map_is_player_start_lh
+			map_entry HOLD_3X5 80 40 map_is_player_start_rh
 
 			map_entry HOLD_3X5 41 74
 			map_entry HOLD_3X7 59 59
