@@ -110,6 +110,7 @@
 	: gameplay_loop
 		climbing_init
 		intro_display
+
 		climbing_init
 		climbing_draw_minimap
 		wait_any_key_plus_debounce
@@ -1382,7 +1383,7 @@ slice_end
 
 
 :const Screen_Table_Bytes 2
-:const Screen_Count 1
+:const Screen_Count 3
 : screen_table
 	:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
 	:calc screen_table_end { HERE + screen_table_bytes }
@@ -1499,6 +1500,52 @@ screen_begin SCREEN_TITLE
 
 		feature_display_slice SLICE_TEXT_START Title_Select_Start_X Title_Select_Start_Y
 		#feature_animate_slice slice_id x1 x2 y1 y2 frames easing?
+	step_end
+screen_end
+
+
+:calc Intro_Pitch_Y { 10 }
+:calc Intro_Grade_Y { 20 }
+:calc Intro_Par_Y { 30 }
+
+: screen_intro
+screen_begin SCREEN_INTRO
+	step_begin 1 1
+		feature_display_slice SLICE_TEXT_PITCH 6 Intro_Pitch_Y
+		feature_display_slice SLICE_TEXT_GRADE 6 Intro_Grade_Y
+		feature_display_slice SLICE_TEXT_COLON 22 Intro_Grade_Y
+		feature_display_slice SLICE_TEXT_PAR 6 Intro_Par_Y
+		feature_display_slice SLICE_TEXT_COLON 18 Intro_Par_Y
+
+	#	:calc Inter_PressKey_X { 37 }
+	#	:calc Inter_PressKey_Y { 55 }
+	#	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
+	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+	#	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
+	#	:byte SPR_TEXT_END
+
+		#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
+
+	step_end
+screen_end
+
+: screen_outro
+screen_begin SCREEN_OUTRO
+	step_begin 1 1
+		#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
+
 	step_end
 screen_end
 
@@ -1837,41 +1884,10 @@ screen_end
 	climbing_limit_table_entry  6  6		# 62
 	climbing_limit_table_entry  9  9		# 63
 
-:calc Inter_Pitch_Y { 10 }
-:calc Inter_Grade_Y { 20 }
-:calc Inter_Par_Y { 30 }
 :macro text_entry spr-id x y {
 	:byte spr-id :byte x :byte y
 }
 
-: intro_all
-#	text_entry SPR_TEXT_PITCH_0  6  Inter_Pitch_Y
-#	text_entry SPR_TEXT_PITCH_1 14  Inter_Pitch_Y
-#	text_entry SPR_TEXT_GRADE_0  6  Inter_Grade_Y
-#	text_entry SPR_TEXT_GRADE_1 14  Inter_Grade_Y
-#	text_entry SPR_TEXT_COLON   22  Inter_Grade_Y
-#	text_entry SPR_TEXT_PAR_0		 6 Inter_Par_Y
-#	text_entry SPR_TEXT_PAR_1		14 Inter_Par_Y
-#	text_entry SPR_TEXT_COLON   18 Inter_Par_Y
-#
-#	:calc Inter_PressKey_X { 37 }
-#	:calc Inter_PressKey_Y { 55 }
-#	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
-	:byte SPR_TEXT_END
 
 :calc Outro_Erfolg_X { 52 }
 :calc Outro_Erfolg_Y { 16 }
@@ -1933,35 +1949,35 @@ screen_end
 	;
 
 
-: intro_draw_a
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_all
-	intro_draw
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_A
-	intro_draw
-	;
-
-: intro_draw_b
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_all
-	intro_draw
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_B
-	intro_draw
-	;
-
-: outro_draw_a
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_all
-	intro_draw
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_A
-	intro_draw
-	animate_shades
-	;
-
-: outro_draw_b
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_all
-	intro_draw
-	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_A
-	intro_draw
-	animate_shades
-	;
+#: intro_draw_a
+#	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_all
+#	intro_draw
+#	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_A
+#	intro_draw
+#	;
+#
+#: intro_draw_b
+#	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_all
+#	intro_draw
+#	Trampoline-Set-I-Const intro_tramp_i:=intro_data intro_B
+#	intro_draw
+#	;
+#
+#: outro_draw_a
+#	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_all
+#	intro_draw
+#	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_A
+#	intro_draw
+#	animate_shades
+#	;
+#
+#: outro_draw_b
+#	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_all
+#	intro_draw
+#	Trampoline-Set-I-Const intro_tramp_i:=intro_data outro_A
+#	intro_draw
+#	animate_shades
+#	;
 
 
 ### Level Map
@@ -2183,7 +2199,7 @@ screen_end
 
 
 # Begin defining a map
-map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT intro_draw_a outro_draw_a map_load_B_stub Map_Data_A_Address Maptile_Index_A_Address
+map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT main main map_load_B_stub Map_Data_A_Address Maptile_Index_A_Address
 	map_begintile 1 2
 		map_entry HOLD_3X3 30 30 3
 		map_entry HOLD_3X3 30 60 3
@@ -2280,7 +2296,7 @@ map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT intro_draw_a outro_draw_a map_load_B_st
 	map_endtile
 map_end
 
-map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT intro_draw_b outro_draw_b main Map_Data_B_Address Maptile_Index_B_Address
+map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT main main main Map_Data_B_Address Maptile_Index_B_Address
 #: maptile_2_0
 	map_begintile 2 0
 		map_is_goal_tile
@@ -2377,10 +2393,14 @@ map_end
 
 
 : intro_display
-	Trampoline: intro_display_tramp_jump
+	v0 := SCREEN_INTRO
+	screen_init
+
+
+#	Trampoline: intro_display_tramp_jump
 	;
 : outro_display
-	Trampoline: outro_display_tramp_jump
+#	Trampoline: outro_display_tramp_jump
 	;
 : load_next_map
 	Trampoline: load_next_tramp_jump
@@ -2575,9 +2595,9 @@ map_end
 
 	:calc map { MAP_A }
 	:calc addr { map_intro_jumptable + ( map ) }
-	Trampoline-Set-jmp-Const intro_display_tramp_jump addr
+	#Trampoline-Set-jmp-Const intro_display_tramp_jump addr
 	:calc addr { map_outro_jumptable + ( map ) }
-	Trampoline-Set-jmp-Const outro_display_tramp_jump addr
+	#Trampoline-Set-jmp-Const outro_display_tramp_jump addr
 	:calc addr { map_next_jumptable + ( map ) }
 	Trampoline-Set-jmp-Const load_next_tramp_jump addr
 
@@ -2590,9 +2610,9 @@ map_end
 
 	:calc map { MAP_B }
 	:calc addr { map_intro_jumptable + ( map ) }
-	Trampoline-Set-jmp-Const intro_display_tramp_jump addr
+	#Trampoline-Set-jmp-Const intro_display_tramp_jump addr
 	:calc addr { map_outro_jumptable + ( map ) }
-	Trampoline-Set-jmp-Const outro_display_tramp_jump addr
+	#Trampoline-Set-jmp-Const outro_display_tramp_jump addr
 	:calc addr { map_next_jumptable + ( map ) }
 	Trampoline-Set-jmp-Const load_next_tramp_jump addr
 	;
