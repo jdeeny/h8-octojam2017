@@ -657,14 +657,13 @@ define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
 	v0 >>= Climbing_TempX
 	v0 >>= v0
 	v0 >>= v0
-	v0 >>= v0
 	v1 >>= Climbing_TempY
-	v1 >>= v1
 	v1 >>= v1
 	v1 >>= v1
 	v0 += Minimap_X_Offset
 	v1 += Minimap_Y_Offset
 	sprite v0 v1 1
+	if vF != 0 then sprite v0 v1 1
 	;
 
 # Draws all the holds that go on the screen
@@ -2154,114 +2153,35 @@ map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT SCREEN_MAPINFO_A map_load_B_stub Map_Da
 	# bottom
 	map_begintile 1 2
 		map_is_player_start_tile
+		map_entry HOLD_3X8 37 108 8
 		map_entry HOLD_3X8 47 118 8 map_is_player_start_lf
 		map_entry HOLD_3X8 75 120 8 map_is_player_start_rf
+		map_entry HOLD_3X8 89 104 8
 
-		map_entry HOLD_3X4 35 95 4 map_is_player_start_lh
-		map_entry HOLD_3X4 80 92 4 map_is_player_start_rh
+		map_entry HOLD_3X3 28 95 3
+		map_entry HOLD_3X3 99 99 3
 
-		map_entry HOLD_3X3 45 81 3
-		map_entry HOLD_3X3 45 81 3
+		map_entry HOLD_3X4 35 92 4 map_is_player_start_lh
+		map_entry HOLD_3X4 80 80 4 map_is_player_start_rh
+
+		map_entry HOLD_3X3 41 74 3
+		map_entry HOLD_3X3 59 59 3
+		map_entry HOLD_3X3 73 77 3
+
+
+		map_entry HOLD_3X3 39 59 3
+		map_entry HOLD_3X3 68 55 3
+
+
+		map_entry HOLD_3X3 25 42 3
+		map_entry HOLD_3X3 65 47 3
+
 	map_endtile
 
 	map_begintile 1 0
 		map_is_goal_tile
 	map_endtile
 
-#	map_begintile 1 2
-#		map_entry HOLD_3X3 30 30 3
-#		map_entry HOLD_3X3 30 60 3
-#		map_entry HOLD_3X3 60 30 3
-#		map_entry HOLD_3X3 60 60 3
-#		map_entry HOLD_3X3 90 30 3
-#		map_entry HOLD_3X3 90 60 3
-#		map_entry HOLD_3X3 120 30 3
-#		map_entry HOLD_3X3 120 60 3
-#	map_endtile
-#
-#	map_begintile 2 2
-#		map_is_player_start_tile
-#		map_entry HOLD_3X5 20  4 5
-#		map_entry HOLD_3X5 20 30 5
-#		map_entry HOLD_3X5 20 60 5
-#		map_entry HOLD_3X5 20 90 5
-#		map_entry HOLD_3X5 20 110 5
-#
-#		map_entry HOLD_3X5 50  4 5
-#		map_entry HOLD_3X5 50 30 5
-#		map_entry HOLD_3X5 50 60 5
-#		map_entry HOLD_3X5 50 90 5
-#		map_entry HOLD_3X5 50 110 5
-#
-#		map_entry HOLD_CHECKER 20  10 8
-#		map_entry HOLD_CHECKER 40  10 8
-#		map_entry HOLD_CHECKER 60  10 8
-#		map_entry HOLD_CHECKER 80  10 8
-#		map_entry HOLD_3X5 75 30 5 map_is_player_start_lh
-#		map_entry HOLD_3X5 80 60 5 map_is_player_start_lf
-#		map_entry HOLD_3X5 80 90 5
-#		map_entry HOLD_3X5 80 110 5
-#
-#		map_entry HOLD_3X5 110  4 5
-#		map_entry HOLD_3X5 108 35 5 map_is_player_start_rh
-#		map_entry HOLD_3X5 112 65 5 map_is_player_start_rf
-#		map_entry HOLD_3X5 110 90 5
-#		map_entry HOLD_3X5 110 110 5
-#	map_endtile
-#
-#	map_begintile 2 1
-#		map_is_goal_tile
-#
-#		map_entry HOLD_3X5 20  4 5
-#		map_entry HOLD_3X5 20 30 5
-#		map_entry HOLD_3X5 20 60 5
-#		map_entry HOLD_3X5 20 90 5
-#		map_entry HOLD_3X5 20 110 5
-#
-#		map_entry HOLD_3X5 50  4 5
-#		map_entry HOLD_3X5 50 30 5
-#		map_entry HOLD_3X5 50 60 5
-#		map_entry HOLD_3X5 50 90 5
-#		map_entry HOLD_3X5 50 110 5
-#
-#		map_entry HOLD_3X5 80  4 5
-#		map_entry HOLD_3X5 80 30 5
-#		map_entry HOLD_3X5 80 60 5
-#		map_entry HOLD_3X5 80 90 5
-#		map_entry HOLD_3X5 80 110 5
-#
-#		map_entry HOLD_3X5 110  4 5
-#		map_entry HOLD_3X5 110 30 5
-#		map_entry HOLD_3X5 110 60 5
-#		map_entry HOLD_3X5 110 90 5
-#		map_entry HOLD_3X5 110 110 5
-#	map_endtile
-#
-#	map_begintile 2 0
-#		map_entry HOLD_3X5 20  4 5
-#		map_entry HOLD_3X5 20 30 5
-#		map_entry HOLD_3X5 20 60 5
-#		map_entry HOLD_3X5 20 90 5
-#		map_entry HOLD_3X5 20 110 5
-#
-#		map_entry HOLD_3X5 50  4 5
-#		map_entry HOLD_3X5 50 30 5
-#		map_entry HOLD_3X5 50 60 5
-#		map_entry HOLD_3X5 50 90 5
-#		map_entry HOLD_3X5 50 110 5
-#
-#		map_entry HOLD_3X5 80  4 5
-#		map_entry HOLD_3X5 80 30 5
-#		map_entry HOLD_3X5 80 60 5
-#		map_entry HOLD_3X5 80 90 5
-#		map_entry HOLD_3X5 80 110 5
-#
-#		map_entry HOLD_3X5 110  4 5
-#		map_entry HOLD_3X5 110 30 5
-#		map_entry HOLD_3X5 110 60 5
-#		map_entry HOLD_3X5 110 90 5
-#		map_entry HOLD_3X5 110 110 5
-#	map_endtile
 map_end
 
 map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT SCREEN_MAPINFO_B main Map_Data_B_Address Maptile_Index_B_Address
