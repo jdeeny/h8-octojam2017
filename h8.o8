@@ -2340,10 +2340,12 @@
 	: clock_tick
 		i := clock_data
 		load v2
+		:calc before-overflow { Clock_Ticks_Overflow - 1 }
+		if v2 == before-overflow then clock_draw
+		i := clock_data
+		load v2
 		v2 += 1
-		vF := Clock_Ticks_Overflow
-		vF -= v2
-		if vF != 0 then jump clock_tick_save
+		if v2 != Clock_Ticks_Overflow then jump clock_tick_save
 		v2 := 0
 		v1 += 1
 		vF := 59
@@ -2360,6 +2362,8 @@
 		i := clock_data
 		save v2
 
+		if v2 == 0 then clock_draw
+		
 		# update fatigue indicator
 		i := clock_heart_ticks
 		load v0
