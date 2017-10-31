@@ -1,2632 +1,2671 @@
-                      ###############################
-                      ##                           ##
-                      ##   BERGSTEIGERSIMULATOR    ##
-                      ##                           ##
-                      ##   d8b    d8b  88    88    ##
-                      ##   888    888  .d8888b.    ##
-                      ##   888    888 d88P  Y88b   ##
-                      ##   8888888888 Y88b. d88P   ##
-                      ##   8888888888  "Y88888"    ##
-                      ##   888    888 .d8P""Y8b.   ##
-                      ##   888    888 888    888   ##
-                      ##   888    888 Y88b  d88P   ##
-                      ##   Y8P    Y8P  "Y8888P"    ##
-                      ##                           ##
-                      ###############################
-
-# A mountaineering simulator and entry for `Octojam IV`.
-#
-# This program is designed to target a bug-fixed version of the SuperChip
-# emulator `SCHIP` running on an HP48 GX calculator, as well as the Octo
-# emulator. It has not been tested on other platforms.
-#
-# This program uses instructions from the SuperChip instruction set extension.
-# It assumes sprites are clipped to the screen edge, but otherwise assumes the
-# emulator does not have the classic SCHIP emulation bugs.
-#
-
-:const KB_1 0x1 :const KB_2 0x2 :const KB_3 0x3 :const KB_4 0xC
-:const KB_Q 0x4 :const KB_W 0x5 :const KB_E 0x6 :const KB_R 0xD
-:const KB_A 0x7 :const KB_S 0x8 :const KB_D 0x9 :const KB_F 0xE
-:const KB_Z 0xA :const KB_X 0x0 :const KB_C 0xB :const KB_V 0xF
-
-:calc KEY_LEFT { KB_A }
-:calc KEY_RIGHT { KB_D }
-:calc KEY_UP { KB_W }
-:calc KEY_DOWN { KB_S }
-
-# This could be switch instead of a dedicated key for each
-:calc KEY_LH { KB_Q }
-:calc KEY_RH { KB_E }
-:calc KEY_LF { KB_Z }
-:calc KEY_RF { KB_C }
-
-:macro draw label x y h { i := label sprite x y h }
-:macro ifkey keynum { vF := keynum if vF key then }
-
-:const FLAGS_MAGIC 0x69
-:const FLAGS_NOCONTINUE 0xFF
-:const FLAGS_HIGHSCORE0_HOURS 2
-:const FLAGS_HIGHSCORE0_MINS 15
-:const FLAGS_HIGHSCORE1_HOURS 5
-:const FLAGS_HIGHSCORE1_MINS 47
-:const FLAGS_HIGHSCORE2_HOURS 19
-:const FLAGS_HIGHSCORE2_MINS 52
-
-:alias title_selection v3
-:alias title_alt_status v4
-
-: map_load_A_stub
-	map_load_A
-	;
-
-: map_load_B_stub
-	map_load_B
-	;
-
-
-
-: flag_data
-	:byte FLAGS_MAGIC
-: flag_data_continue
-	:byte FLAGS_NOCONTINUE
-	:byte FLAGS_HIGHSCORE0_HOURS
-	:byte FLAGS_HIGHSCORE0_MINS
-	:byte FLAGS_HIGHSCORE1_HOURS
-	:byte FLAGS_HIGHSCORE1_MINS
-	:byte FLAGS_HIGHSCORE2_HOURS
-	:byte FLAGS_HIGHSCORE2_MINS
-
-: flags_load
-	loadflags v0
-	if v0 != FLAGS_MAGIC then flags_save		# Save defaults if the magic byte doesn't match
-	loadflags v7
-	i := flag_data
-	v1 := 1
-	save v7
-	;
-
-: flags_save
-	i := flag_data
-	load v7
-	saveflags v7
-	;
-
-
-
-
-: main
-	hires
-	flags_load
-
-	map_load_A
-	climbing_init
-
-	#title_draw
-	#title_select
-	#if title_selection != 0 then load_continue_map
-	wipe
-
-	: gameplay_loop
-		climbing_init
-		intro_display
-
-		climbing_init
-		climbing_draw_minimap
-		wait_any_key_plus_debounce
-		wipe
-
-		climbing_run
-
-		wipe
-		outro_display
-		wait_any_key_plus_debounce
-
-		wipe
-		load_next_map
-
-	jump gameplay_loop
-
-	: the-end
-	loop
-	again
-
-
-:const Climbing_State_Idle 0
-:const Climbing_State_DebounceMove 2
-:const Climbing_State_MoveArm 4
-:const Climbing_State_MoveLeg 6
-:const Climbing_State_MovingArm 8
-:const Climbing_State_MovingLeg 10
-:const Climbing_State_DebounceArms 12
-:const Climbing_State_DebounceLegs 14
-
-
-: climbing_state_jumptable
-	jump climbing_runstate_idle
-	jump climbing_runstate_debouncemove
-	jump climbing_runstate_movearm
-	jump climbing_runstate_moveleg
-	jump climbing_runstate_movinglimb
-	jump climbing_runstate_movinglimb
-	jump climbing_runstate_debouncearms
-	jump climbing_runstate_debouncelegs
-
-
-
-
-:alias Climbing_Limit_Left v2
-:alias Climbing_Limit_Right v3
-:alias Climbing_IntersectX v4
-:alias Climbing_IntersectY v5
-:alias Climbing_DeltaX v4
-:alias Climbing_DeltaY v5
-:alias Climbing_TempX v6
-:alias Climbing_TempY v7
-:alias Climbing_TileX v8
-:alias Climbing_TileY v9
-:alias Climbing_State vA
-:alias Climbing_X vB
-:alias Climbing_Y vC
-:alias Climbing_Limb vD
-
-:alias Climbing_Draw_Idx v3
-:alias Climbing_Draw_SprId v0
-:alias Climbing_Draw_DeltaX v1
-:alias Climbing_Draw_DeltaY v2
-
-
-
-:calc Minimap_X_Offset { 128 - 32 }
-:calc Minimap_Y_Offset { 32 }
-
-
-:const Map_Entry_Bytes 3
-# Some holds, these are 3 tall ellipses
-:const Hold_Height 3
-
-
-# Define the basic dimensions of the maps
-:const MAPS_NUM 2
-# This is done early because we need to know how many bytes will be consumed
-# by the tile indexes and minimaps
-# Map A: 5x6 tiles
-:const MAP_A_WIDTH 5
-:const MAP_A_HEIGHT 6
-:calc MAP_A_TILES { MAP_A_WIDTH * MAP_A_HEIGHT }
-
-# Map B: 4x8 tiles
-:const MAP_B_WIDTH 4
-:const MAP_B_HEIGHT 4
-:calc MAP_B_TILES { MAP_B_WIDTH * MAP_B_HEIGHT }
-
-:calc Maps_Total_Tiles { MAP_A_TILES + MAP_B_TILES }
-
-:const climbing_leftright_offset 8				# Distance from limb 'root' to centroid
-:const climbing_limb_length 32						# Length of a limb
-:const climbing_hand_width 8
-:const climbing_height 64
-:calc climbing_width { ( climbing_leftright_offset * 2 ) + ( climbing_limb_length * 2 ) }			# The full width of the visible play area
-:calc climbing_center { ( climbing_width / 2 ) }
-:calc climbing_left { climbing_center - ( climbing_width / 2 ) }
-:calc climbing_right { climbing_center + ( climbing_width / 2 ) }
-
-:calc Climbing_Center_X { climbing_width / 2 }
-:calc Climbing_Center_Y { climbing_height / 2 }
-
-
-
-:const Map_Data_Bytes 14
-:calc Map_Data_Total_Bytes { Map_Data_Bytes * MAPS_NUM }
-
-:calc Maptile_Index_Total_Bytes { 2 * Maps_Total_Tiles }
-
-:calc Info_ID_Table_Total_Bytes { 1 * MAPS_NUM }
-:calc Next_JumpTable_Total_Bytes { 2 * MAPS_NUM }
-
-
-
-
-### Hold Definitions
-#
-# These are all 3 tall
-:calc hold_acc { 0 }
-:macro define_hold id {
-	:calc id { hold_acc }
-	:calc hold_acc { hold_acc + Hold_Height }
-}
-
-: spr_holds
-define_hold HOLD_3X3 : spr_hold_3x3 0x40 0xA0 0x40
-define_hold HOLD_3X4 : spr_hold_3x4 0x60 0x90 0x60
-define_hold HOLD_3X5 : spr_hold_3x5 0x70 0x88 0x70
-define_hold HOLD_3X6 : spr_hold_3x6 0x78 0x84 0x78
-define_hold HOLD_3X7 : spr_hold_3x7 0x7C 0x82 0x7C
-define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
-define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
-:const HOLD_END 0xFF
-### End Hold Definitions
-
-
-
-## Map data - player start posns
-: map_data
-:calc map_data_end { HERE + Map_Data_Total_Bytes }
-:org map_data_end
-
-## Maptile Index
-: maptile_index
-:calc maptile_index_end { HERE + Maptile_Index_Total_Bytes }
-:org maptile_index_end
-
-## Map info screen id table
-: map_info_id_table
-:calc intro_end { HERE + Info_ID_Table_Total_Bytes }
-:org intro_end
-
-## Nextmap jumptable
-: map_next_jumptable
-:calc map_next_end { HERE + Next_JumpTable_Total_Bytes }
-:org map_next_end
-
-:calc Map_Data_Addr_Base { map_data }
-:calc Map_Data_Addr_Current { Map_Data_Addr_Base }
-
-:calc Map_TileIndex_Addr_Base { maptile_index }
-:calc Map_TileIndex_Addr_Current { Map_TileIndex_Addr_Base }
-
-:calc Map_Info_Addr_Base { map_info_id_table }
-:calc Map_Info_Addr_Current { Map_Info_Addr_Base }
-
-:calc Map_Next_Addr_Base { map_next_jumptable }
-:calc Map_Next_Addr_Current { Map_Next_Addr_Base }
-
-
-#########################
-### Code Modification ###
-#########################
-:macro hilo value { :calc hi { value >> 8 } :calc lo { value & 0xFF } }	# Convenience macro, splits a 16-bit const value into 2 8-bit values
-
-# Allocates space for a trampoline
-:macro Trampoline: label {
-  : label jump label
-}
-
-:macro Trampoline-Set-I-Const label target {
-  hilo target
-  :calc hi { 0xA0 | hi }
-  v0 := hi
-  v1 := lo
-  i := label
-  save v1
-}
-
-:macro Trampoline-Set-I-v0v1 label {
-	vF := 0xA0
-  v0 |= vF
-  i := label
-  save v1
-}
-
-
-:macro Trampoline-Set-jmp-Const label target {
-  hilo target
-  :calc hi { 0x10 | hi }
-  v0 := hi
-  v1 := lo
-  i := label
-  save v1
-}
-
-:macro Trampoline-Set-call-Const label target {
-  hilo target
-  :calc hi { 0x20 | hi }
-  v0 := hi
-  v1 := lo
-  i := label
-  save v1
-}
-
-
-:macro Trampoline-Set-vF-Const label imm {
-  v0 := 0x6F
-  v1 := imm
-  i := label
-  save v1
-}
-
-### End Code Modification
-
-
-
-################
-### Climbing ###
-################
-:calc CLIMBING_SPEED { 2 }
-:calc CLIMBING_SPEED_REVERSE { 0 - CLIMBING_SPEED }
-:const CLIMBING_FRAME_DELAY 2
-
-
-
-# Store the limb as the keycode so we can scan that key quickly
-:calc LIMB_NONE { 0xFF }
-:calc LIMB_LEFTHAND { KEY_LH }
-:calc LIMB_RIGHTHAND { KEY_RH }
-:calc LIMB_LEFTFOOT { KEY_LF }
-:calc LIMB_RIGHTFOOT { KEY_RF }
-
-# Storage of limb coordinates, LH XY, RH XY, LF XY, RF XY
-:const CLIMBING_DATA_BYTES 2
-: climbing_data
-: climbing_data_lefthand 		0 0
-: climbing_data_righthand		0 0
-: climbing_data_leftfoot 		0 0
-: climbing_data_rightfoot		0 0
-: climbing_data_goaltile		0 0
-: climbing_data_currentmap 0
-
-# This sets up the beginning of a climbing session
-#  - loads level data, sets limb locations etc
-: climbing_init
-	# Setup some initial XY coords for the limbs
-	map_set_start
-
-	;
-
-# This loops around idling, waiting for limb select and moving a limb onto a hold
-: climbing_run
-	# Setup
-	Climbing_Limb := LIMB_NONE
-	Climbing_State := Climbing_State_Idle
-	climbing_draw_scene_hands
-
-	: climbing_main_loop
-	loop
-		v0 := Climbing_State
-		jump0 climbing_state_jumptable
-		: climbing_main_loop_continue
-		clock_draw
-		clock_tick
-		clock_draw
-		loop
-			vF := delay
-			while vF != 0
-		again
-		vF := CLIMBING_FRAME_DELAY
-		delay := vF
-	again
-	;
-
-
-: climbing_runstate_idle
-	i := climbing_data_goaltile
-	load v1
-	if v0 != Climbing_TileX then jump climbing_runstate_idle_notgoal
-	if v1 != Climbing_TileY then jump climbing_runstate_idle_notgoal
-	return
-
-	: climbing_runstate_idle_notgoal
-	# Scan limb selection keys
-	ifkey KEY_LH jump climbing_runstate_idle_setlimb_lefthand
-	ifkey KEY_RH jump climbing_runstate_idle_setlimb_righthand
-	ifkey KEY_LF jump climbing_runstate_idle_setlimb_leftfoot
-	ifkey KEY_RF jump climbing_runstate_idle_setlimb_rightfoot
-	jump climbing_main_loop_continue
-	: climbing_runstate_idle_setlimb_lefthand
-		Climbing_Limb := LIMB_LEFTHAND
-		Climbing_State := Climbing_State_DebounceMove
-		jump climbing_main_loop_continue
-	: climbing_runstate_idle_setlimb_righthand
-		Climbing_Limb := LIMB_RIGHTHAND
-		Climbing_State := Climbing_State_DebounceMove
-		jump climbing_main_loop_continue
-	: climbing_runstate_idle_setlimb_leftfoot
-		Climbing_Limb := LIMB_LEFTFOOT
-		Climbing_State := Climbing_State_DebounceMove
-		jump climbing_main_loop_continue
-	: climbing_runstate_idle_setlimb_rightfoot
-		Climbing_Limb := LIMB_RIGHTFOOT
-		Climbing_State := Climbing_State_DebounceMove
-		jump climbing_main_loop_continue
-
-: climbing_runstate_debouncemove
-	if Climbing_Limb key then jump climbing_main_loop_continue
-
-	if Climbing_Limb == LIMB_LEFTHAND then Climbing_State := Climbing_State_MoveArm
-	if Climbing_Limb == LIMB_RIGHTHAND then Climbing_State := Climbing_State_MoveArm
-	if Climbing_Limb == LIMB_LEFTFOOT then Climbing_State := Climbing_State_MoveLeg
-	if Climbing_Limb == LIMB_RIGHTFOOT then Climbing_State := Climbing_State_MoveLeg
-	jump climbing_main_loop_continue
-
-
-: climbing_runstate_movearm
-	climbing_draw_scene_hands
-	if Climbing_Limb == LIMB_LEFTHAND then climbing_setup_drawlimb_lefthand
-	if Climbing_Limb == LIMB_RIGHTHAND then climbing_setup_drawlimb_righthand
-	# i is set equal to the correct data area by the above setup functions
-	load v1
-	Climbing_TempX := v0
-	Climbing_TempY := v1
-
-	# Initialize before move loop
-	Climbing_DeltaX := 0
-	Climbing_DeltaY := 0
-	Climbing_State := Climbing_State_MovingArm
-	jump climbing_main_loop_continue
-
-
-: climbing_runstate_moveleg
-	climbing_draw_scene_feet
-	if Climbing_Limb == LIMB_LEFTFOOT then climbing_setup_drawlimb_leftfoot
-	if Climbing_Limb == LIMB_RIGHTFOOT then climbing_setup_drawlimb_rightfoot
-	# i is set equal to the correct data area by the above setup functions
-	load v1
-	Climbing_TempX := v0
-	Climbing_TempY := v1
-
-	# Initialize before move loop
-	Climbing_DeltaX := 0
-	Climbing_DeltaY := 0
-	Climbing_State := Climbing_State_MovingLeg
-	jump climbing_main_loop_continue
-
-
-: climbing_runstate_movinglimb
-	# Erase limb
-		climbing_drawlimb
-	# Adjust x/y
-		Climbing_TempX += Climbing_DeltaX
-		Climbing_TempY += Climbing_DeltaY
-	# Apply limits
-		vF := 0x80
-		vF &= Climbing_TempY
-		if vF != 0 then Climbing_TempY := 1
-
-		vF := 0x40
-		vF &= Climbing_TempY
-		if vF != 0 then Climbing_TempY := 63
-
-		climbing_set_limits
-
-		vF := Climbing_TempX
-		vF -= Climbing_Limit_Left
-		if vF == 0 then Climbing_TempX := Climbing_Limit_Left
-
-		vF := Climbing_Limit_Right
-		vF -= Climbing_TempX
-		if vF == 0 then Climbing_TempX := Climbing_Limit_Right
-
-	# Draw limb
-		climbing_drawlimb
-
-	# Scan movement keys and adjust delta x/y
-		Climbing_DeltaX := 0
-		Climbing_DeltaY := 0
-		ifkey KEY_LEFT Climbing_DeltaX += CLIMBING_SPEED_REVERSE
-		ifkey KEY_RIGHT Climbing_DeltaX += CLIMBING_SPEED
-		ifkey KEY_UP Climbing_DeltaY += CLIMBING_SPEED_REVERSE
-		ifkey KEY_DOWN Climbing_DeltaY += CLIMBING_SPEED
-
-	# Add random jitter to the delta x/y
-		v0 := random 0b00001100
-		vF := random 0b00000001
-		jump0 climbing_randtable
-		: climbing_randtable
-		Climbing_DeltaX += vF
-		jump climbing_endrand
-		Climbing_DeltaX -= vF
-		jump climbing_endrand
-		Climbing_DeltaY += vF
-		jump climbing_endrand
-		Climbing_DeltaY -= vF
-		: climbing_endrand
-
-	# Check key to see if we are finished moving
-	if Climbing_Limb -key then jump climbing_main_loop_continue
-
-	:calc state_offset { Climbing_State_DebounceArms - Climbing_State_MovingArm }
-	Climbing_State += state_offset
-	jump climbing_main_loop_continue
-
-
-: climbing_runstate_debouncearms
-	if Climbing_Limb key then jump climbing_main_loop_continue
-
-	# Key is released, check for collision
-	Climbing_IntersectX := Climbing_TempX
-	Climbing_IntersectY := Climbing_TempY
-	clear
-	climbing_draw_holds
-	i := spr_righthand
-	sprite Climbing_IntersectX Climbing_IntersectY 8
-	if vF == 0 then jump climbing_runstate_debouncearms_done
-
-	# Save limb data to ram
-	if Climbing_Limb == LIMB_LEFTHAND then i := climbing_data_lefthand
-	if Climbing_Limb == LIMB_RIGHTHAND then i := climbing_data_righthand
-	v0 := Climbing_IntersectX
-	v1 := Climbing_IntersectY
-	save v1
-
-	climbing_calculate_center
-
-	: climbing_runstate_debouncearms_done
-	if Climbing_Limb == LIMB_LEFTHAND then climbing_draw_scene_hands
-	if Climbing_Limb == LIMB_RIGHTHAND then climbing_draw_scene_hands
-
-	# Clear limb
-	Climbing_Limb := LIMB_NONE
-	Climbing_State := Climbing_State_Idle
-	jump climbing_main_loop_continue
-
-
-
-: climbing_runstate_debouncelegs
-	if Climbing_Limb key then jump climbing_main_loop_continue
-	# Key is released, check for collision
-	Climbing_IntersectX := Climbing_TempX
-	Climbing_IntersectY := Climbing_TempY
-	clear
-	Climbing_Y += 16
-	climbing_draw_holds
-	Climbing_Y += -16
-	i := spr_rightfoot
-	sprite Climbing_IntersectX Climbing_IntersectY 8
-	if vF == 0 then jump climbing_runstate_debouncelegs_done
-
-	# Save limb data to ram
-	if Climbing_Limb == LIMB_LEFTFOOT then i := climbing_data_leftfoot
-	if Climbing_Limb == LIMB_RIGHTFOOT then i := climbing_data_rightfoot
-	v0 := Climbing_IntersectX
-	v1 := Climbing_IntersectY
-	save v1
-
-	climbing_calculate_center
-
-	: climbing_runstate_debouncelegs_done
-	if Climbing_Limb == LIMB_LEFTFOOT then climbing_draw_scene_feet
-	if Climbing_Limb == LIMB_RIGHTFOOT then climbing_draw_scene_feet
-
-	# Clear limb
-	Climbing_Limb := LIMB_NONE
-	Climbing_State := Climbing_State_Idle
-	jump climbing_main_loop_continue
-
-
-: climbing_draw_scene
-	clear
-	clock_draw
-	climbing_draw_minimap
-	climbing_draw_holds
-	;
-
-: climbing_draw_scene_hands
-	climbing_draw_scene
-	climbing_draw_lefthand
-	climbing_draw_righthand
-	;
-
-: climbing_draw_scene_feet
-	Climbing_Y += 16
-	climbing_draw_scene
-	climbing_draw_leftfoot
-	climbing_draw_rightfoot
-	Climbing_Y += -16
-	;
-
-
-# Draws all the holds in a map tile
-# The index to the map tile is set by modifying the code
-: climbing_draw_tile_holds
-	Climbing_Draw_Idx := 0
-	loop
-		Trampoline: holds_tramp_i:=maptile
-		i += Climbing_Draw_Idx
-		load v2	# load sprite id, deltax, deltay
-	while Climbing_Draw_SprId != HOLD_END
-		Climbing_TempX += Climbing_Draw_DeltaX
-		Climbing_TempY += Climbing_Draw_DeltaY
-
-		# Check Y
-		vF := 63
-		vF &= Climbing_TempY
-		if vF != Climbing_TempY then jump climbing_draw_holds_skip
-		# Check X
-		vF := 0x80
-		vF &= Climbing_TempX
-		if vF != 0 then jump climbing_draw_holds_skip
-		vF := 96
-		vF -= Climbing_TempX
-		if vF == 0 then jump climbing_draw_holds_skip
-
-		Trampoline: climbing_draw_tile_hold_tramp_call_climbing_draw_hold
-
-		: climbing_draw_holds_skip
-		Climbing_Draw_Idx += Map_Entry_Bytes
-	again
-	;
-
-
-: climbing_draw_hold
-	i := spr_holds
-	i += Climbing_Draw_SprId						# i += SPR_ID (aka offset into sprites)
-	sprite Climbing_TempX Climbing_TempY Hold_Height
-	;
-: climbing_draw_minimap_dot
-	i := spr_dot
-	v0 >>= Climbing_TempX
-	v0 >>= v0
-	v0 >>= v0
-	v1 >>= Climbing_TempY
-	v1 >>= v1
-	v1 >>= v1
-	v0 += Minimap_X_Offset
-	v1 += Minimap_Y_Offset
-	sprite v0 v1 1
-	if vF != 0 then sprite v0 v1 1
-	;
-
-# Draws all the holds that go on the screen
-# Draws up to 4 tiles
-: climbing_draw_holds_inner
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := 0
-	Climbing_TempX -= Climbing_X
-	Climbing_TempY := 0
-	Climbing_TempY -= Climbing_Y
-	climbing_draw_tile_holds
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v1 += 1
-	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := 0
-	Climbing_TempX -= Climbing_X
-	Climbing_TempY := 0
-	Climbing_TempY -= Climbing_Y
-	Climbing_TempY += 128
-	climbing_draw_tile_holds
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v0 += 1
-	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := 0
-	Climbing_TempX -= Climbing_X
-	Climbing_TempY := 0
-	Climbing_TempY -= Climbing_Y
-	Climbing_TempX += 128
-	climbing_draw_tile_holds
-
-	v0 := Climbing_TileX
-	v1 := Climbing_TileY
-	v0 += 1
-	v1 += 1
-	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := 0
-	Climbing_TempX -= Climbing_X
-	Climbing_TempY := 0
-	Climbing_TempY -= Climbing_Y
-	Climbing_TempX += 128
-	Climbing_TempY += 128
-
-	climbing_draw_tile_holds
-	;
-
-: climbing_draw_holds
-	Trampoline-Set-call-Const climbing_draw_tile_hold_tramp_call_climbing_draw_hold climbing_draw_hold
-	climbing_draw_holds_inner
-	;
-: climbing_draw_minimap
-	Trampoline-Set-call-Const climbing_draw_tile_hold_tramp_call_climbing_draw_hold climbing_draw_minimap_dot
-	climbing_draw_holds_inner
-	;
-
-
-
-
-# Does everything needed to draw the left hand/arm cold (ie not in the climbing move loop)
-# TODO: Could surely be made more compact
-: climbing_draw_lefthand
-	i := climbing_data_lefthand
-	load v1
-	Climbing_TempX := v0
-	Climbing_TempY := v1
-	climbing_setup_drawlimb_lefthand
-	climbing_drawlimb
-	;
-
-: climbing_draw_righthand
-	i := climbing_data_righthand
-	load v1
-	Climbing_TempX := v0
-	Climbing_TempY := v1
-	climbing_setup_drawlimb_righthand
-	climbing_drawlimb
-	;
-
-: climbing_draw_leftfoot
-	i := climbing_data_leftfoot
-	load v1
-	Climbing_TempX := v0
-	Climbing_TempY := v1
-	climbing_setup_drawlimb_leftfoot
-	climbing_drawlimb
-	;
-
-: climbing_draw_rightfoot
-	i := climbing_data_rightfoot
-	load v1
-	Climbing_TempX := v0
-	Climbing_TempY := v1
-	climbing_setup_drawlimb_rightfoot
-	climbing_drawlimb
-	;
-
-
-
-: climbing_drawlimb
-	Trampoline: climbing_tramp_i:=handsprite					# To be replaced with `i := <sprite addr>`
-	sprite Climbing_TempX Climbing_TempY 8
-	v1 := vF
-	i := spr_armleg
-	Trampoline: climbing_tramp_jump_drawlimb_armleg		# To be replaced with `jump := climbing_drawlimb_[arm, leg]`
-	;
-
-
-: climbing_drawlimb_arm
-	v0 := Climbing_TempY 			# Copy height into work reg
-	v2 := v0 				# Duplicate into v2, assuming hp48 shift quirk
-	v0 >>= v0 				# Since we actually only need a 4 stride
-	vf := 0b11111100 			# We drop down from 8 stride
-	v0 &= vf 				# we can org to 0xF## mem and use vF for quirk
-	jump0 climbing_drawlimb_arm_sub 	# Then just jump0 from here:
-	: climbing_drawlimb_arm_sub
-		v2 += 8				# 7 times
-		sprite Climbing_TempX v2 8
-		v2 += 8				# 6 times
-		sprite Climbing_TempX v2 8
-		v2 += 8				# 5 times
-		sprite Climbing_TempX v2 8
-		v2 += 8				# 4 times
-		sprite Climbing_TempX v2 8
-		v2 += 8				# 3 times
-		sprite Climbing_TempX v2 8
-		v2 += 8				# 2 times
-		sprite Climbing_TempX v2 8
-		v2 += 8				# 1 times
-		sprite Climbing_TempX v2 8
-		; 				# 0 times
-
-: climbing_drawlimb_leg
-	# Let's start at 0 and move up to the leg
-	# Draw full legs down to the point where we need to stop for the remainder:
-	v2 := 0
-	v0 := 63			# pivot backwards from 63 instead
-	v0 -= Climbing_TempY		# Remove this value
-	v0 >>= v0			# Since we actually only need a 4 stride
-	vf := 0b11111100		# We drop down from 8 stride
-	v0 &= vf			# we can org to 0xF## mem and use vF for quirk
-	jump0 climbing_drawlimb_leg_sub	# Then just jump0 from here:
-	: climbing_drawlimb_leg_sub
-		sprite Climbing_TempX v2 8
-		v2 += +8				# 7 times
-		sprite Climbing_TempX v2 8
-		v2 += +8				# 6 times
-		sprite Climbing_TempX v2 8
-		v2 += +8				# 5 times
-		sprite Climbing_TempX v2 8
-		v2 += +8				# 4 times
-		sprite Climbing_TempX v2 8
-		v2 += +8				# 3 times
-		sprite Climbing_TempX v2 8
-		v2 += +8				# 2 times
-		sprite Climbing_TempX v2 8
-		v2 += +8				# 1 times
-		# 0 times
-
-	# v2 now contains the value of the multiple of 8 below Climbing Y
-	v0 := v2		# The sprite we're drawing has 7 0x00s following it
-	v0 -= Climbing_TempY	# We use the fact that we have the remainder available to us via ClimbY - v2
-	v0 += 8			# To advance the I pointer into this space. We need to mirror it again though so we have to spend extra instructions
-	i += v0			# This is so, when we draw this final sprite, we only draw the needed rows.
-	sprite Climbing_TempX v2 7	# There is a quick out where remainder is 0, but it's slower to check this 7/8ths of the time
-	# Now, arguably this may be slower because we're drawing empty sprite rows? But, it saves like 30 bytes and several ops
-	# Hopefully there's some code in the renderer that's like '0? Guess I won't bother!
-;
-
-
-# Sets the movement limits based on the current limb selection
-:	climbing_set_limits
-	# TODO: Expand to add left-right limits
-	if Climbing_Limb == LIMB_LEFTHAND then jump climbing_set_limits_lefthand				# These return to caller
-	if Climbing_Limb == LIMB_RIGHTHAND then jump climbing_set_limits_righthand
-	if Climbing_Limb == LIMB_LEFTFOOT then jump climbing_set_limits_leftfoot
-	if Climbing_Limb == LIMB_RIGHTFOOT then jump climbing_set_limits_rightfoot
-	:breakpoint Climbing_Limb_Unknown!
-	;
-
-
-# Loads the player limb positions from ram and calculates the current position
-# on the map, setting Climbing_TileX, Climbing_TileY, Climbing_X, and Climbing_Y
-: climbing_calculate_center
-	# Calculate the average of all x/y coordinates
-	# Load hand location
-	i := climbing_data
-	load v3
-	v2 += v0
-	v3 += v1
-	v4 >>= v2
-	v5 >>= v3
-
-	load v3
-	v2 += v0
-	v3 += v1
-	v2 >>= v2
-	v3 >>= v3
-
-	v2 += v4
-	v3 += v5
-	v2 >>= v2
-	v3 >>= v3
-
-	# center is at 1/2 height, 1/2 width
-	# offset because we store the corner
-	:calc offsetx { 0 - Climbing_Center_X }
-	:calc offsety { 0 - Climbing_Center_Y }
-	v2 += offsetx
-	v3 += offsety
-
-	# figure out delta
-#	v0 := v2
-#	v1 := v3
-#	v0 =- Climbing_X
-#	v1 =- Climbing_Y
-	Climbing_X += v2
-	Climbing_Y += v3
-#	v2 := v0
-#	v3 := v1
-
-	i := climbing_data_lefthand
-	load v1
-	v0 -= v2
-	v1 -= v3
-	i := climbing_data_lefthand
-	save v1
-
-
-	i := climbing_data_righthand
-	load v1
-	v0 -= v2
-	v1 -= v3
-	i := climbing_data_righthand
-	save v1
-
-
-	i := climbing_data_leftfoot
-	load v1
-	v0 -= v2
-	v1 -= v3
-	i := climbing_data_leftfoot
-	save v1
-
-
-	i := climbing_data_rightfoot
-	load v1
-	v0 -= v2
-	v1 -= v3
-	i := climbing_data_rightfoot
-	save v1
-
-
-	vF := 0x80
-	vF &= Climbing_X
-	if vF != 0 then climbing_calculate_center_shifttile_leftright
-
-	vF := 0x80
-	vF &= Climbing_Y
-	if vF != 0 then climbing_calculate_center_shifttile_updown
-	;
-
-: climbing_calculate_center_shifttile_leftright
-	vF := 0x80
-	vF &= v2
-	if vF == 0 then Climbing_TileX += 1
-	if vF != 0 then Climbing_TileX += -1
-	Climbing_X += 128
-	;
-
-: climbing_calculate_center_shifttile_updown
-	vF := 0x80
-	vF &= v3
-	if vF == 0 then Climbing_TileY += 1
-	if vF != 0 then Climbing_TileY += -1
-	Climbing_Y += 128
-	;
-
-### End Climbing
-
-
-
-
-###############
-### Sprites ###
-###############
-
-# These are sprites that are not part of 'slices'
-
-: spr_righthand			# 8x8 px version
-0x14 0x6A 0x2B 0xAB 0xBF 0xFF 0xFF 0x7E
-
-: spr_lefthand
-0x28 0x56 0xD4 0xD5 0xFD 0xFF 0xFF 0x7E
-
-: spr_rightfoot
-0x7E 0x7F 0x00 0x00 0x00 0x00 0x00 0x00
-
-# left foot contains a memory pointer for a block of 6 0s
-: spr_leftfoot
-0x7E 0xFE 0x00 0x00 0x00 0x00 0x00 0x00
-
-: spr_armleg
-0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C
-# Padding for shaving 3 cycles off of leg drawing. We need 7 0s!
-0x00 0x00 0x00 0x00 0x00 #0x00 0x00
-# We have 2 0s right below us:
-
-: spr_title_htop
-0x00 0x00 0x60 0x06 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xFF 0xFF 0xFF 0xFF
-
-: spr_dot 0x80
-
-: spr_title_hbot
-0xFF 0xFF 0xFF 0xFF 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0x60 0x06
-
-: spr_title_8top
-0x30 0x0C 0x78 0x1E 0x78 0x1E 0x30 0x0C
-0x07 0xE0 0x1F 0xF8 0x3F 0xFC 0x7F 0xFE
-0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
-
-
-: spr_title_8bot
-0x3F 0xFC 0x1F 0xF8 0x1F 0xF8 0x3F 0xFC
-0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
-0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
-0x7F 0xFE 0x3F 0xFC 0x1F 0xF8 0x07 0xE0
-
-
-: spr_shades_shine0l 0x60 0xC0 0x80
-: spr_shades_shine1l 0x7E 0xF0 0xE0 0x60 0x40 0x40 0x40
-: spr_shades_shine2l 0x1F 0x3F 0x7F 0x7F 0x7F 0x7F 0x7E 0x1C
-: spr_shades_shine2r 0xFE 0xFE 0xFE 0xFE 0xFC 0xF8 0x70
-: spr_shades_shine3l 0x01 0x0F 0x1F 0x1F 0x3F 0x3F 0x3E 0x1C
-: spr_shades_shine3r 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x1C
-: spr_shades_shine4r 0x00 0x01 0x01 0x01 0x03 0x07 0x0E 0x1C
-: spr_shades_burst0 0x40 0xA0 0x40
-: spr_shades_burst1 0xE0 0xE0 0xE0
-
-: spr_select_marker 0xD8 0xA8 0x50 0xA8 0xD8
-: spr_select_marker_alt 0x20 0x50 0xA8 0x50 0x20
-
-
-
-#: draw_shades
-#	i := spr_shades_left
-#	sprite v0 v1 8
-#	v0 += 8
-#	vF := 0x80
-#	vF &= v0
-#	if vF != 0 then jump draw_shades_done
-#	i := spr_shades_right
-#	sprite v0 v1 8
-#	: draw_shades_done
-#	v0 += -8
-#	;
-#
-#: draw_shades_wait
-#	delay := v2
-#	loop vf := delay while vf != 0 again
-#	;
-#
-#:const shades_y 24
-#:calc shades_x_end { ( 128 - 16 ) / 2 }
-#:calc shades_x_slow { ( ( 128 - shades_x_end ) / 12 ) + shades_x_end }
-#: animate_shades
-#	v0 := 127
-#	v1 := shades_y
-#	v2 := 1
-#	loop
-#		while v0 != shades_x_end
-#		if v0 == shades_x_slow then v2 := 2
-#		draw_shades
-#		draw_shades_wait
-#		draw_shades
-#		v0 += -1
-#	again
-#	draw_shades
-#
-#	v2 := 15
-#	draw_shades_wait
-#	i := spr_shades_shine0l
-#	sprite v0 v1 3
-#	v2 := 3
-#	draw_shades_wait
-#	i := spr_shades_shine1l
-#	sprite v0 v1 7
-#	draw_shades_wait
-#	i := spr_shades_shine2l
-#	sprite v0 v1 8
-#	i := spr_shades_shine2r
-#	v0 += 8
-#	sprite v0 v1 7
-#	v2 := 6
-#
-#	draw_shades_wait
-#	v0 += -8
-#	i := spr_shades_shine3l
-#	sprite v0 v1 8
-#	i := spr_shades_shine3r
-#	v0 += 8
-#	sprite v0 v1 8
-#	draw_shades_wait
-#	i := spr_shades_shine4r
-#	sprite v0 v1 8
-#
-#	v2 := 15
-#	draw_shades_wait
-#
-#	v0 := shades_x_end
-#	draw_shades
-#	v2 := 2
-#	loop
-#		while v0 != 127
-#		if v0 == shades_x_slow then v2 := 1
-#		draw_shades
-#		draw_shades_wait
-#		draw_shades
-#		v0 += 1
-#	again
-#	;
-
-
-
-
-
-
-
-:const Slice_Table_Bytes 4
-:const Slice_Count 11
-: slice_table
-	:calc slice_table_bytes { Slice_Table_Bytes * Slice_Count }
-	:calc slice_table_end { HERE + slice_table_bytes }
-	:org slice_table_end
-
-
-# Slice Data
-# Slices are stored in the table as:
-#		addr-hi, addr-lo, num-sprites, sprite-height
-:calc slice_acc { 0 }
-:macro slice_begin id height {
-	:calc id { slice_acc }
-	:calc slice-id { id }
-	:calc slice-addr { HERE }
-	:calc slice-height { height }
-}
-:macro slice_end {
-	:calc old-here { HERE }
-	:calc slice-end-addr { HERE }
-	:calc slice-length { ( slice-end-addr - slice-addr ) / slice-height }
-	:calc addr { slice_table + slice-id }
-	:org addr
-	hilo slice-addr
-	:byte hi
-	:byte lo
-	:byte slice-length
-	:byte slice-height
-	:org old-here
-
-	:calc slice_acc { slice_acc + Slice_Table_Bytes }
-}
-
-
-slice_begin SLICE_TEXT_PITCH 5
-	: spr_text_pitch_0 0xEB 0xA9 0xE9 0x89 0x89		# "PITCH"
-	: spr_text_pitch_1 0xB5 0x25 0x27 0x25 0x35
-slice_end
-
-slice_begin SLICE_TEXT_PAR 5
-	: spr_text_par_0 0xE4 0xAA 0xEE 0x8A 0x8A			# "PAR"
-	: spr_text_par_1 0xE0 0xA0 0xE0 0xC0 0xA0
-slice_end
-
-slice_begin SLICE_TEXT_GRADE 5
-	: spr_text_grade_0 0xEE 0x8A 0xAE 0xAC 0xEA		# "GRAD"
-	: spr_text_grade_1 0x4C 0xAA 0xAA 0xEA 0xAC
-slice_end
-
-slice_begin SLICE_TEXT_COLON 5
-	: spr_text_colon 0x00 0x80 0x00 0x80 0x00			# ":"
-slice_end
-
-slice_begin SLICE_TEXT_SUCCESS 5
-	: spr_text_erfolg_0 0xEE 0x8A 0xCE 0x8C 0xEA # "ERFOLG!"
-	: spr_text_erfolg_1 0xEE 0x8A 0xCA 0x8A 0x8E
-	: spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
-slice_end
-
-
-slice_begin SLICE_TEXT_START 5
-	: spr_text_start_0 0x49 0xA9 0xED 0xAB 0xA9 # "ANFANG"
-	: spr_text_start_1 0xE4 0x8A 0xEE 0x8A 0x8A
-	: spr_text_start_2 0x97 0x94 0xD4 0xB5 0x97
-slice_end
-
-slice_begin SLICE_TEXT_CONTINUE 5
-	: spr_text_continue_0 0xEE 0x8A 0xCA 0x8A 0x8E # "FORTSETZEN"
-	: spr_text_continue_1 0xEE 0xA4 0xE4 0xC4 0xA4
-	: spr_text_continue_2 0xEE 0x88 0xEC 0x28 0xEE
-	: spr_text_continue_3 0xEE 0x42 0x44 0x48 0x4E
-	: spr_text_continue_4 0xE9 0x89 0xCD 0x8B 0xE9
-slice_end
-
-
-# H8 - Bergsteigersimulator
-slice_begin SLICE_TEXT_SUBTITLE 5
-	: spr_title_sub_be	0xCE 0xA8 0xCC 0xA8 0xCE # BE
-	: spr_title_sub_rg	0xCE 0xA8 0xCA 0xAA 0xAE # RG
-	: spr_title_sub_st 	0xEE 0x84 0xE4 0x24 0xE4 # ST
-	: spr_title_sub_ei 	0xEB 0x8A 0xCA 0x8A 0xEB # EI 1/2 G
-	: spr_title_sub_ge 	0xBB 0x22 0xB3 0xA2 0xBA # GE 2 col R
-	: spr_title_sub_rsi 0xBA 0xA2 0x3A 0x8A 0xBA # 1 col R,SI
-	: spr_title_sub_m 	0x8A 0xDA 0xAA 0x8A 0x8B # M 1/2 U
-	: spr_title_sub_ula 0xA1 0xA2 0xA3 0xA2 0xBA # 1/2 u L 1/2A
-	: spr_title_sub_TO	0x3B 0x92 0x92 0x92 0x93 # 1/2 A, T, 1/2 O
-	: spr_title_sub_R 	0xB8 0xA8 0xB0 0xA8 0xA8 # 1/2 O, R
-slice_end
-
-slice_begin SLICE_TEXT_PITCH_NAME_A 5
-	: spr_text_pitch_name_a0 0x00 0x55 0x00 0x00 0x00
-	: spr_text_pitch_name_a1 0x00 0x55 0x00 0x00 0x00
-	: spr_text_pitch_name_a2 0x00 0x55 0x00 0x00 0x00
-slice_end
-
-slice_begin SLICE_TEXT_PRESS_KEY 5
-	: spr_text_drucke_0 0xCE 0xAA 0xAE 0xAC 0xCA  # "DRUCKE EINE TASTE"
-	: spr_text_drucke_1 0xAD 0x09 0xA9 0xA9 0xED
-	: spr_text_drucke_2 0x5C 0x90 0x18 0x90 0x5C
-	: spr_text_drucke_3 0xEA 0x8A 0xCB 0x8A 0xEA
-	: spr_text_drucke_4 0x5C 0x50 0x58 0xD0 0x5C
-	: spr_text_drucke_5 0xE4 0x4A 0x4E 0x4A 0x4A
-	: spr_text_drucke_6 0xEE 0x84 0xE4 0x24 0xE4
-	: spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
-slice_end
-
-slice_begin SLICE_SHADES 8
-: spr_shades_left 0x7F 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
-: spr_shades_right 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
-slice_end
-
-#define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
-#define_text SPR_TEXT_I : spr_text_I 0x80 0x80 0x80 0x80 0x80					# "I"
-#define_text SPR_TEXT_- : spr_text_- 0x00 0x00 0xE0 0x00 0x00					# "-"
-#define_text SPR_TEXT_+ : spr_text_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
-#define_text SPR_TEXT_X : spr_text_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
-
-
-
-
-:macro calc-center span-size item-size offset-to-span {
-	:calc center-offset { ( ( span-size - item-size ) / 2 ) + offset-to-span }
-}
-
-
-:const Screen_Table_Bytes 2
-:const Screen_Count 9
-: screen_table
-	:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
-	:calc screen_table_end { HERE + screen_table_bytes }
-	:org screen_table_end
-
-
-### Screens
-# Screen are stored in an index table as:
-#		addr-hi, addr-lo
-
-# Screen data is stored as a string of steps:
-# addr-of-next prescaler ticks-till-next
-# < step data >
-# addr-of-next prescaler ticks-till-next
-# ...
-# 0x0000 <- no next
-# < step data >
-
-# A step is shown until the ticks elapse, then the next step is shown
-
-# Step Data
-# Inside the screen step is a series of 'features'
-# A feature is defined as:
-# Type - Display a slice, animate a slice, etc
-# A variable amount of data depending on type
-# Display slice:
-#		Slice_ID x y
-# Animate slice:
-#		Slice_ID x1 y1 x2 y2 <maybe some timing stuff>
-
-
-:const FEATURE_DISPLAY_SLICE 0
-:const FEATURE_DISPLAY_SPRITE16 2
-:const FEATURE_SETUP_ANIMATION_SLIDE_X 4
-:const FEATURE_SETUP_ANIMATION_BOUNCE_Y 6
-:const FEATURE_END 0xFF
-
-
-:calc screen_acc { 0 }
-:macro screen_begin id {
-	:calc id { screen_acc }
-	:calc screen-id { id }
-	:calc screen-addr { HERE }
-}
-:macro screen_end {
-	# emit a FEATURE_END
-	:byte FEATURE_END
-	:calc old-here { HERE }
-	:calc screen-end-addr { HERE }
-	:calc addr { screen_table + screen-id }
-	:org addr
-	hilo screen-addr
-	:byte hi
-	:byte lo
-	:org old-here
-
-	:calc screen_acc { screen_acc + Screen_Table_Bytes }
-}
-
-:macro step_begin prescaler ticks {
-	:calc step_next_addr { HERE }
-	:calc step_prescaler_addr { HERE + 2 }
-	:org step_prescaler_addr
-	:byte prescaler
-	:byte ticks
-	:calc step_body_addr { HERE }
-	:org step_body_addr
-}
-
-# Save the address of the next step at the beginning of the step
-:macro step_end {
-	:calc old-here { HERE }
-	:org step_next_addr
-	hilo old-here
-	:byte hi
-	:byte lo
-	:org old-here
-}
-
-
-:macro feature_display_slice slice-id x y {
-	:byte FEATURE_DISPLAY_SLICE
-	:byte slice-id
-	:byte x
-	:byte y
-}
-
-:macro feature_display_sprite16 sprite-addr x y {
-	:byte FEATURE_DISPLAY_SPRITE16
-	hilo sprite-addr
-	:byte hi
-	:byte lo
-	:byte x
-	:byte y
-}
-
-:macro feature-setup-animation-slide-x animator-id slice-id x y steps increment steps-per-ease {
-	:byte FEATURE_SETUP_ANIMATION_SLIDE_X
-	:byte animator-id
-	:byte slice-id
-	:byte x
-	:byte y
-	:byte steps
-	:byte increment
-	:byte steps-per-ease
-}
-
-:macro feature-setup-animation-bounce-y animator-id slice-id x y limit {
-	:byte FEATURE_SETUP_ANIMATION_BOUNCE_Y
-	:byte animator-id
-	:byte slice-id
-	:byte x
-	:byte y
-	:byte limit
-}
-
-
-: screen_definitions
-
-: screen_title
-
-:const TITLE_CHAR_WIDTH 16
-:const TITLE_H8_YOFFSET 12
-:const TITLE_H8_SPACING 6
-:calc TITLE_H8_XSKIP { TITLE_H8_SPACING + 16 }
-:calc TITLE_H8_XOFFSET { 64 - ( ( TITLE_CHAR_WIDTH + TITLE_H8_XSKIP ) / 2 ) }
-:calc TITLE_LH_XOFFSET { TITLE_H8_XOFFSET / 3 }
-:calc TITLE_LH_YOFFSET { 64 - 6 }
-:calc TITLE_RH_XOFFSET { TITLE_H8_XOFFSET + 19 }
-:calc TITLE_RH_YOFFSET { TITLE_H8_YOFFSET + 27 }
-:const TITLE_SUB_WIDTH 8
-:const TITLE_SUB_HEIGHT 5
-:const TITLE_SUB_TILES 10
-:calc TITLE_SUB_TOTAL_WIDTH { ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) - 3 } # Subtract for empty cols at end
-:calc TITLE_SUB_XOFFSET { 64 - ( TITLE_SUB_TOTAL_WIDTH / 2 ) }
-:calc TITLE_SUB_YOFFSET { TITLE_H8_YOFFSET - 10 }
-:calc TITLE_SUB_XEND { TITLE_SUB_XOFFSET + ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) }
-:const Title_Begin_Num 4
-:const Title_Continue_Num 5
-:const Title_Select_Marker_X 2
-:const Title_Select_Marker_Y 50
-:const Title_Select_Marker_Select_Offset 70
-:const Title_Select_Marker_Text_Offset 49
-:const Title_Delay 20
-:calc Title_Select_Start_X { Title_Select_Marker_X + 11 }
-:calc Title_Select_Start_Y { Title_Select_Marker_Y }
-:calc Title_Select_Marker_Continue_X { Title_Select_Marker_X + Title_Select_Marker_Select_Offset + 7 }
-
-screen_begin SCREEN_TITLE
-	step_begin 1 1
-		feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
-
-		:calc title_x { TITLE_H8_XOFFSET }
-		:calc title_y { TITLE_H8_YOFFSET }
-		feature_display_sprite16 spr_title_htop title_x title_y
-		:calc title_x { TITLE_H8_XOFFSET + TITLE_H8_XSKIP }
-		feature_display_sprite16 spr_title_8top title_x title_y
-
-		:calc title_x { TITLE_H8_XOFFSET }
-		:calc title_y { TITLE_H8_YOFFSET + 16 }
-		feature_display_sprite16 spr_title_hbot title_x title_y
-		:calc title_x { TITLE_H8_XOFFSET + TITLE_H8_XSKIP }
-		feature_display_sprite16 spr_title_8bot title_x title_y
-
-		#feature_display_slice SLICE_TEXT_START Title_Select_Start_X Title_Select_Start_Y
-		#feature-setup-animation-slide-x 0 SLICE_TEXT_START 20 10 50 1 5
-		#feature-setup-animation-bounce-y 0 SLICE_TEXT_START 80 50 6
-	step_end
-screen_end
-
-screen_begin SCREEN_TITLE_SELECT_START_ONLY
-	step_begin 1 1
-		feature-setup-animation-bounce-y 0 SLICE_TEXT_START 80 50 6
-	step_end
-screen_end
-
-screen_begin SCREEN_TITLE_SELECT_START
-	step_begin 1 1
-		feature_display_slice SLICE_TEXT_START Title_Select_Start_X Title_Select_Start_Y
-		feature-setup-animation-bounce-y 0 SLICE_TEXT_START 80 50 6
-	step_end
-screen_end
-
-screen_begin SCREEN_TITLE_SELECT_CONTINUE
-	step_begin 1 1
-		feature-setup-animation-bounce-y 0 SLICE_TEXT_CONTINUE 80 50 6
-	step_end
-screen_end
-
-
-:calc Intro_Pitch_Y { 10 }
-:calc Intro_Grade_Y { 20 }
-:calc Intro_Par_Y { 30 }
-
-: screen_intro_outro_base
-screen_begin SCREEN_INTRO_OUTRO_BASE
-	step_begin 1 1
-		feature_display_slice SLICE_TEXT_PITCH 6 Intro_Pitch_Y
-		feature_display_slice SLICE_TEXT_GRADE 6 Intro_Grade_Y
-		feature_display_slice SLICE_TEXT_COLON 22 Intro_Grade_Y
-		feature_display_slice SLICE_TEXT_PAR 6 Intro_Par_Y
-		feature_display_slice SLICE_TEXT_COLON 18 Intro_Par_Y
-
-	#	:calc Inter_PressKey_X { 37 }
-	#	:calc Inter_PressKey_Y { 55 }
-	#	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
-	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	#	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
-	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	#	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
-	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	#	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
-	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	#	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
-	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	#	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
-	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	#	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
-	#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-	#	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
-	#	:byte SPR_TEXT_END
-
-		#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
-
-	step_end
-screen_end
-
-: screen_presskey
-screen_begin SCREEN_PRESSKEY
-step_begin 1 1
-	feature_display_slice SLICE_TEXT_PRESS_KEY 37 55
-step_end
-screen_end
-
-: screen_mapinfo_A
-screen_begin SCREEN_MAPINFO_A
-	step_begin 1 1
-		feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Pitch_Y
-		feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Grade_Y
-		feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Par_Y
-	step_end
-screen_end
-
-: screen_mapinfo_B
-screen_begin SCREEN_MAPINFO_B
-	step_begin 1 1
-		feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Pitch_Y
-		feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Grade_Y
-		feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Par_Y
-	step_end
-screen_end
-
-: screen_win
-screen_begin SCREEN_WIN
-	step_begin 1 1
-		#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
-
-	step_end
-screen_end
-
-
-
-# In:
-#		v0 := slice-id
-#		v4 := x
-#		v5 := y
-: slice_draw
-	i := slice_table
-	i += v0
-	load v3
-	vF := 0xA0
-	v0 |= vF
-	:calc addr { HERE + 4 }
-	i := addr
-	save v1
-	i := addr
-
-	v0 <<= v3
-	v0 <<= v0
-	loop
-	while v2 != 0
-		jump0 slice_draw_sprite_by_height
-		: slice_draw_sprite_return
-		v4 += 8
-		v2 += -1
-		i += v3
-	again
-	;
-
-: slice_draw_sprite_by_height
-	sprite v4 v5 1 jump slice_draw_sprite_return
-	sprite v4 v5 1 jump slice_draw_sprite_return
-	sprite v4 v5 2 jump slice_draw_sprite_return
-	sprite v4 v5 3 jump slice_draw_sprite_return
-	sprite v4 v5 4 jump slice_draw_sprite_return
-	sprite v4 v5 5 jump slice_draw_sprite_return
-	sprite v4 v5 6 jump slice_draw_sprite_return
-	sprite v4 v5 7 jump slice_draw_sprite_return
-	sprite v4 v5 8 jump slice_draw_sprite_return
-
-
-# Screen state:
-#		Stores status about screen step
-# 	prescalar, ticks to next, addr-of-next-hi, addr-of-next-lo, counts
-: screen_state
-: screen_state_next 0 0
-: screen_state_prescalar 0
-: screen_state_ticks_to_next 0
-: screen_state_counts 0
-: screen_state_current 0 0
-
-: screen_advance
-	i := screen_state
-	load v4
-	v4 += 1
-	if v4 != v0 then jump screen_advance_save
-
-	v4 := 0
-	v1 += -1
-	if v1 != 0 then jump screen_advance_save
-
-	i := screen_state_next
-	load v1
-	step_load
-	;
-: screen_advance_save
-	i := screen_state
-	save v4
-	;
-
-: step_load_feature
-	i := screen_state_current
-	load v1
-
-	set_i_to_v0v1
-	# i = feature data
-	load v0
-	;
-
-# Draws any sprites and sets up animations
-: step_init
-	loop
-		step_load_feature
-	while v0 != FEATURE_END
-		jump0 feature_handler_jumptable
-		: feature_handler_return
-		feature_handler_advance_current		# vF set by handler
-
-	again
-	;
-
-: feature_handler_jumptable
-	jump feature_handler_display_slice
-	jump feature_handler_display_sprite16
-	jump feature_handler_setup_animation_slide_x
-	jump feature_handler_setup_animation_bounce_y
-
-: feature_handler_display_slice
-	load v2
-	v4 := v1
-	v5 := v2
-	slice_draw
-	vF := 4
-	jump feature_handler_return
-
-: feature_handler_display_sprite16
-	load v3
-	set_i_to_v0v1
-	sprite v2 v3 0
-	vF := 5
-	jump feature_handler_return
-
-
-:const ANIMATOR_TYPE_NONE 0
-:const ANIMATOR_TYPE_SLIDE_X 2
-:const ANIMATOR_TYPE_BOUNCE_Y 4
-
-:const ANIMATOR_0 0
-: animator_data
-
-: animator_type 0
-: animator_sliceid 0
-: animator_posn 0 0
-: animator_steps 0
-: animator_incr 0
-: animator_ease_target 0
-: animator_ease_state 0
-: animator_ease_counter 0
-
-
-: feature_handler_setup_animation_slide_x
-	load v6
-	i := animator_data
-	i += v0
-
-	v0 := ANIMATOR_TYPE_SLIDE_X
-	save v0		# save type
-
-	v0 := v1
-	save v0		# save slice id
-
-	v0 := v2
-	v1 := v3
-	save v1		# save posn
-
-	v0 := v4
-	v1 := v5
-	save v1		# save steps and increment
-
-	v0 := v6
-	v1 := 0
-	v2 := 0
-	save v2		# save steps per ease and ease state & counter
-
-	animator_draw_slice
-
-	vF := 8
-	jump feature_handler_return
-
-: feature_handler_setup_animation_bounce_y
-	load v4
-	i := animator_data
-	i += v0
-
-	v0 := ANIMATOR_TYPE_BOUNCE_Y
-	save v0
-	v0 := v1
-	save v0
-	v0 := v2
-	v1 := v3
-	save v1
-	v0 := 0
-	v1 := -1
-	v2 := v4
-	save v2
-
-	animator_draw_slice
-
-	vF := 6
-	jump feature_handler_return
-
-
-# In: vF := offset
-: feature_handler_advance_current
-	i := screen_state_current
-	load v1
-	v1 += vF
-	if vF != 0 then v0 += 1
-	i := screen_state_current
-	save v1
-	;
-
-: set_i_to_v0v1
-	vF := 0xA0
-	v0 |= vF
-	:calc addr { HERE + 4 }
-	i := addr
-	save v1
-	i := addr
-	;
-
-: screen_update
-# Advances any animations setup by step_begin
-: step_continue
-	# for each animator, do the animation
-	i := animator_data
-	load v0
-	jump0 animator_continue_handler_jumptable
-: animator_continue_handler_jumptable
-	return	# none
-	jump animator_continue_handler_slide_x
-	jump animator_continue_handler_bounce_y
-
-: animator_draw_slice
-	i := animator_sliceid
-	load v2
-	v4 := v1
-	v5 := v2
-	slice_draw
-	;
-
-: animator_continue_handler_slide_x
-
-	i := animator_steps
-	load v0
-	if v0 == 0 then return	# if steps = 0, we are done
-
-	animator_draw_slice
-
-	i := animator_sliceid
-	load v4
-	v3 += -1
-	v1 += v4
-	i := animator_sliceid
-	save v3
-
-	animator_draw_slice
-	;
-
-: animator_continue_handler_bounce_y
-
-	animator_draw_slice
-	i := animator_sliceid
-	load v5
-
-	v2 += v4
-	v3 += 1
-	if v3 != v5 then jump animator_continue_handler_bounce_y_not_at_limit
-	v3 := 0
-	#vF := 0
-	v4 =- v3 #vF
-	: animator_continue_handler_bounce_y_not_at_limit
-	i := animator_sliceid
-	save v5
-
-	animator_draw_slice
-	;
-
-: screen_run
-	screen_advance
-	;
-
-# in: v0/v1 = address of step data
-# out: screen_state set to loaded step data
-: step_load
-	# Save the address of the first feature of the step ( 4 bytes later )
-	v2 := v0
-	v3 := v1
-	vF := 4
-	v1 += vF
-	if vF != 0 then v0 += 1
-	i := screen_state_current
-	save v1
-
-	# Restore v0/v1
-	v0 := v2
-	v1 := v3
-
-	vF := 0xA0
-	v0 |= vF
-	:calc addr { HERE + 4 }
-	i := addr
-	save v1
-	i := addr
-	# i = step data
-	load v3
-	i := screen_state
-	save v3
-	v0 := 0
-	save v0		# reset counts
-	step_init
-	;
-
-: step_load_next
-	i := screen_state_next
-	load v1
-	step_load
-	;
-
-
-# Begin showing a screen
-# In: v0 = screen id
-: screen_init
-	# look up address of first step of the screen in screen table
-	i := screen_table
-	i += v0
-	load v1
-
-	step_load # load the first step
-	;
-
-
-
-
-
-:const SPR_TEXT_END 0xFF
-
-
-
-
-### Climbing legal moves table
-# This is entirely from the perspective of the left arm
-
-# Creates 1 line of the table, limits are adjusted by left-cut right-cut (not absolute)
-:macro climbing_limit_table_entry left-cut right-cut {
-	:calc left-lim { climbing_left + left-cut }			# Calc limits
-	:calc right-lim { ( ( climbing_right - right-cut ) - ( climbing_leftright_offset * 3 ) ) - climbing_hand_width }
-	:byte left-lim :byte right-lim												# Output bytes
-}
-
-# In: v0 = y-coordinate
-# Out: v0 = left-limit, v1 = right limit
-:macro climbing_limit_lookup {
-	v0 <<= v0
-	i := climbing_limit_table
-	i += v0
-	load v1
-}
-
-: climbing_set_limits_lefthand
-	v0 := Climbing_TempY
-	climbing_limit_lookup
-	Climbing_Limit_Left := v0
-	Climbing_Limit_Right := v1
-	;
-
-: climbing_set_limits_righthand
-	v0 := Climbing_TempY
-	climbing_limit_lookup
-	Climbing_Limit_Left := climbing_right
-	Climbing_Limit_Left -= v1
-	Climbing_Limit_Right := climbing_right
-	Climbing_Limit_Right -= v0
-	;
-
-: climbing_set_limits_leftfoot
-	v0 := 63
-	v0 -= Climbing_TempY
-	climbing_limit_lookup
-	Climbing_Limit_Left := v0
-	Climbing_Limit_Right := v1
-	;
-
-: climbing_set_limits_rightfoot
-	v0 := 63
-	v0 -= Climbing_TempY
-	climbing_limit_lookup
-	Climbing_Limit_Left := climbing_right
-	Climbing_Limit_Left -= v1
-	Climbing_Limit_Right := climbing_right
-	Climbing_Limit_Right -= v0
-	;
-
-
-: climbing_limit_table
-# Given a Y coordinate, return the X limits. Numbers given are the pixels 'cut out'
-# from the edge, but the table is actually filled with raw screen x coordinates
-	climbing_limit_table_entry 17 17		#  0
-	climbing_limit_table_entry 14 14		#  1
-	climbing_limit_table_entry 12 12		#  2
-	climbing_limit_table_entry 10 10		#  3
-	climbing_limit_table_entry  9  9		#  4
-	climbing_limit_table_entry  8  8		#  5
-	climbing_limit_table_entry  7  7		#  6
-	climbing_limit_table_entry  6  6		#  7
-	climbing_limit_table_entry  5  5		#  8
-	climbing_limit_table_entry  4  4		#  9
-	climbing_limit_table_entry  4  4		# 10
-	climbing_limit_table_entry  3  3		# 11
-	climbing_limit_table_entry  3  3		# 12
-	climbing_limit_table_entry  2  2		# 13
-	climbing_limit_table_entry  2  2		# 14
-	climbing_limit_table_entry  2  2		# 15
-	climbing_limit_table_entry  1  1		# 16
-	climbing_limit_table_entry  1  1		# 17
-	climbing_limit_table_entry  1  1		# 18
-	climbing_limit_table_entry  1  1		# 19
-	climbing_limit_table_entry  0  0		# 20
-	climbing_limit_table_entry  0  0		# 21
-	climbing_limit_table_entry  0  0		# 22
-	climbing_limit_table_entry  0  0		# 23
-	climbing_limit_table_entry  0  0		# 24
-	climbing_limit_table_entry  0  0		# 25
-	climbing_limit_table_entry  0  0		# 26
-	climbing_limit_table_entry  0  0		# 27
-	climbing_limit_table_entry  0  0		# 28
-	climbing_limit_table_entry  0  0		# 29
-	climbing_limit_table_entry  0  0		# 30
-	climbing_limit_table_entry  0  0		# 31
-	climbing_limit_table_entry  0  0		# 32
-	climbing_limit_table_entry  0  0		# 33
-	climbing_limit_table_entry  0  0		# 34
-	climbing_limit_table_entry  0  0		# 35
-	climbing_limit_table_entry  0  0		# 36
-	climbing_limit_table_entry  0  0		# 37
-	climbing_limit_table_entry  0  0		# 38
-	climbing_limit_table_entry  0  0		# 39
-	climbing_limit_table_entry  0  0		# 40
-	climbing_limit_table_entry  0  0		# 41
-	climbing_limit_table_entry  0  0		# 42
-	climbing_limit_table_entry  0  0		# 43
-	climbing_limit_table_entry  0  0		# 44
-	climbing_limit_table_entry  0  0		# 45
-	climbing_limit_table_entry  0  0		# 46
-	climbing_limit_table_entry  0  0		# 47
-	climbing_limit_table_entry  0  0		# 48
-	climbing_limit_table_entry  0  0		# 49
-	climbing_limit_table_entry  0  0		# 50
-	climbing_limit_table_entry  0  0		# 51
-	climbing_limit_table_entry  0  0		# 52
-	climbing_limit_table_entry  0  0		# 53
-	climbing_limit_table_entry  0  0		# 54
-	climbing_limit_table_entry  1  1		# 55
-	climbing_limit_table_entry  1  1		# 56
-	climbing_limit_table_entry  1  1		# 57
-	climbing_limit_table_entry  2  2		# 58
-	climbing_limit_table_entry  2  2		# 59
-	climbing_limit_table_entry  3  3		# 60
-	climbing_limit_table_entry  4  4		# 61
-	climbing_limit_table_entry  6  6		# 62
-	climbing_limit_table_entry  9  9		# 63
-
-:macro text_entry spr-id x y {
-	:byte spr-id :byte x :byte y
-}
-
-:calc Outro_Erfolg_X { 52 }
-:calc Outro_Erfolg_Y { 16 }
-
-### Level Map
-
-:macro maptile-reset {
-	Climbing_TempX := 0
-	Climbing_TempX -= Climbing_X
-	Climbing_TempY := 0
-	Climbing_TempY -= Climbing_Y
-	:calc maptile-lastx { 0 }
-	:calc maptile-lasty { 0 }
-}
-
-:macro maptile-entry x y sprite-addr {
-	i := sprite-addr
-	:calc maptile-deltax { x - maptile-lastx }
-	:calc maptile-lastx { x }
-	:calc maptile-deltay { y - maptile-lasty }
-	:calc maptile-lasty { y }
-
-	Climbing_TempX += maptile-deltax
-	Climbing_TempY += maptile-deltay
-
-	climbing_map_check_limits_and_sprite
-}
-
-: climbing_map_check_limits_and_sprite
-	v0 := 0
-	# Check Y limit
-	vF := 0xC0
-	vF &= Climbing_TempY
-	if vF != 0 then return
-
-	# Check X limits
-	vF := 96
-	vF =- Climbing_TempX
-	if vF != 0 then return
-	vF := 16
-	vF =- Climbing_TempX
-	if vF != 0 then sprite Climbing_TempX Climbing_TempY Hold_Height
-	;
-
-
-## Tiles
-# Tiles are 128x128
-# Climbing_X, Climbing_Y are the offset into the map
-#
-
-
-# Emit the address of the current location in the map index
-# Call this at the address of each map tile
-:macro map_tileindex_emit tile-x tile-y {
-	:calc old-here { HERE }
-	hilo old-here
-	:calc addr { Map_TileIndex_Addr_Current + ( tile-y * 2 * map-current-width ) + ( tile-x * 2 ) }
-	:org addr
-	:byte hi :byte lo
-	:org old-here
-}
-
-
-:macro map_data_emit {
-	:calc old-here { HERE }
-	:calc addr { Map_Data_Addr_Current }
-	:org addr
-	:byte player-start-tilex
-	:byte player-start-tiley
-
-	:calc avg-x { ( player-start-hold-lh-x + player-start-hold-rh-x + player-start-hold-lf-x + player-start-hold-rf-x ) / 4 }
-	:calc avg-y { ( player-start-hold-lh-y + player-start-hold-rh-y + player-start-hold-lf-y + player-start-hold-rf-y ) / 4 }
-
-	:calc start-offset-x { avg-x - Climbing_Center_X }
-	:calc start-offset-y { avg-y - Climbing_Center_Y }
-	:byte start-offset-x
-	:byte start-offset-y
-
-	:calc player-start-lefthand-x { ( player-start-hold-lh-x - avg-x ) + Climbing_Center_X }
-	:byte player-start-lefthand-x
-	:calc player-start-lefthand-y { ( player-start-hold-lh-y - avg-y ) + Climbing_Center_Y }
-	:byte player-start-lefthand-y
-
-	:calc player-start-righthand-x { ( player-start-hold-rh-x - avg-x ) + Climbing_Center_X }
-	:byte player-start-righthand-x
-	:calc player-start-righthand-y { ( player-start-hold-rh-y - avg-y ) + Climbing_Center_Y }
-	:byte player-start-righthand-y
-
-	:calc player-start-leftfoot-x { ( player-start-hold-lf-x - avg-x ) + Climbing_Center_X }
-	:byte player-start-leftfoot-x
-	:calc player-start-leftfoot-y { ( ( player-start-hold-lf-y - avg-y ) + Climbing_Center_Y ) - 16 }
-	:byte player-start-leftfoot-y
-
-	:calc player-start-rightfoot-x { ( player-start-hold-rf-x - avg-x ) + Climbing_Center_X }
-	:byte player-start-rightfoot-x
-	:calc player-start-rightfoot-y { ( ( player-start-hold-rf-y - avg-y ) + Climbing_Center_Y ) - 16 }
-	:byte player-start-rightfoot-y
-
-	:byte player-end-tilex
-	:byte player-end-tiley
-
-	:org old-here
-}
-
-:macro map_info_emit {
-	:calc old-here { HERE }
-	:calc addr { Map_Info_Addr_Current }
-	:org addr
-		:byte map-info-id
-	:org old-here
-}
-
-:macro map_next_emit {
-	:calc old-here { HERE }
-	:calc addr { Map_Next_Addr_Current }
-	:org addr
-		jump map-next-address
-	:org old-here
-}
-
-
-# Intended to reset any offsets/etc needed when creating the map
-# index-label: the label to set to the address of the map's tile index
-:calc map_id_incr { 0 }
-:macro map_begin map-id map-width map-height map-info-screen-id load-next-map-function mapdata-label tileindex-label {
-	:calc map-id { map_id_incr }
-	:calc map_id_incr { map_id_incr + 2 }
-	:calc map-current-width { map-width }
-	:calc map-current-height { map-height }
-	:calc map-current-tiles { map-current-height * map-current-width }
-	:calc mapdata-label { Map_Data_Addr_Current }
-	:calc tileindex-label { Map_TileIndex_Addr_Current }
-	:calc map-info-id { map-info-screen-id }
-	:calc map-next-address { load-next-map-function }
-}
-
-:macro map_end {
-	map_data_emit
-	map_info_emit
-	map_next_emit
-	# Advance to the next addresses
-	:calc Map_Data_Addr_Current { Map_Data_Addr_Current + Map_Data_Bytes }
-	:calc Map_TileIndex_Addr_Current { Map_TileIndex_Addr_Current + ( 2 * map-current-tiles ) }
-	:calc Map_Info_Addr_Current { Map_Info_Addr_Current + 1 }
-	:calc Map_Next_Addr_Current { Map_Next_Addr_Current + 2 }
-}
-
-# Begin a new tile of the map
-:macro map_begintile x y {
-	:calc maptile_x { x }
-	:calc maptile_y { y }
-	:calc map_x { 0 }
-	:calc map_y { 0 }
-	map_tileindex_emit x y
-}
-
-# Add a hold to the map tile
-# x, y are offsets into the tile,
-# w is the width of the tile
-# This fills the table with the delta between this hold and the previous
-# so that the sprite index registers can be incrementally changed, saving an instruction
-:macro map_entry spr_id x y w {
-	:calc hold-x { x }
-	:calc hold-y { y }
-	:byte spr_id
-	:calc x-delta { x - map_x }
-	:byte x-delta
-	:calc map_x { x }
-	:calc y-delta { y - map_y }
-	:byte y-delta
-	:calc map_y { y }
-}
-
-# Finish this tile of the map.
-# Emits the END sigil and outputs the minimap.
-:macro map_endtile {
-	:byte HOLD_END
-}
-
-:macro map_is_player_start_tile {
-	:calc player-start-tilex { maptile_x }
-	:calc player-start-tiley { maptile_y }
-}
-:macro map_is_goal_tile {
-	:calc player-end-tilex { maptile_x }
-	:calc player-end-tiley { maptile_y }
-}
-
-:macro map_is_player_start_lh {
-	:calc player-start-hold-lh-x { hold-x }
-	:calc player-start-hold-lh-y { hold-y }
-}
-:macro map_is_player_start_rh {
-	:calc player-start-hold-rh-x { hold-x }
-	:calc player-start-hold-rh-y { hold-y }
-}
-:macro map_is_player_start_lf {
-	:calc player-start-hold-lf-x { hold-x }
-	:calc player-start-hold-lf-y { hold-y }
-}
-:macro map_is_player_start_rf {
-	:calc player-start-hold-rf-x { hold-x }
-	:calc player-start-hold-rf-y { hold-y }
-}
-
-######################
-### Map Definition ###
-######################
-
-
-
-# Begin defining a map
-map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT SCREEN_MAPINFO_A map_load_B_stub Map_Data_A_Address Maptile_Index_A_Address
-
-	# bottom
-	map_begintile 1 2
-		map_is_player_start_tile
-		map_entry HOLD_3X8 37 108 8
-		map_entry HOLD_3X8 47 118 8 map_is_player_start_lf
-		map_entry HOLD_3X8 75 120 8 map_is_player_start_rf
-		map_entry HOLD_3X8 89 104 8
-
-		map_entry HOLD_3X3 28 95 3
-		map_entry HOLD_3X3 99 99 3
-
-		map_entry HOLD_3X4 35 92 4 map_is_player_start_lh
-		map_entry HOLD_3X4 80 80 4 map_is_player_start_rh
-
-		map_entry HOLD_3X3 41 74 3
-		map_entry HOLD_3X3 59 59 3
-		map_entry HOLD_3X3 73 77 3
-
-
-		map_entry HOLD_3X3 39 59 3
-		map_entry HOLD_3X3 68 55 3
-
-
-		map_entry HOLD_3X3 25 42 3
-		map_entry HOLD_3X3 65 47 3
-
-	map_endtile
-
-	map_begintile 1 0
-		map_is_goal_tile
-	map_endtile
-
-map_end
-
-map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT SCREEN_MAPINFO_B main Map_Data_B_Address Maptile_Index_B_Address
-#: maptile_2_0
-	map_begintile 2 0
-		map_is_goal_tile
-	map_endtile
-
-	map_begintile 2 1
-		map_is_player_start_tile
-		map_entry HOLD_3X5 20  4 5
-		map_entry HOLD_3X5 20 30 5 map_is_player_start_lh
-		map_entry HOLD_3X5 20 60 5 map_is_player_start_lf
-		map_entry HOLD_3X5 20 90 5
-		map_entry HOLD_3X5 20 110 5
-
-		map_entry HOLD_3X5 50  4 5
-		map_entry HOLD_3X5 50 30 5 map_is_player_start_rh
-		map_entry HOLD_3X5 50 60 5 map_is_player_start_rf
-		map_entry HOLD_3X5 50 90 5
-		map_entry HOLD_3X5 50 110 5
-
-		map_entry HOLD_3X5 80  4 5
-		map_entry HOLD_3X5 80 30 5
-		map_entry HOLD_3X5 80 60 5
-		map_entry HOLD_3X5 80 90 5
-		map_entry HOLD_3X5 80 110 5
-
-		map_entry HOLD_3X5 110  4 5
-		map_entry HOLD_3X5 110 30 5
-		map_entry HOLD_3X5 110 60 5
-		map_entry HOLD_3X5 110 90 5
-		map_entry HOLD_3X5 110 110 5
-	map_endtile
-map_end
-
-# Special empty tile for uninitialized map tiles
-: maptile_empty
-	:byte HOLD_END
-
-##########################
-### End Map Definition ###
-##########################
-
-
-
-# Waits for a keypress, then waits until no keys are pressed
-: wait_any_key_plus_debounce
-	v0 := 0
-	loop
-		while v0 -key
-		v0 += 1
-		if v0 == 16 then v0 := 0
-	again
-	loop
-		v0 := 0
-		v1 := 0
-		loop
-			while v0 != 16
-			if v0 key then v1 := 1
-			v0 += 1
-		again
-	while v1 != 0
-	again
-	;
-
-
-:const Wipe_Delay 1
-: wipe
-	v0 := 0
-	v1 := random 1
-	loop
-		if v1 == 0 then wipe_left
-		if v1 == 1 then wipe_right
-		v0 += 12
-	while v0 != 128
-		vF := Wipe_Delay
-		delay := vF
-		loop
-			vF := delay
-		while vF != 0
-		again
-	again
-	;
-
-: wipe_left
-	scroll-left
-	scroll-left
-	scroll-left
-	;
-
-: wipe_right
-	scroll-right
-	scroll-right
-	scroll-right
-	;
-
-
-: map_load_info_screen
-	i := climbing_data_currentmap
-	load v0
-	i := map_info_id_table
-	i += v0
-	load v0
-	;
-
-: intro_display
-	v0 := SCREEN_INTRO_OUTRO_BASE
-	screen_init
-	map_load_info_screen
-	screen_init
-	v0 := SCREEN_PRESSKEY
-	screen_init
-	;
-
-: outro_display
-	v0 := SCREEN_INTRO_OUTRO_BASE
-	screen_init
-	map_load_info_screen
-	screen_init
-	;
-
-: win_display
-	v0 := SCREEN_WIN
-	screen_init
-	;
-
-: load_next_map
-	Trampoline: load_next_tramp_jump
-	;
-
-:const Clock_Ticks_Overflow 19
-:const Clock_X 96
-:const Clock_Y 2
-:const Clock_Width 6
-
-: clock_data
-: clock_data_hours 0
-: clock_data_minutes 0
-: clock_data_ticks 0
-
-: clock_tick
-	i := clock_data
-	load v2
-	v2 += 1
-	vF := Clock_Ticks_Overflow
-	vF -= v2
-	if vF != 0 then jump clock_tick_save
-	v2 := 0
-	v1 += 1
-	vF := 59
-	vF -= v1
-	if vF != 0 then jump clock_tick_save
-	v1 := 0
-	v0 += 1
-	vF := 99
-	vF -= v0
-	if vF != 0 then jump clock_tick_save
-	v0 := 99
-	v1 := 59
-: clock_tick_save
-	i := clock_data
-	save v2
-	;
-
-: clock_draw
-	v1 := Clock_X
-	v2 := Clock_Y
-
-	i := clock_data_hours
-	load v0
-	draw_decimal
-	v1 += 6
-	i := spr_text_colon
-	sprite v1 v2 5
-	v1 += 3
-
-	i := clock_data_minutes
-	load v0
-	draw_decimal
-	;
-
-# In:
-# v0 = value
-# v3 = x
-# v4 = y
-: bcd_dest
-: bcd_dest_hi 0
-: bcd_dest_mid 0
-: bcd_dest_lo 0
-: draw_decimal
-	i := bcd_dest
-	bcd v0
-	i := bcd_dest_mid
-	load v0
-	i := hex v0
-	sprite v1 v2 5
-	i := bcd_dest_lo
-	load v0
-	i := hex v0
-	v1 += 6
-	sprite v1 v2 5
-	;
-
-
-# in: v0 = x, v1 = y
-: is_on_screen
-	vF := 0x80
-	vF &= v0
-	if vF != 0 then return
-	vF := 0xC0
-	vF &= v1
-	if vF != 0 then return
-	;
-
-
-
-### Stuff that has to come after sprite declarations
-: climbing_setup_drawlimb_lefthand
-	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_lefthand
-	Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_arm
-	i := climbing_data_lefthand
-	;
-
-: climbing_setup_drawlimb_righthand
-	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_righthand
-	Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_arm
-	i := climbing_data_righthand
-	;
-
-: climbing_setup_drawlimb_leftfoot
-	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_leftfoot
-	Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_leg
-	i := climbing_data_leftfoot
-	;
-
-: climbing_setup_drawlimb_rightfoot
-	Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_rightfoot
-	Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_leg
-	i := climbing_data_rightfoot
-	;
-
-# Setup the hold drawing i:=maptile based on
-# v0: X tile
-# v1: Y tile
-# TODO: Inline this
-: climbing_setup_draw_holds
-	Trampoline: climbing_tramp_i:=map_index_address #i := Map_TileIndex_Addr_Base
-	Trampoline: climbing_tramp_vF:=mapindex-stride
-	#:calc mapindex-stride { 2 * Map_Width }
-	#vF := mapindex-stride
-	loop
-	while v1 != 0
-		i += vF
-		v1 += -1
-	again
-	v0 <<= v0
-	i += v0
-	load v1
-	vF := v0
-	vF |= v1
-	if vF == 0 then jump climbing_setup_draw_holds_none
-	Trampoline-Set-I-v0v1 holds_tramp_i:=maptile
-	;
-: climbing_setup_draw_holds_none
-	Trampoline-Set-I-Const holds_tramp_i:=maptile maptile_empty
-	;
-
-
-: map_set_start_load_two
-	Trampoline: map_tramp_i:=map_data_address
-	i += v2
-	load v1
-	;
-
-: map_set_start
-	v2 := 0
-	map_set_start_load_two
-	Climbing_TileX := v0
-	Climbing_TileY := v1
-	v2 += 2
-	map_set_start_load_two
-	Climbing_X := v0
-	Climbing_Y := v1
-
-	v2 += 2
-	map_set_start_load_two
-	i := climbing_data_lefthand
-	save v1
-
-	v2 += 2
-	map_set_start_load_two
-	i := climbing_data_righthand
-	save v1
-
-	v2 += 2
-	map_set_start_load_two
-	i := climbing_data_leftfoot
-	save v1
-
-	v2 += 2
-	map_set_start_load_two
-	i := climbing_data_rightfoot
-	save v1
-
-	v2 += 2
-	map_set_start_load_two
-	i := climbing_data_goaltile
-	save v1
-
-	;
-
-: map_load_A
-	Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_A_Address
-	Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_A_Address
-	:calc index-stride { MAP_A_WIDTH * 2 }
-	Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
-
-	:calc map { MAP_A }
-	:calc addr { map_next_jumptable + ( map ) }
-	Trampoline-Set-jmp-Const load_next_tramp_jump addr
-
-	i := climbing_data_currentmap
-	v0 := MAP_A
-	save v0
-	;
-: map_load_B
-	Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_B_Address
-	Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_B_Address
-	:calc index-stride { MAP_B_WIDTH * 2 }
-	Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
-
-	:calc map { MAP_B }
-	:calc addr { map_next_jumptable + ( map ) }
-	Trampoline-Set-jmp-Const load_next_tramp_jump addr
-
-	i := climbing_data_currentmap
-	v0 := MAP_B
-	save v0
-	;
-
-:alias load_continue_counter vE
-: load_continue_map
-	i := flag_data_continue
-	load v0
-	load_continue_counter := v0
-	loop
-		while load_continue_counter != 0
-			load_next_map
-			load_continue_counter += -1
-	again
-	;
-
-
-: title_draw
-	v0 := SCREEN_TITLE
-	screen_init
-
-	i := flag_data_continue
-	load v0
-	if v0 == FLAGS_NOCONTINUE then jump title_draw_skip_continue
-
-	v0 := SCREEN_TITLE_SELECT_START
-	screen_init
-
-	: title_draw_no_continue
-
-	loop
-		screen_update
-		vf := 1
-		delay := vf
-		loop vf := delay while vf != 0 again
-	again
-
- 	i := flag_data_continue
-	load v0
-	if v0 == FLAGS_NOCONTINUE then jump title_draw_skip_continue
-	v0 := SLICE_TEXT_CONTINUE
-	v4 := Title_Select_Marker_Continue_X
-	v5 := Title_Select_Marker_Y
-	slice_draw
-
-	: title_draw_skip_continue
-
-	title_select_draw_marker
-	;
-
-: title_select_draw_marker
-	i := spr_select_marker
-	if title_alt_status == 1 then i := spr_select_marker_alt
-	v0 := Title_Select_Marker_X
-	v1 := Title_Select_Marker_Y
-	if title_selection == 1 then v0 += Title_Select_Marker_Select_Offset
-	sprite v0 v1 5
-	v0 += Title_Select_Marker_Text_Offset
-	sprite v0 v1 5
-	;
-
-
-: title_select
-	title_selection := 0
-	title_alt_status := 0
-	: title_select_continue
-
-	v0 := KEY_LEFT
-	if v0 key then jump title_select_swap
-	v0 := KEY_RIGHT
-	if v0 key then jump title_select_swap
-	v0 := KEY_UP
-	if v0 key then jump title_select_go
-	v0 := KEY_DOWN
-	if v0 key then jump title_select_go
-	vF := delay
-	if vF != 0 then jump title_select_continue
-	title_select_shake
-	vF := Title_Delay
-	delay := vF
-	jump title_select_continue
-
-	: title_select_go
-		v0 := KEY_UP
-		if v0 key then jump title_select_go
-		v0 := KEY_DOWN
-		if v0 key then jump title_select_go
+	                      ###############################
+	                      ##                           ##
+	                      ##   BERGSTEIGERSIMULATOR    ##
+	                      ##                           ##
+	                      ##   d8b    d8b  88    88    ##
+	                      ##   888    888  .d8888b.    ##
+	                      ##   888    888 d88P  Y88b   ##
+	                      ##   8888888888 Y88b. d88P   ##
+	                      ##   8888888888  "Y88888"    ##
+	                      ##   888    888 .d8P""Y8b.   ##
+	                      ##   888    888 888    888   ##
+	                      ##   888    888 Y88b  d88P   ##
+	                      ##   Y8P    Y8P  "Y8888P"    ##
+	                      ##                           ##
+	                      ###############################
+
+	# A mountaineering simulator and entry for `Octojam IV`.
+	#
+	# This program is designed to target a bug-fixed version of the SuperChip
+	# emulator `SCHIP` running on an HP48 GX calculator, as well as the Octo
+	# emulator. It has not been tested on other platforms.
+	#
+	# This program uses instructions from the SuperChip instruction set extension.
+	# It assumes sprites are clipped to the screen edge, but otherwise assumes the
+	# emulator does not have the classic SCHIP emulation bugs.
+	#
+
+	:const KB_1 0x1 :const KB_2 0x2 :const KB_3 0x3 :const KB_4 0xC
+	:const KB_Q 0x4 :const KB_W 0x5 :const KB_E 0x6 :const KB_R 0xD
+	:const KB_A 0x7 :const KB_S 0x8 :const KB_D 0x9 :const KB_F 0xE
+	:const KB_Z 0xA :const KB_X 0x0 :const KB_C 0xB :const KB_V 0xF
+
+	:calc KEY_LEFT { KB_A }
+	:calc KEY_RIGHT { KB_D }
+	:calc KEY_UP { KB_W }
+	:calc KEY_DOWN { KB_S }
+
+	# This could be switch instead of a dedicated key for each
+	:calc KEY_LH { KB_Q }
+	:calc KEY_RH { KB_E }
+	:calc KEY_LF { KB_Z }
+	:calc KEY_RF { KB_C }
+
+	:macro draw label x y h { i := label sprite x y h }
+	:macro ifkey keynum { vF := keynum if vF key then }
+
+	:const FLAGS_MAGIC 0x69
+	:const FLAGS_NOCONTINUE 0xFF
+	:const FLAGS_HIGHSCORE0_HOURS 2
+	:const FLAGS_HIGHSCORE0_MINS 15
+	:const FLAGS_HIGHSCORE1_HOURS 5
+	:const FLAGS_HIGHSCORE1_MINS 47
+	:const FLAGS_HIGHSCORE2_HOURS 19
+	:const FLAGS_HIGHSCORE2_MINS 52
+
+	:alias title_selection v3
+	:alias title_alt_status v4
+
+	: map_load_A_stub
+		map_load_A
 		;
 
-	: title_select_swap
+	: map_load_B_stub
+		map_load_B
+		;
+
+
+
+	: flag_data
+		:byte FLAGS_MAGIC
+	: flag_data_continue
+		:byte FLAGS_NOCONTINUE
+		:byte FLAGS_HIGHSCORE0_HOURS
+		:byte FLAGS_HIGHSCORE0_MINS
+		:byte FLAGS_HIGHSCORE1_HOURS
+		:byte FLAGS_HIGHSCORE1_MINS
+		:byte FLAGS_HIGHSCORE2_HOURS
+		:byte FLAGS_HIGHSCORE2_MINS
+
+	: flags_load
+		loadflags v0
+		if v0 != FLAGS_MAGIC then flags_save		# Save defaults if the magic byte doesn't match
+		loadflags v7
+		i := flag_data
+		v1 := 1
+		save v7
+		;
+
+	: flags_save
+		i := flag_data
+		load v7
+		saveflags v7
+		;
+
+
+
+
+	: main
+		hires
+		flags_load
+
+		map_load_A
+		climbing_init
+
+		#title_draw
+		#title_select
+		#if title_selection != 0 then load_continue_map
+		wipe
+
+		: gameplay_loop
+			climbing_init
+			intro_display
+
+			climbing_init
+			climbing_draw_minimap
+			wait_any_key_plus_debounce
+			wipe
+
+			climbing_run
+
+			wipe
+			outro_display
+			wait_any_key_plus_debounce
+
+			wipe
+			load_next_map
+
+		jump gameplay_loop
+
+		: the-end
+		loop
+		again
+
+
+	:const Climbing_State_Idle 0
+	:const Climbing_State_DebounceMove 2
+	:const Climbing_State_MoveArm 4
+	:const Climbing_State_MoveLeg 6
+	:const Climbing_State_MovingArm 8
+	:const Climbing_State_MovingLeg 10
+	:const Climbing_State_FinalizeArms 12
+	:const Climbing_State_FinalizeLegs 14
+	:const Climbing_State_Debounce 16
+
+
+	: climbing_state_jumptable
+		jump climbing_runstate_idle
+		jump climbing_runstate_debouncemove
+		jump climbing_runstate_movearm
+		jump climbing_runstate_moveleg
+		jump climbing_runstate_movinglimb
+		jump climbing_runstate_movinglimb
+		jump climbing_runstate_finalizearms
+		jump climbing_runstate_finalizelegs
+		jump climbing_runstate_debounce
+
+
+
+	:alias Climbing_Limit_Left v2
+	:alias Climbing_Limit_Right v3
+	:alias Climbing_IntersectX v4
+	:alias Climbing_IntersectY v5
+	:alias Climbing_DeltaX v4
+	:alias Climbing_DeltaY v5
+	:alias Climbing_TempX v6
+	:alias Climbing_TempY v7
+	:alias Climbing_TileX v8
+	:alias Climbing_TileY v9
+	:alias Climbing_State vA
+	:alias Climbing_X vB
+	:alias Climbing_Y vC
+	:alias Climbing_Limb vD
+	:alias Climbing_Energy vE
+
+	:alias Climbing_Draw_Idx v3
+	:alias Climbing_Draw_SprId v0
+	:alias Climbing_Draw_DeltaX v1
+	:alias Climbing_Draw_DeltaY v2
+
+
+
+	:calc Minimap_X_Offset { 128 - 32 }
+	:calc Minimap_Y_Offset { 32 }
+
+
+	:const Map_Entry_Bytes 3
+	# Some holds, these are 3 tall ellipses
+	:const Hold_Height 3
+
+
+	# Define the basic dimensions of the maps
+	:const MAPS_NUM 2
+	# This is done early because we need to know how many bytes will be consumed
+	# by the tile indexes and minimaps
+	# Map A: 5x6 tiles
+	:const MAP_A_WIDTH 5
+	:const MAP_A_HEIGHT 6
+	:calc MAP_A_TILES { MAP_A_WIDTH * MAP_A_HEIGHT }
+
+	# Map B: 4x8 tiles
+	:const MAP_B_WIDTH 4
+	:const MAP_B_HEIGHT 4
+	:calc MAP_B_TILES { MAP_B_WIDTH * MAP_B_HEIGHT }
+
+	:calc Maps_Total_Tiles { MAP_A_TILES + MAP_B_TILES }
+
+	:const climbing_leftright_offset 8				# Distance from limb 'root' to centroid
+	:const climbing_limb_length 32						# Length of a limb
+	:const climbing_hand_width 8
+	:const climbing_height 64
+	:calc climbing_width { ( climbing_leftright_offset * 2 ) + ( climbing_limb_length * 2 ) }			# The full width of the visible play area
+	:calc climbing_center { ( climbing_width / 2 ) }
+	:calc climbing_left { climbing_center - ( climbing_width / 2 ) }
+	:calc climbing_right { climbing_center + ( climbing_width / 2 ) }
+
+	:calc Climbing_Center_X { climbing_width / 2 }
+	:calc Climbing_Center_Y { climbing_height / 2 }
+
+	:const Heart_X 105
+	:const Heart_Y 14
+
+	:const Map_Data_Bytes 14
+	:calc Map_Data_Total_Bytes { Map_Data_Bytes * MAPS_NUM }
+
+	:calc Maptile_Index_Total_Bytes { 2 * Maps_Total_Tiles }
+
+	:calc Info_ID_Table_Total_Bytes { 1 * MAPS_NUM }
+	:calc Next_JumpTable_Total_Bytes { 2 * MAPS_NUM }
+
+
+
+
+	### Hold Definitions
+	#
+	# These are all 3 tall
+	:calc hold_acc { 0 }
+	:macro define_hold id {
+		:calc id { hold_acc }
+		:calc hold_acc { hold_acc + Hold_Height }
+	}
+
+	: spr_holds
+	define_hold HOLD_3X3 : spr_hold_3x3 0x40 0xA0 0x40
+	define_hold HOLD_3X4 : spr_hold_3x4 0x60 0x90 0x60
+	define_hold HOLD_3X5 : spr_hold_3x5 0x70 0x88 0x70
+	define_hold HOLD_3X6 : spr_hold_3x6 0x78 0x84 0x78
+	define_hold HOLD_3X7 : spr_hold_3x7 0x7C 0x82 0x7C
+	define_hold HOLD_3X8 : spr_hold_3x8 0x7E 0x81 0x7E
+	define_hold HOLD_CHECKER : spr_hold_checker 0xAA 0x55 0xAA
+	:const HOLD_END 0xFF
+	### End Hold Definitions
+
+
+
+	## Map data - player start posns
+	: map_data
+	:calc map_data_end { HERE + Map_Data_Total_Bytes }
+	:org map_data_end
+
+	## Maptile Index
+	: maptile_index
+	:calc maptile_index_end { HERE + Maptile_Index_Total_Bytes }
+	:org maptile_index_end
+
+	## Map info screen id table
+	: map_info_id_table
+	:calc intro_end { HERE + Info_ID_Table_Total_Bytes }
+	:org intro_end
+
+	## Nextmap jumptable
+	: map_next_jumptable
+	:calc map_next_end { HERE + Next_JumpTable_Total_Bytes }
+	:org map_next_end
+
+	:calc Map_Data_Addr_Base { map_data }
+	:calc Map_Data_Addr_Current { Map_Data_Addr_Base }
+
+	:calc Map_TileIndex_Addr_Base { maptile_index }
+	:calc Map_TileIndex_Addr_Current { Map_TileIndex_Addr_Base }
+
+	:calc Map_Info_Addr_Base { map_info_id_table }
+	:calc Map_Info_Addr_Current { Map_Info_Addr_Base }
+
+	:calc Map_Next_Addr_Base { map_next_jumptable }
+	:calc Map_Next_Addr_Current { Map_Next_Addr_Base }
+
+
+	#########################
+	### Code Modification ###
+	#########################
+	:macro hilo value { :calc hi { value >> 8 } :calc lo { value & 0xFF } }	# Convenience macro, splits a 16-bit const value into 2 8-bit values
+
+	# Allocates space for a trampoline
+	:macro Trampoline: label {
+	  : label jump label
+	}
+
+	:macro Trampoline-Set-I-Const label target {
+	  hilo target
+	  :calc hi { 0xA0 | hi }
+	  v0 := hi
+	  v1 := lo
+	  i := label
+	  save v1
+	}
+
+	:macro Trampoline-Set-I-v0v1 label {
+		vF := 0xA0
+	  v0 |= vF
+	  i := label
+	  save v1
+	}
+
+
+	:macro Trampoline-Set-jmp-Const label target {
+	  hilo target
+	  :calc hi { 0x10 | hi }
+	  v0 := hi
+	  v1 := lo
+	  i := label
+	  save v1
+	}
+
+	:macro Trampoline-Set-call-Const label target {
+	  hilo target
+	  :calc hi { 0x20 | hi }
+	  v0 := hi
+	  v1 := lo
+	  i := label
+	  save v1
+	}
+
+
+	:macro Trampoline-Set-vF-Const label imm {
+	  v0 := 0x6F
+	  v1 := imm
+	  i := label
+	  save v1
+	}
+
+	### End Code Modification
+
+
+
+	################
+	### Climbing ###
+	################
+	:calc CLIMBING_SPEED { 2 }
+	:calc CLIMBING_SPEED_REVERSE { 0 - CLIMBING_SPEED }
+	:const CLIMBING_FRAME_DELAY 2
+
+
+
+	# Store the limb as the keycode so we can scan that key quickly
+	:calc LIMB_NONE { 0xFF }
+	:calc LIMB_LEFTHAND { KEY_LH }
+	:calc LIMB_RIGHTHAND { KEY_RH }
+	:calc LIMB_LEFTFOOT { KEY_LF }
+	:calc LIMB_RIGHTFOOT { KEY_RF }
+
+	# Storage of limb coordinates, LH XY, RH XY, LF XY, RF XY
+	:const CLIMBING_DATA_BYTES 2
+	: climbing_data
+	: climbing_data_lefthand 		0 0
+	: climbing_data_righthand		0 0
+	: climbing_data_leftfoot 		0 0
+	: climbing_data_rightfoot		0 0
+	: climbing_data_goaltile		0 0
+	: climbing_data_currentmap 0
+
+	# This sets up the beginning of a climbing session
+	#  - loads level data, sets limb locations etc
+	: climbing_init
+		Climbing_Energy := 23
+		# Setup some initial XY coords for the limbs
+		map_set_start
+
+		;
+
+	# This loops around idling, waiting for limb select and moving a limb onto a hold
+	: climbing_run
+		# Setup
+		Climbing_Limb := LIMB_NONE
+		Climbing_State := Climbing_State_Idle
+		climbing_draw_scene_hands
+
+		: climbing_main_loop
+		loop
+			v0 := Climbing_State
+			jump0 climbing_state_jumptable
+			: climbing_main_loop_continue
+			#clock_draw
+			clock_tick
+			#clock_draw
+			loop
+				vF := delay
+				while vF != 0
+			again
+			vF := CLIMBING_FRAME_DELAY
+			delay := vF
+		again
+		;
+
+
+	: climbing_runstate_idle
+		i := climbing_data_goaltile
+		load v1
+		if v0 != Climbing_TileX then jump climbing_runstate_idle_notgoal
+		if v1 != Climbing_TileY then jump climbing_runstate_idle_notgoal
+		return
+
+		: climbing_runstate_idle_notgoal
+		# Scan limb selection keys
+		ifkey KEY_LH jump climbing_runstate_idle_setlimb_lefthand
+		ifkey KEY_RH jump climbing_runstate_idle_setlimb_righthand
+		ifkey KEY_LF jump climbing_runstate_idle_setlimb_leftfoot
+		ifkey KEY_RF jump climbing_runstate_idle_setlimb_rightfoot
+		jump climbing_main_loop_continue
+		: climbing_runstate_idle_setlimb_lefthand
+			Climbing_Limb := LIMB_LEFTHAND
+			Climbing_State := Climbing_State_DebounceMove
+			jump climbing_main_loop_continue
+		: climbing_runstate_idle_setlimb_righthand
+			Climbing_Limb := LIMB_RIGHTHAND
+			Climbing_State := Climbing_State_DebounceMove
+			jump climbing_main_loop_continue
+		: climbing_runstate_idle_setlimb_leftfoot
+			Climbing_Limb := LIMB_LEFTFOOT
+			Climbing_State := Climbing_State_DebounceMove
+			jump climbing_main_loop_continue
+		: climbing_runstate_idle_setlimb_rightfoot
+			Climbing_Limb := LIMB_RIGHTFOOT
+			Climbing_State := Climbing_State_DebounceMove
+			jump climbing_main_loop_continue
+
+	: climbing_runstate_debouncemove
+		#if Climbing_Limb key then jump climbing_main_loop_continue
+
+		if Climbing_Limb == LIMB_LEFTHAND then Climbing_State := Climbing_State_MoveArm
+		if Climbing_Limb == LIMB_RIGHTHAND then Climbing_State := Climbing_State_MoveArm
+		if Climbing_Limb == LIMB_LEFTFOOT then Climbing_State := Climbing_State_MoveLeg
+		if Climbing_Limb == LIMB_RIGHTFOOT then Climbing_State := Climbing_State_MoveLeg
+		jump climbing_main_loop_continue
+
+
+	: climbing_runstate_movearm
+		climbing_draw_scene_hands
+		if Climbing_Limb == LIMB_LEFTHAND then climbing_setup_drawlimb_lefthand
+		if Climbing_Limb == LIMB_RIGHTHAND then climbing_setup_drawlimb_righthand
+		# i is set equal to the correct data area by the above setup functions
+		load v1
+		Climbing_TempX := v0
+		Climbing_TempY := v1
+
+		# Initialize before move loop
+		Climbing_DeltaX := 0
+		Climbing_DeltaY := 0
+		Climbing_State := Climbing_State_MovingArm
+		jump climbing_main_loop_continue
+
+
+	: climbing_runstate_moveleg
+		climbing_draw_scene_feet
+		if Climbing_Limb == LIMB_LEFTFOOT then climbing_setup_drawlimb_leftfoot
+		if Climbing_Limb == LIMB_RIGHTFOOT then climbing_setup_drawlimb_rightfoot
+		# i is set equal to the correct data area by the above setup functions
+		load v1
+		Climbing_TempX := v0
+		Climbing_TempY := v1
+
+		# Initialize before move loop
+		Climbing_DeltaX := 0
+		Climbing_DeltaY := 0
+		Climbing_State := Climbing_State_MovingLeg
+		jump climbing_main_loop_continue
+
+
+	: climbing_runstate_movinglimb
+		# Erase limb
+			climbing_drawlimb
+		# Adjust x/y
+			Climbing_TempX += Climbing_DeltaX
+			Climbing_TempY += Climbing_DeltaY
+		# Apply limits
+			vF := 0x80
+			vF &= Climbing_TempY
+			if vF != 0 then Climbing_TempY := 1
+
+			vF := 0x40
+			vF &= Climbing_TempY
+			if vF != 0 then Climbing_TempY := 63
+
+			climbing_set_limits
+
+			vF := Climbing_TempX
+			vF -= Climbing_Limit_Left
+			if vF == 0 then Climbing_TempX := Climbing_Limit_Left
+
+			vF := Climbing_Limit_Right
+			vF -= Climbing_TempX
+			if vF == 0 then Climbing_TempX := Climbing_Limit_Right
+
+		# Draw limb
+			climbing_drawlimb
+
+		# Scan movement keys and adjust delta x/y
+			Climbing_DeltaX := 0
+			Climbing_DeltaY := 0
+			ifkey KEY_LEFT Climbing_DeltaX += CLIMBING_SPEED_REVERSE
+			ifkey KEY_RIGHT Climbing_DeltaX += CLIMBING_SPEED
+			ifkey KEY_UP Climbing_DeltaY += CLIMBING_SPEED_REVERSE
+			ifkey KEY_DOWN Climbing_DeltaY += CLIMBING_SPEED
+
+		# Add random jitter to the delta x/y
+			v0 := random 23
+			v0 -= Climbing_Energy
+			if vF == 0 then v0 := random 0b0000001
+			if vF != 0 then v0 := random 0b00000011
+			vF := v0
+			v0 := random 0b00001100
+
+			jump0 climbing_randtable
+			: climbing_randtable
+			Climbing_DeltaX += vF
+			jump climbing_endrand
+			Climbing_DeltaX -= vF
+			jump climbing_endrand
+			Climbing_DeltaY += vF
+			jump climbing_endrand
+			Climbing_DeltaY -= vF
+			: climbing_endrand
+
+		# Check key to see if we are finished moving
+		if Climbing_Energy == 1 then jump climbing_debouncelimb_exit
+		if Climbing_Limb key then jump climbing_main_loop_continue
+
+		: climbing_debouncelimb_exit
+		:calc state_offset { Climbing_State_FinalizeArms - Climbing_State_MovingArm }
+		Climbing_State += state_offset
+		jump climbing_main_loop_continue
+
+	: climbing_runstate_finalizearms
+		# Key is released, check for collision
+		Climbing_IntersectX := Climbing_TempX
+		Climbing_IntersectY := Climbing_TempY
+		clear
+		climbing_draw_holds
+		i := spr_righthand
+		sprite Climbing_IntersectX Climbing_IntersectY 8
+		if vF == 0 then jump climbing_runstate_finalizearms_done
+
+		# Save limb data to ram
+		if Climbing_Limb == LIMB_LEFTHAND then i := climbing_data_lefthand
+		if Climbing_Limb == LIMB_RIGHTHAND then i := climbing_data_righthand
+		v0 := Climbing_IntersectX
+		v1 := Climbing_IntersectY
+		save v1
+
+		climbing_calculate_center
+
+		: climbing_runstate_finalizearms_done
+		climbing_draw_scene_hands
+
+
+		Climbing_State := Climbing_State_Debounce
+		jump climbing_main_loop_continue
+
+
+
+	: climbing_runstate_finalizelegs
+		# Key is released, check for collision
+		Climbing_IntersectX := Climbing_TempX
+		Climbing_IntersectY := Climbing_TempY
+		clear
+		Climbing_Y += 16
+		climbing_draw_holds
+		Climbing_Y += -16
+		i := spr_rightfoot
+		sprite Climbing_IntersectX Climbing_IntersectY 8
+		if vF == 0 then jump climbing_runstate_finalizelegs_done
+
+		# Save limb data to ram
+		if Climbing_Limb == LIMB_LEFTFOOT then i := climbing_data_leftfoot
+		if Climbing_Limb == LIMB_RIGHTFOOT then i := climbing_data_rightfoot
+		v0 := Climbing_IntersectX
+		v1 := Climbing_IntersectY
+		save v1
+
+		climbing_calculate_center
+
+		: climbing_runstate_finalizelegs_done
+		climbing_draw_scene_feet
+
+		Climbing_State := Climbing_State_Debounce
+		jump climbing_main_loop_continue
+
+
+: climbing_runstate_debounce
+	if Climbing_Limb key then jump climbing_main_loop_continue
+
+	# Clear limb
+	Climbing_Limb := LIMB_NONE
+	Climbing_State := Climbing_State_Idle
+
+	jump climbing_main_loop_continue
+
+
+	: climbing_draw_scene
+		clear
+		clock_draw
+		climbing_draw_minimap
+		climbing_draw_holds
+		;
+
+	: climbing_draw_scene_hands
+		climbing_draw_scene
+		climbing_draw_lefthand
+		climbing_draw_righthand
+		;
+
+	: climbing_draw_scene_feet
+		Climbing_Y += 16
+		climbing_draw_scene
+		climbing_draw_leftfoot
+		climbing_draw_rightfoot
+		Climbing_Y += -16
+		;
+
+
+	# Draws all the holds in a map tile
+	# The index to the map tile is set by modifying the code
+	: climbing_draw_tile_holds
+		Climbing_Draw_Idx := 0
+		loop
+			Trampoline: holds_tramp_i:=maptile
+			i += Climbing_Draw_Idx
+			load v2	# load sprite id, deltax, deltay
+		while Climbing_Draw_SprId != HOLD_END
+			Climbing_TempX += Climbing_Draw_DeltaX
+			Climbing_TempY += Climbing_Draw_DeltaY
+
+			# Check Y
+			vF := 63
+			vF &= Climbing_TempY
+			if vF != Climbing_TempY then jump climbing_draw_holds_skip
+			# Check X
+			vF := 0x80
+			vF &= Climbing_TempX
+			if vF != 0 then jump climbing_draw_holds_skip
+			vF := 96
+			vF -= Climbing_TempX
+			if vF == 0 then jump climbing_draw_holds_skip
+
+			Trampoline: climbing_draw_tile_hold_tramp_call_climbing_draw_hold
+
+			: climbing_draw_holds_skip
+			Climbing_Draw_Idx += Map_Entry_Bytes
+		again
+		;
+
+
+	: climbing_draw_hold
+		i := spr_holds
+		i += Climbing_Draw_SprId						# i += SPR_ID (aka offset into sprites)
+		sprite Climbing_TempX Climbing_TempY Hold_Height
+		;
+	: climbing_draw_minimap_dot
+		i := spr_dot
+		v0 >>= Climbing_TempX
+		v0 >>= v0
+		v0 >>= v0
+		v1 >>= Climbing_TempY
+		v1 >>= v1
+		v1 >>= v1
+		v0 += Minimap_X_Offset
+		v1 += Minimap_Y_Offset
+		sprite v0 v1 1
+		if vF != 0 then sprite v0 v1 1
+		;
+
+	# Draws all the holds that go on the screen
+	# Draws up to 4 tiles
+	: climbing_draw_holds_inner
+		v0 := Climbing_TileX
+		v1 := Climbing_TileY
+		climbing_setup_draw_holds		# Setup the tile trampoline
+		Climbing_TempX := 0
+		Climbing_TempX -= Climbing_X
+		Climbing_TempY := 0
+		Climbing_TempY -= Climbing_Y
+		climbing_draw_tile_holds
+
+		v0 := Climbing_TileX
+		v1 := Climbing_TileY
+		v1 += 1
+		climbing_setup_draw_holds		# Setup the tile trampoline
+		Climbing_TempX := 0
+		Climbing_TempX -= Climbing_X
+		Climbing_TempY := 0
+		Climbing_TempY -= Climbing_Y
+		Climbing_TempY += 128
+		climbing_draw_tile_holds
+
+		v0 := Climbing_TileX
+		v1 := Climbing_TileY
+		v0 += 1
+		climbing_setup_draw_holds		# Setup the tile trampoline
+		Climbing_TempX := 0
+		Climbing_TempX -= Climbing_X
+		Climbing_TempY := 0
+		Climbing_TempY -= Climbing_Y
+		Climbing_TempX += 128
+		climbing_draw_tile_holds
+
+		v0 := Climbing_TileX
+		v1 := Climbing_TileY
+		v0 += 1
+		v1 += 1
+		climbing_setup_draw_holds		# Setup the tile trampoline
+		Climbing_TempX := 0
+		Climbing_TempX -= Climbing_X
+		Climbing_TempY := 0
+		Climbing_TempY -= Climbing_Y
+		Climbing_TempX += 128
+		Climbing_TempY += 128
+
+		climbing_draw_tile_holds
+		;
+
+	: climbing_draw_holds
+		Trampoline-Set-call-Const climbing_draw_tile_hold_tramp_call_climbing_draw_hold climbing_draw_hold
+		climbing_draw_holds_inner
+		;
+	: climbing_draw_minimap
+		Trampoline-Set-call-Const climbing_draw_tile_hold_tramp_call_climbing_draw_hold climbing_draw_minimap_dot
+		climbing_draw_holds_inner
+		;
+
+
+
+
+	# Does everything needed to draw the left hand/arm cold (ie not in the climbing move loop)
+	# TODO: Could surely be made more compact
+	: climbing_draw_lefthand
+		i := climbing_data_lefthand
+		load v1
+		Climbing_TempX := v0
+		Climbing_TempY := v1
+		climbing_setup_drawlimb_lefthand
+		climbing_drawlimb
+		;
+
+	: climbing_draw_righthand
+		i := climbing_data_righthand
+		load v1
+		Climbing_TempX := v0
+		Climbing_TempY := v1
+		climbing_setup_drawlimb_righthand
+		climbing_drawlimb
+		;
+
+	: climbing_draw_leftfoot
+		i := climbing_data_leftfoot
+		load v1
+		Climbing_TempX := v0
+		Climbing_TempY := v1
+		climbing_setup_drawlimb_leftfoot
+		climbing_drawlimb
+		;
+
+	: climbing_draw_rightfoot
+		i := climbing_data_rightfoot
+		load v1
+		Climbing_TempX := v0
+		Climbing_TempY := v1
+		climbing_setup_drawlimb_rightfoot
+		climbing_drawlimb
+		;
+
+
+
+	: climbing_drawlimb
+		Trampoline: climbing_tramp_i:=handsprite					# To be replaced with `i := <sprite addr>`
+		sprite Climbing_TempX Climbing_TempY 8
+		v1 := vF
+		i := spr_armleg
+		Trampoline: climbing_tramp_jump_drawlimb_armleg		# To be replaced with `jump := climbing_drawlimb_[arm, leg]`
+		;
+
+
+	: climbing_drawlimb_arm
+		v0 := Climbing_TempY 			# Copy height into work reg
+		v2 := v0 				# Duplicate into v2, assuming hp48 shift quirk
+		v0 >>= v0 				# Since we actually only need a 4 stride
+		vf := 0b11111100 			# We drop down from 8 stride
+		v0 &= vf 				# we can org to 0xF## mem and use vF for quirk
+		jump0 climbing_drawlimb_arm_sub 	# Then just jump0 from here:
+		: climbing_drawlimb_arm_sub
+			v2 += 8				# 7 times
+			sprite Climbing_TempX v2 8
+			v2 += 8				# 6 times
+			sprite Climbing_TempX v2 8
+			v2 += 8				# 5 times
+			sprite Climbing_TempX v2 8
+			v2 += 8				# 4 times
+			sprite Climbing_TempX v2 8
+			v2 += 8				# 3 times
+			sprite Climbing_TempX v2 8
+			v2 += 8				# 2 times
+			sprite Climbing_TempX v2 8
+			v2 += 8				# 1 times
+			sprite Climbing_TempX v2 8
+			; 				# 0 times
+
+	: climbing_drawlimb_leg
+		# Let's start at 0 and move up to the leg
+		# Draw full legs down to the point where we need to stop for the remainder:
+		v2 := 0
+		v0 := 63			# pivot backwards from 63 instead
+		v0 -= Climbing_TempY		# Remove this value
+		v0 >>= v0			# Since we actually only need a 4 stride
+		vf := 0b11111100		# We drop down from 8 stride
+		v0 &= vf			# we can org to 0xF## mem and use vF for quirk
+		jump0 climbing_drawlimb_leg_sub	# Then just jump0 from here:
+		: climbing_drawlimb_leg_sub
+			sprite Climbing_TempX v2 8
+			v2 += +8				# 7 times
+			sprite Climbing_TempX v2 8
+			v2 += +8				# 6 times
+			sprite Climbing_TempX v2 8
+			v2 += +8				# 5 times
+			sprite Climbing_TempX v2 8
+			v2 += +8				# 4 times
+			sprite Climbing_TempX v2 8
+			v2 += +8				# 3 times
+			sprite Climbing_TempX v2 8
+			v2 += +8				# 2 times
+			sprite Climbing_TempX v2 8
+			v2 += +8				# 1 times
+			# 0 times
+
+		# v2 now contains the value of the multiple of 8 below Climbing Y
+		v0 := v2		# The sprite we're drawing has 7 0x00s following it
+		v0 -= Climbing_TempY	# We use the fact that we have the remainder available to us via ClimbY - v2
+		v0 += 8			# To advance the I pointer into this space. We need to mirror it again though so we have to spend extra instructions
+		i += v0			# This is so, when we draw this final sprite, we only draw the needed rows.
+		sprite Climbing_TempX v2 7	# There is a quick out where remainder is 0, but it's slower to check this 7/8ths of the time
+		# Now, arguably this may be slower because we're drawing empty sprite rows? But, it saves like 30 bytes and several ops
+		# Hopefully there's some code in the renderer that's like '0? Guess I won't bother!
+	;
+
+
+	# Sets the movement limits based on the current limb selection
+	:	climbing_set_limits
+		# TODO: Expand to add left-right limits
+		if Climbing_Limb == LIMB_LEFTHAND then jump climbing_set_limits_lefthand				# These return to caller
+		if Climbing_Limb == LIMB_RIGHTHAND then jump climbing_set_limits_righthand
+		if Climbing_Limb == LIMB_LEFTFOOT then jump climbing_set_limits_leftfoot
+		if Climbing_Limb == LIMB_RIGHTFOOT then jump climbing_set_limits_rightfoot
+		:breakpoint Climbing_Limb_Unknown!
+		;
+
+
+	# Loads the player limb positions from ram and calculates the current position
+	# on the map, setting Climbing_TileX, Climbing_TileY, Climbing_X, and Climbing_Y
+	: climbing_calculate_center
+		# Calculate the average of all x/y coordinates
+		# Load hand location
+		i := climbing_data
+		load v3
+		v2 += v0
+		v3 += v1
+		v4 >>= v2
+		v5 >>= v3
+
+		load v3
+		v2 += v0
+		v3 += v1
+		v2 >>= v2
+		v3 >>= v3
+
+		v2 += v4
+		v3 += v5
+		v2 >>= v2
+		v3 >>= v3
+
+		# center is at 1/2 height, 1/2 width
+		# offset because we store the corner
+		:calc offsetx { 0 - Climbing_Center_X }
+		:calc offsety { 0 - Climbing_Center_Y }
+		v2 += offsetx
+		v3 += offsety
+
+		# figure out delta
+	#	v0 := v2
+	#	v1 := v3
+	#	v0 =- Climbing_X
+	#	v1 =- Climbing_Y
+		Climbing_X += v2
+		Climbing_Y += v3
+	#	v2 := v0
+	#	v3 := v1
+
+		i := climbing_data_lefthand
+		load v1
+		v0 -= v2
+		v1 -= v3
+		i := climbing_data_lefthand
+		save v1
+
+
+		i := climbing_data_righthand
+		load v1
+		v0 -= v2
+		v1 -= v3
+		i := climbing_data_righthand
+		save v1
+
+
+		i := climbing_data_leftfoot
+		load v1
+		v0 -= v2
+		v1 -= v3
+		i := climbing_data_leftfoot
+		save v1
+
+
+		i := climbing_data_rightfoot
+		load v1
+		v0 -= v2
+		v1 -= v3
+		i := climbing_data_rightfoot
+		save v1
+
+
+		vF := 0x80
+		vF &= Climbing_X
+		if vF != 0 then climbing_calculate_center_shifttile_leftright
+
+		vF := 0x80
+		vF &= Climbing_Y
+		if vF != 0 then climbing_calculate_center_shifttile_updown
+		;
+
+	: climbing_calculate_center_shifttile_leftright
+		vF := 0x80
+		vF &= v2
+		if vF == 0 then Climbing_TileX += 1
+		if vF != 0 then Climbing_TileX += -1
+		Climbing_X += 128
+		;
+
+	: climbing_calculate_center_shifttile_updown
+		vF := 0x80
+		vF &= v3
+		if vF == 0 then Climbing_TileY += 1
+		if vF != 0 then Climbing_TileY += -1
+		Climbing_Y += 128
+		;
+
+	### End Climbing
+
+
+
+
+	###############
+	### Sprites ###
+	###############
+
+	# These are sprites that are not part of 'slices'
+
+	: spr_righthand			# 8x8 px version
+	0x14 0x6A 0x2B 0xAB 0xBF 0xFF 0xFF 0x7E
+
+	: spr_lefthand
+	0x28 0x56 0xD4 0xD5 0xFD 0xFF 0xFF 0x7E
+
+	: spr_rightfoot
+	0x7E 0x7F 0x00 0x00 0x00 0x00 0x00 0x00
+
+	# left foot contains a memory pointer for a block of 6 0s
+	: spr_leftfoot
+	0x7E 0xFE 0x00 0x00 0x00 0x00 0x00 0x00
+
+	: spr_armleg
+	0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C 0x3C
+	# Padding for shaving 3 cycles off of leg drawing. We need 7 0s!
+	0x00 0x00 0x00 0x00 0x00 #0x00 0x00
+	# We have 2 0s right below us:
+
+	: spr_title_htop
+	0x00 0x00 0x60 0x06 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xFF 0xFF 0xFF 0xFF
+
+	: spr_dot 0x80
+
+	: spr_title_hbot
+	0xFF 0xFF 0xFF 0xFF 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF0 0x0F 0x60 0x06
+
+	: spr_title_8top
+	0x30 0x0C 0x78 0x1E 0x78 0x1E 0x30 0x0C
+	0x07 0xE0 0x1F 0xF8 0x3F 0xFC 0x7F 0xFE
+	0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
+
+
+	: spr_title_8bot
+	0x3F 0xFC 0x1F 0xF8 0x1F 0xF8 0x3F 0xFC
+	0x7C 0x3E 0xF8 0x1F 0xF0 0x0F 0xF0 0x0F
+	0xF0 0x0F 0xF0 0x0F 0xF8 0x1F 0x7C 0x3E
+	0x7F 0xFE 0x3F 0xFC 0x1F 0xF8 0x07 0xE0
+
+	: spr_heart 0x6C 0xFE 0x7C 0x38 0x10
+
+	: spr_shades_shine0l 0x60 0xC0 0x80
+	: spr_shades_shine1l 0x7E 0xF0 0xE0 0x60 0x40 0x40 0x40
+	: spr_shades_shine2l 0x1F 0x3F 0x7F 0x7F 0x7F 0x7F 0x7E 0x1C
+	: spr_shades_shine2r 0xFE 0xFE 0xFE 0xFE 0xFC 0xF8 0x70
+	: spr_shades_shine3l 0x01 0x0F 0x1F 0x1F 0x3F 0x3F 0x3E 0x1C
+	: spr_shades_shine3r 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x1C
+	: spr_shades_shine4r 0x00 0x01 0x01 0x01 0x03 0x07 0x0E 0x1C
+	: spr_shades_burst0 0x40 0xA0 0x40
+	: spr_shades_burst1 0xE0 0xE0 0xE0
+
+	: spr_select_marker 0xD8 0xA8 0x50 0xA8 0xD8
+	: spr_select_marker_alt 0x20 0x50 0xA8 0x50 0x20
+
+
+
+	#: draw_shades
+	#	i := spr_shades_left
+	#	sprite v0 v1 8
+	#	v0 += 8
+	#	vF := 0x80
+	#	vF &= v0
+	#	if vF != 0 then jump draw_shades_done
+	#	i := spr_shades_right
+	#	sprite v0 v1 8
+	#	: draw_shades_done
+	#	v0 += -8
+	#	;
+	#
+	#: draw_shades_wait
+	#	delay := v2
+	#	loop vf := delay while vf != 0 again
+	#	;
+	#
+	#:const shades_y 24
+	#:calc shades_x_end { ( 128 - 16 ) / 2 }
+	#:calc shades_x_slow { ( ( 128 - shades_x_end ) / 12 ) + shades_x_end }
+	#: animate_shades
+	#	v0 := 127
+	#	v1 := shades_y
+	#	v2 := 1
+	#	loop
+	#		while v0 != shades_x_end
+	#		if v0 == shades_x_slow then v2 := 2
+	#		draw_shades
+	#		draw_shades_wait
+	#		draw_shades
+	#		v0 += -1
+	#	again
+	#	draw_shades
+	#
+	#	v2 := 15
+	#	draw_shades_wait
+	#	i := spr_shades_shine0l
+	#	sprite v0 v1 3
+	#	v2 := 3
+	#	draw_shades_wait
+	#	i := spr_shades_shine1l
+	#	sprite v0 v1 7
+	#	draw_shades_wait
+	#	i := spr_shades_shine2l
+	#	sprite v0 v1 8
+	#	i := spr_shades_shine2r
+	#	v0 += 8
+	#	sprite v0 v1 7
+	#	v2 := 6
+	#
+	#	draw_shades_wait
+	#	v0 += -8
+	#	i := spr_shades_shine3l
+	#	sprite v0 v1 8
+	#	i := spr_shades_shine3r
+	#	v0 += 8
+	#	sprite v0 v1 8
+	#	draw_shades_wait
+	#	i := spr_shades_shine4r
+	#	sprite v0 v1 8
+	#
+	#	v2 := 15
+	#	draw_shades_wait
+	#
+	#	v0 := shades_x_end
+	#	draw_shades
+	#	v2 := 2
+	#	loop
+	#		while v0 != 127
+	#		if v0 == shades_x_slow then v2 := 1
+	#		draw_shades
+	#		draw_shades_wait
+	#		draw_shades
+	#		v0 += 1
+	#	again
+	#	;
+
+
+
+
+
+
+
+	:const Slice_Table_Bytes 4
+	:const Slice_Count 11
+	: slice_table
+		:calc slice_table_bytes { Slice_Table_Bytes * Slice_Count }
+		:calc slice_table_end { HERE + slice_table_bytes }
+		:org slice_table_end
+
+
+	# Slice Data
+	# Slices are stored in the table as:
+	#		addr-hi, addr-lo, num-sprites, sprite-height
+	:calc slice_acc { 0 }
+	:macro slice_begin id height {
+		:calc id { slice_acc }
+		:calc slice-id { id }
+		:calc slice-addr { HERE }
+		:calc slice-height { height }
+	}
+	:macro slice_end {
+		:calc old-here { HERE }
+		:calc slice-end-addr { HERE }
+		:calc slice-length { ( slice-end-addr - slice-addr ) / slice-height }
+		:calc addr { slice_table + slice-id }
+		:org addr
+		hilo slice-addr
+		:byte hi
+		:byte lo
+		:byte slice-length
+		:byte slice-height
+		:org old-here
+
+		:calc slice_acc { slice_acc + Slice_Table_Bytes }
+	}
+
+
+	slice_begin SLICE_TEXT_PITCH 5
+		: spr_text_pitch_0 0xEB 0xA9 0xE9 0x89 0x89		# "PITCH"
+		: spr_text_pitch_1 0xB5 0x25 0x27 0x25 0x35
+	slice_end
+
+	slice_begin SLICE_TEXT_PAR 5
+		: spr_text_par_0 0xE4 0xAA 0xEE 0x8A 0x8A			# "PAR"
+		: spr_text_par_1 0xE0 0xA0 0xE0 0xC0 0xA0
+	slice_end
+
+	slice_begin SLICE_TEXT_GRADE 5
+		: spr_text_grade_0 0xEE 0x8A 0xAE 0xAC 0xEA		# "GRAD"
+		: spr_text_grade_1 0x4C 0xAA 0xAA 0xEA 0xAC
+	slice_end
+
+	slice_begin SLICE_TEXT_COLON 5
+		: spr_text_colon 0x00 0x80 0x00 0x80 0x00			# ":"
+	slice_end
+
+	slice_begin SLICE_TEXT_SUCCESS 5
+		: spr_text_erfolg_0 0xEE 0x8A 0xCE 0x8C 0xEA # "ERFOLG!"
+		: spr_text_erfolg_1 0xEE 0x8A 0xCA 0x8A 0x8E
+		: spr_text_erfolg_2 0x9D 0x91 0x95 0x94 0xDD
+	slice_end
+
+
+	slice_begin SLICE_TEXT_START 5
+		: spr_text_start_0 0x49 0xA9 0xED 0xAB 0xA9 # "ANFANG"
+		: spr_text_start_1 0xE4 0x8A 0xEE 0x8A 0x8A
+		: spr_text_start_2 0x97 0x94 0xD4 0xB5 0x97
+	slice_end
+
+	slice_begin SLICE_TEXT_CONTINUE 5
+		: spr_text_continue_0 0xEE 0x8A 0xCA 0x8A 0x8E # "FORTSETZEN"
+		: spr_text_continue_1 0xEE 0xA4 0xE4 0xC4 0xA4
+		: spr_text_continue_2 0xEE 0x88 0xEC 0x28 0xEE
+		: spr_text_continue_3 0xEE 0x42 0x44 0x48 0x4E
+		: spr_text_continue_4 0xE9 0x89 0xCD 0x8B 0xE9
+	slice_end
+
+
+	# H8 - Bergsteigersimulator
+	slice_begin SLICE_TEXT_SUBTITLE 5
+		: spr_title_sub_be	0xCE 0xA8 0xCC 0xA8 0xCE # BE
+		: spr_title_sub_rg	0xCE 0xA8 0xCA 0xAA 0xAE # RG
+		: spr_title_sub_st 	0xEE 0x84 0xE4 0x24 0xE4 # ST
+		: spr_title_sub_ei 	0xEB 0x8A 0xCA 0x8A 0xEB # EI 1/2 G
+		: spr_title_sub_ge 	0xBB 0x22 0xB3 0xA2 0xBA # GE 2 col R
+		: spr_title_sub_rsi 0xBA 0xA2 0x3A 0x8A 0xBA # 1 col R,SI
+		: spr_title_sub_m 	0x8A 0xDA 0xAA 0x8A 0x8B # M 1/2 U
+		: spr_title_sub_ula 0xA1 0xA2 0xA3 0xA2 0xBA # 1/2 u L 1/2A
+		: spr_title_sub_TO	0x3B 0x92 0x92 0x92 0x93 # 1/2 A, T, 1/2 O
+		: spr_title_sub_R 	0xB8 0xA8 0xB0 0xA8 0xA8 # 1/2 O, R
+	slice_end
+
+	slice_begin SLICE_TEXT_PITCH_NAME_A 5
+		: spr_text_pitch_name_a0 0x00 0x55 0x00 0x00 0x00
+		: spr_text_pitch_name_a1 0x00 0x55 0x00 0x00 0x00
+		: spr_text_pitch_name_a2 0x00 0x55 0x00 0x00 0x00
+	slice_end
+
+	slice_begin SLICE_TEXT_PRESS_KEY 5
+		: spr_text_drucke_0 0xCE 0xAA 0xAE 0xAC 0xCA  # "DRUCKE EINE TASTE"
+		: spr_text_drucke_1 0xAD 0x09 0xA9 0xA9 0xED
+		: spr_text_drucke_2 0x5C 0x90 0x18 0x90 0x5C
+		: spr_text_drucke_3 0xEA 0x8A 0xCB 0x8A 0xEA
+		: spr_text_drucke_4 0x5C 0x50 0x58 0xD0 0x5C
+		: spr_text_drucke_5 0xE4 0x4A 0x4E 0x4A 0x4A
+		: spr_text_drucke_6 0xEE 0x84 0xE4 0x24 0xE4
+		: spr_text_drucke_7 0xE0 0x80 0xC0 0x80 0xE0
+	slice_end
+
+	slice_begin SLICE_SHADES 8
+	: spr_shades_left 0x7F 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
+	: spr_shades_right 0xFE 0xFF 0xFF 0xFF 0xFF 0xFF 0x7E 0x3C
+	slice_end
+
+	#define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
+	#define_text SPR_TEXT_I : spr_text_I 0x80 0x80 0x80 0x80 0x80					# "I"
+	#define_text SPR_TEXT_- : spr_text_- 0x00 0x00 0xE0 0x00 0x00					# "-"
+	#define_text SPR_TEXT_+ : spr_text_+ 0x00 0x40 0xE0 0x40 0x00					# "+"
+	#define_text SPR_TEXT_X : spr_text_X 0xA0 0xA0 0x40 0xA0 0xA0 					# "X"
+
+
+
+
+	:macro calc-center span-size item-size offset-to-span {
+		:calc center-offset { ( ( span-size - item-size ) / 2 ) + offset-to-span }
+	}
+
+
+	:const Screen_Table_Bytes 2
+	:const Screen_Count 9
+	: screen_table
+		:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
+		:calc screen_table_end { HERE + screen_table_bytes }
+		:org screen_table_end
+
+
+	### Screens
+	# Screen are stored in an index table as:
+	#		addr-hi, addr-lo
+
+	# Screen data is stored as a string of steps:
+	# addr-of-next prescaler ticks-till-next
+	# < step data >
+	# addr-of-next prescaler ticks-till-next
+	# ...
+	# 0x0000 <- no next
+	# < step data >
+
+	# A step is shown until the ticks elapse, then the next step is shown
+
+	# Step Data
+	# Inside the screen step is a series of 'features'
+	# A feature is defined as:
+	# Type - Display a slice, animate a slice, etc
+	# A variable amount of data depending on type
+	# Display slice:
+	#		Slice_ID x y
+	# Animate slice:
+	#		Slice_ID x1 y1 x2 y2 <maybe some timing stuff>
+
+
+	:const FEATURE_DISPLAY_SLICE 0
+	:const FEATURE_DISPLAY_SPRITE16 2
+	:const FEATURE_SETUP_ANIMATION_SLIDE_X 4
+	:const FEATURE_SETUP_ANIMATION_BOUNCE_Y 6
+	:const FEATURE_END 0xFF
+
+
+	:calc screen_acc { 0 }
+	:macro screen_begin id {
+		:calc id { screen_acc }
+		:calc screen-id { id }
+		:calc screen-addr { HERE }
+	}
+	:macro screen_end {
+		# emit a FEATURE_END
+		:byte FEATURE_END
+		:calc old-here { HERE }
+		:calc screen-end-addr { HERE }
+		:calc addr { screen_table + screen-id }
+		:org addr
+		hilo screen-addr
+		:byte hi
+		:byte lo
+		:org old-here
+
+		:calc screen_acc { screen_acc + Screen_Table_Bytes }
+	}
+
+	:macro step_begin prescaler ticks {
+		:calc step_next_addr { HERE }
+		:calc step_prescaler_addr { HERE + 2 }
+		:org step_prescaler_addr
+		:byte prescaler
+		:byte ticks
+		:calc step_body_addr { HERE }
+		:org step_body_addr
+	}
+
+	# Save the address of the next step at the beginning of the step
+	:macro step_end {
+		:calc old-here { HERE }
+		:org step_next_addr
+		hilo old-here
+		:byte hi
+		:byte lo
+		:org old-here
+	}
+
+
+	:macro feature_display_slice slice-id x y {
+		:byte FEATURE_DISPLAY_SLICE
+		:byte slice-id
+		:byte x
+		:byte y
+	}
+
+	:macro feature_display_sprite16 sprite-addr x y {
+		:byte FEATURE_DISPLAY_SPRITE16
+		hilo sprite-addr
+		:byte hi
+		:byte lo
+		:byte x
+		:byte y
+	}
+
+	:macro feature-setup-animation-slide-x animator-id slice-id x y steps increment steps-per-ease {
+		:byte FEATURE_SETUP_ANIMATION_SLIDE_X
+		:byte animator-id
+		:byte slice-id
+		:byte x
+		:byte y
+		:byte steps
+		:byte increment
+		:byte steps-per-ease
+	}
+
+	:macro feature-setup-animation-bounce-y animator-id slice-id x y limit {
+		:byte FEATURE_SETUP_ANIMATION_BOUNCE_Y
+		:byte animator-id
+		:byte slice-id
+		:byte x
+		:byte y
+		:byte limit
+	}
+
+
+	: screen_definitions
+
+	: screen_title
+
+	:const TITLE_CHAR_WIDTH 16
+	:const TITLE_H8_YOFFSET 12
+	:const TITLE_H8_SPACING 6
+	:calc TITLE_H8_XSKIP { TITLE_H8_SPACING + 16 }
+	:calc TITLE_H8_XOFFSET { 64 - ( ( TITLE_CHAR_WIDTH + TITLE_H8_XSKIP ) / 2 ) }
+	:calc TITLE_LH_XOFFSET { TITLE_H8_XOFFSET / 3 }
+	:calc TITLE_LH_YOFFSET { 64 - 6 }
+	:calc TITLE_RH_XOFFSET { TITLE_H8_XOFFSET + 19 }
+	:calc TITLE_RH_YOFFSET { TITLE_H8_YOFFSET + 27 }
+	:const TITLE_SUB_WIDTH 8
+	:const TITLE_SUB_HEIGHT 5
+	:const TITLE_SUB_TILES 10
+	:calc TITLE_SUB_TOTAL_WIDTH { ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) - 3 } # Subtract for empty cols at end
+	:calc TITLE_SUB_XOFFSET { 64 - ( TITLE_SUB_TOTAL_WIDTH / 2 ) }
+	:calc TITLE_SUB_YOFFSET { TITLE_H8_YOFFSET - 10 }
+	:calc TITLE_SUB_XEND { TITLE_SUB_XOFFSET + ( TITLE_SUB_WIDTH * TITLE_SUB_TILES ) }
+	:const Title_Begin_Num 4
+	:const Title_Continue_Num 5
+	:const Title_Select_Marker_X 2
+	:const Title_Select_Marker_Y 50
+	:const Title_Select_Marker_Select_Offset 70
+	:const Title_Select_Marker_Text_Offset 49
+	:const Title_Delay 20
+	:calc Title_Select_Start_X { Title_Select_Marker_X + 11 }
+	:calc Title_Select_Start_Y { Title_Select_Marker_Y }
+	:calc Title_Select_Marker_Continue_X { Title_Select_Marker_X + Title_Select_Marker_Select_Offset + 7 }
+
+	screen_begin SCREEN_TITLE
+		step_begin 1 1
+			feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
+
+			:calc title_x { TITLE_H8_XOFFSET }
+			:calc title_y { TITLE_H8_YOFFSET }
+			feature_display_sprite16 spr_title_htop title_x title_y
+			:calc title_x { TITLE_H8_XOFFSET + TITLE_H8_XSKIP }
+			feature_display_sprite16 spr_title_8top title_x title_y
+
+			:calc title_x { TITLE_H8_XOFFSET }
+			:calc title_y { TITLE_H8_YOFFSET + 16 }
+			feature_display_sprite16 spr_title_hbot title_x title_y
+			:calc title_x { TITLE_H8_XOFFSET + TITLE_H8_XSKIP }
+			feature_display_sprite16 spr_title_8bot title_x title_y
+
+			#feature_display_slice SLICE_TEXT_START Title_Select_Start_X Title_Select_Start_Y
+			#feature-setup-animation-slide-x 0 SLICE_TEXT_START 20 10 50 1 5
+			#feature-setup-animation-bounce-y 0 SLICE_TEXT_START 80 50 6
+		step_end
+	screen_end
+
+	screen_begin SCREEN_TITLE_SELECT_START_ONLY
+		step_begin 1 1
+			feature-setup-animation-bounce-y 0 SLICE_TEXT_START 80 50 6
+		step_end
+	screen_end
+
+	screen_begin SCREEN_TITLE_SELECT_START
+		step_begin 1 1
+			feature_display_slice SLICE_TEXT_START Title_Select_Start_X Title_Select_Start_Y
+			feature-setup-animation-bounce-y 0 SLICE_TEXT_START 80 50 6
+		step_end
+	screen_end
+
+	screen_begin SCREEN_TITLE_SELECT_CONTINUE
+		step_begin 1 1
+			feature-setup-animation-bounce-y 0 SLICE_TEXT_CONTINUE 80 50 6
+		step_end
+	screen_end
+
+
+	:calc Intro_Pitch_Y { 10 }
+	:calc Intro_Grade_Y { 20 }
+	:calc Intro_Par_Y { 30 }
+
+	: screen_intro_outro_base
+	screen_begin SCREEN_INTRO_OUTRO_BASE
+		step_begin 1 1
+			feature_display_slice SLICE_TEXT_PITCH 6 Intro_Pitch_Y
+			feature_display_slice SLICE_TEXT_GRADE 6 Intro_Grade_Y
+			feature_display_slice SLICE_TEXT_COLON 22 Intro_Grade_Y
+			feature_display_slice SLICE_TEXT_PAR 6 Intro_Par_Y
+			feature_display_slice SLICE_TEXT_COLON 18 Intro_Par_Y
+
+		#	:calc Inter_PressKey_X { 37 }
+		#	:calc Inter_PressKey_Y { 55 }
+		#	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
+		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		#	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
+		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		#	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
+		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		#	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
+		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		#	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
+		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		#	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
+		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		#	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
+		#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
+		#	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
+		#	:byte SPR_TEXT_END
+
+			#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
+
+		step_end
+	screen_end
+
+	: screen_presskey
+	screen_begin SCREEN_PRESSKEY
+	step_begin 1 1
+		feature_display_slice SLICE_TEXT_PRESS_KEY 37 55
+	step_end
+	screen_end
+
+	: screen_mapinfo_A
+	screen_begin SCREEN_MAPINFO_A
+		step_begin 1 1
+			feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Pitch_Y
+			feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Grade_Y
+			feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Par_Y
+		step_end
+	screen_end
+
+	: screen_mapinfo_B
+	screen_begin SCREEN_MAPINFO_B
+		step_begin 1 1
+			feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Pitch_Y
+			feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Grade_Y
+			feature_display_slice SLICE_TEXT_PITCH_NAME_A 35 Intro_Par_Y
+		step_end
+	screen_end
+
+	: screen_win
+	screen_begin SCREEN_WIN
+		step_begin 1 1
+			#feature_display_slice SLICE_TEXT_SUBTITLE TITLE_SUB_XOFFSET TITLE_SUB_YOFFSET
+
+		step_end
+	screen_end
+
+
+
+	# In:
+	#		v0 := slice-id
+	#		v4 := x
+	#		v5 := y
+	: slice_draw
+		i := slice_table
+		i += v0
+		load v3
+		vF := 0xA0
+		v0 |= vF
+		:calc addr { HERE + 4 }
+		i := addr
+		save v1
+		i := addr
+
+		v0 <<= v3
+		v0 <<= v0
+		loop
+		while v2 != 0
+			jump0 slice_draw_sprite_by_height
+			: slice_draw_sprite_return
+			v4 += 8
+			v2 += -1
+			i += v3
+		again
+		;
+
+	: slice_draw_sprite_by_height
+		sprite v4 v5 1 jump slice_draw_sprite_return
+		sprite v4 v5 1 jump slice_draw_sprite_return
+		sprite v4 v5 2 jump slice_draw_sprite_return
+		sprite v4 v5 3 jump slice_draw_sprite_return
+		sprite v4 v5 4 jump slice_draw_sprite_return
+		sprite v4 v5 5 jump slice_draw_sprite_return
+		sprite v4 v5 6 jump slice_draw_sprite_return
+		sprite v4 v5 7 jump slice_draw_sprite_return
+		sprite v4 v5 8 jump slice_draw_sprite_return
+
+
+	# Screen state:
+	#		Stores status about screen step
+	# 	prescalar, ticks to next, addr-of-next-hi, addr-of-next-lo, counts
+	: screen_state
+	: screen_state_next 0 0
+	: screen_state_prescalar 0
+	: screen_state_ticks_to_next 0
+	: screen_state_counts 0
+	: screen_state_current 0 0
+
+	: screen_advance
+		i := screen_state
+		load v4
+		v4 += 1
+		if v4 != v0 then jump screen_advance_save
+
+		v4 := 0
+		v1 += -1
+		if v1 != 0 then jump screen_advance_save
+
+		i := screen_state_next
+		load v1
+		step_load
+		;
+	: screen_advance_save
+		i := screen_state
+		save v4
+		;
+
+	: step_load_feature
+		i := screen_state_current
+		load v1
+
+		set_i_to_v0v1
+		# i = feature data
+		load v0
+		;
+
+	# Draws any sprites and sets up animations
+	: step_init
+		loop
+			step_load_feature
+		while v0 != FEATURE_END
+			jump0 feature_handler_jumptable
+			: feature_handler_return
+			feature_handler_advance_current		# vF set by handler
+
+		again
+		;
+
+	: feature_handler_jumptable
+		jump feature_handler_display_slice
+		jump feature_handler_display_sprite16
+		jump feature_handler_setup_animation_slide_x
+		jump feature_handler_setup_animation_bounce_y
+
+	: feature_handler_display_slice
+		load v2
+		v4 := v1
+		v5 := v2
+		slice_draw
+		vF := 4
+		jump feature_handler_return
+
+	: feature_handler_display_sprite16
+		load v3
+		set_i_to_v0v1
+		sprite v2 v3 0
+		vF := 5
+		jump feature_handler_return
+
+
+	:const ANIMATOR_TYPE_NONE 0
+	:const ANIMATOR_TYPE_SLIDE_X 2
+	:const ANIMATOR_TYPE_BOUNCE_Y 4
+
+	:const ANIMATOR_0 0
+	: animator_data
+
+	: animator_type 0
+	: animator_sliceid 0
+	: animator_posn 0 0
+	: animator_steps 0
+	: animator_incr 0
+	: animator_ease_target 0
+	: animator_ease_state 0
+	: animator_ease_counter 0
+
+
+	: feature_handler_setup_animation_slide_x
+		load v6
+		i := animator_data
+		i += v0
+
+		v0 := ANIMATOR_TYPE_SLIDE_X
+		save v0		# save type
+
+		v0 := v1
+		save v0		# save slice id
+
+		v0 := v2
+		v1 := v3
+		save v1		# save posn
+
+		v0 := v4
+		v1 := v5
+		save v1		# save steps and increment
+
+		v0 := v6
+		v1 := 0
+		v2 := 0
+		save v2		# save steps per ease and ease state & counter
+
+		animator_draw_slice
+
+		vF := 8
+		jump feature_handler_return
+
+	: feature_handler_setup_animation_bounce_y
+		load v4
+		i := animator_data
+		i += v0
+
+		v0 := ANIMATOR_TYPE_BOUNCE_Y
+		save v0
+		v0 := v1
+		save v0
+		v0 := v2
+		v1 := v3
+		save v1
+		v0 := 0
+		v1 := -1
+		v2 := v4
+		save v2
+
+		animator_draw_slice
+
+		vF := 6
+		jump feature_handler_return
+
+
+	# In: vF := offset
+	: feature_handler_advance_current
+		i := screen_state_current
+		load v1
+		v1 += vF
+		if vF != 0 then v0 += 1
+		i := screen_state_current
+		save v1
+		;
+
+	: set_i_to_v0v1
+		vF := 0xA0
+		v0 |= vF
+		:calc addr { HERE + 4 }
+		i := addr
+		save v1
+		i := addr
+		;
+
+	: screen_update
+	# Advances any animations setup by step_begin
+	: step_continue
+		# for each animator, do the animation
+		i := animator_data
+		load v0
+		jump0 animator_continue_handler_jumptable
+	: animator_continue_handler_jumptable
+		return	# none
+		jump animator_continue_handler_slide_x
+		jump animator_continue_handler_bounce_y
+
+	: animator_draw_slice
+		i := animator_sliceid
+		load v2
+		v4 := v1
+		v5 := v2
+		slice_draw
+		;
+
+	: animator_continue_handler_slide_x
+
+		i := animator_steps
+		load v0
+		if v0 == 0 then return	# if steps = 0, we are done
+
+		animator_draw_slice
+
+		i := animator_sliceid
+		load v4
+		v3 += -1
+		v1 += v4
+		i := animator_sliceid
+		save v3
+
+		animator_draw_slice
+		;
+
+	: animator_continue_handler_bounce_y
+
+		animator_draw_slice
+		i := animator_sliceid
+		load v5
+
+		v2 += v4
+		v3 += 1
+		if v3 != v5 then jump animator_continue_handler_bounce_y_not_at_limit
+		v3 := 0
+		#vF := 0
+		v4 =- v3 #vF
+		: animator_continue_handler_bounce_y_not_at_limit
+		i := animator_sliceid
+		save v5
+
+		animator_draw_slice
+		;
+
+	: screen_run
+		screen_advance
+		;
+
+	# in: v0/v1 = address of step data
+	# out: screen_state set to loaded step data
+	: step_load
+		# Save the address of the first feature of the step ( 4 bytes later )
+		v2 := v0
+		v3 := v1
+		vF := 4
+		v1 += vF
+		if vF != 0 then v0 += 1
+		i := screen_state_current
+		save v1
+
+		# Restore v0/v1
+		v0 := v2
+		v1 := v3
+
+		vF := 0xA0
+		v0 |= vF
+		:calc addr { HERE + 4 }
+		i := addr
+		save v1
+		i := addr
+		# i = step data
+		load v3
+		i := screen_state
+		save v3
+		v0 := 0
+		save v0		# reset counts
+		step_init
+		;
+
+	: step_load_next
+		i := screen_state_next
+		load v1
+		step_load
+		;
+
+
+	# Begin showing a screen
+	# In: v0 = screen id
+	: screen_init
+		# look up address of first step of the screen in screen table
+		i := screen_table
+		i += v0
+		load v1
+
+		step_load # load the first step
+		;
+
+
+
+
+
+	:const SPR_TEXT_END 0xFF
+
+
+
+
+	### Climbing legal moves table
+	# This is entirely from the perspective of the left arm
+
+	# Creates 1 line of the table, limits are adjusted by left-cut right-cut (not absolute)
+	:macro climbing_limit_table_entry left-cut right-cut {
+		:calc left-lim { climbing_left + left-cut }			# Calc limits
+		:calc right-lim { ( ( climbing_right - right-cut ) - ( climbing_leftright_offset * 3 ) ) - climbing_hand_width }
+		:byte left-lim :byte right-lim												# Output bytes
+	}
+
+	# In: v0 = y-coordinate
+	# Out: v0 = left-limit, v1 = right limit
+	:macro climbing_limit_lookup {
+		v0 <<= v0
+		i := climbing_limit_table
+		i += v0
+		load v1
+	}
+
+	: climbing_set_limits_lefthand
+		v0 := Climbing_TempY
+		climbing_limit_lookup
+		Climbing_Limit_Left := v0
+		Climbing_Limit_Right := v1
+		;
+
+	: climbing_set_limits_righthand
+		v0 := Climbing_TempY
+		climbing_limit_lookup
+		Climbing_Limit_Left := climbing_right
+		Climbing_Limit_Left -= v1
+		Climbing_Limit_Right := climbing_right
+		Climbing_Limit_Right -= v0
+		;
+
+	: climbing_set_limits_leftfoot
+		v0 := 63
+		v0 -= Climbing_TempY
+		climbing_limit_lookup
+		Climbing_Limit_Left := v0
+		Climbing_Limit_Right := v1
+		;
+
+	: climbing_set_limits_rightfoot
+		v0 := 63
+		v0 -= Climbing_TempY
+		climbing_limit_lookup
+		Climbing_Limit_Left := climbing_right
+		Climbing_Limit_Left -= v1
+		Climbing_Limit_Right := climbing_right
+		Climbing_Limit_Right -= v0
+		;
+
+
+	: climbing_limit_table
+	# Given a Y coordinate, return the X limits. Numbers given are the pixels 'cut out'
+	# from the edge, but the table is actually filled with raw screen x coordinates
+		climbing_limit_table_entry 17 17		#  0
+		climbing_limit_table_entry 14 14		#  1
+		climbing_limit_table_entry 12 12		#  2
+		climbing_limit_table_entry 10 10		#  3
+		climbing_limit_table_entry  9  9		#  4
+		climbing_limit_table_entry  8  8		#  5
+		climbing_limit_table_entry  7  7		#  6
+		climbing_limit_table_entry  6  6		#  7
+		climbing_limit_table_entry  5  5		#  8
+		climbing_limit_table_entry  4  4		#  9
+		climbing_limit_table_entry  4  4		# 10
+		climbing_limit_table_entry  3  3		# 11
+		climbing_limit_table_entry  3  3		# 12
+		climbing_limit_table_entry  2  2		# 13
+		climbing_limit_table_entry  2  2		# 14
+		climbing_limit_table_entry  2  2		# 15
+		climbing_limit_table_entry  1  1		# 16
+		climbing_limit_table_entry  1  1		# 17
+		climbing_limit_table_entry  1  1		# 18
+		climbing_limit_table_entry  1  1		# 19
+		climbing_limit_table_entry  0  0		# 20
+		climbing_limit_table_entry  0  0		# 21
+		climbing_limit_table_entry  0  0		# 22
+		climbing_limit_table_entry  0  0		# 23
+		climbing_limit_table_entry  0  0		# 24
+		climbing_limit_table_entry  0  0		# 25
+		climbing_limit_table_entry  0  0		# 26
+		climbing_limit_table_entry  0  0		# 27
+		climbing_limit_table_entry  0  0		# 28
+		climbing_limit_table_entry  0  0		# 29
+		climbing_limit_table_entry  0  0		# 30
+		climbing_limit_table_entry  0  0		# 31
+		climbing_limit_table_entry  0  0		# 32
+		climbing_limit_table_entry  0  0		# 33
+		climbing_limit_table_entry  0  0		# 34
+		climbing_limit_table_entry  0  0		# 35
+		climbing_limit_table_entry  0  0		# 36
+		climbing_limit_table_entry  0  0		# 37
+		climbing_limit_table_entry  0  0		# 38
+		climbing_limit_table_entry  0  0		# 39
+		climbing_limit_table_entry  0  0		# 40
+		climbing_limit_table_entry  0  0		# 41
+		climbing_limit_table_entry  0  0		# 42
+		climbing_limit_table_entry  0  0		# 43
+		climbing_limit_table_entry  0  0		# 44
+		climbing_limit_table_entry  0  0		# 45
+		climbing_limit_table_entry  0  0		# 46
+		climbing_limit_table_entry  0  0		# 47
+		climbing_limit_table_entry  0  0		# 48
+		climbing_limit_table_entry  0  0		# 49
+		climbing_limit_table_entry  0  0		# 50
+		climbing_limit_table_entry  0  0		# 51
+		climbing_limit_table_entry  0  0		# 52
+		climbing_limit_table_entry  0  0		# 53
+		climbing_limit_table_entry  0  0		# 54
+		climbing_limit_table_entry  1  1		# 55
+		climbing_limit_table_entry  1  1		# 56
+		climbing_limit_table_entry  1  1		# 57
+		climbing_limit_table_entry  2  2		# 58
+		climbing_limit_table_entry  2  2		# 59
+		climbing_limit_table_entry  3  3		# 60
+		climbing_limit_table_entry  4  4		# 61
+		climbing_limit_table_entry  6  6		# 62
+		climbing_limit_table_entry  9  9		# 63
+
+	:macro text_entry spr-id x y {
+		:byte spr-id :byte x :byte y
+	}
+
+	:calc Outro_Erfolg_X { 52 }
+	:calc Outro_Erfolg_Y { 16 }
+
+	### Level Map
+
+	:macro maptile-reset {
+		Climbing_TempX := 0
+		Climbing_TempX -= Climbing_X
+		Climbing_TempY := 0
+		Climbing_TempY -= Climbing_Y
+		:calc maptile-lastx { 0 }
+		:calc maptile-lasty { 0 }
+	}
+
+	:macro maptile-entry x y sprite-addr {
+		i := sprite-addr
+		:calc maptile-deltax { x - maptile-lastx }
+		:calc maptile-lastx { x }
+		:calc maptile-deltay { y - maptile-lasty }
+		:calc maptile-lasty { y }
+
+		Climbing_TempX += maptile-deltax
+		Climbing_TempY += maptile-deltay
+
+		climbing_map_check_limits_and_sprite
+	}
+
+	: climbing_map_check_limits_and_sprite
+		v0 := 0
+		# Check Y limit
+		vF := 0xC0
+		vF &= Climbing_TempY
+		if vF != 0 then return
+
+		# Check X limits
+		vF := 96
+		vF =- Climbing_TempX
+		if vF != 0 then return
+		vF := 16
+		vF =- Climbing_TempX
+		if vF != 0 then sprite Climbing_TempX Climbing_TempY Hold_Height
+		;
+
+
+	## Tiles
+	# Tiles are 128x128
+	# Climbing_X, Climbing_Y are the offset into the map
+	#
+
+
+	# Emit the address of the current location in the map index
+	# Call this at the address of each map tile
+	:macro map_tileindex_emit tile-x tile-y {
+		:calc old-here { HERE }
+		hilo old-here
+		:calc addr { Map_TileIndex_Addr_Current + ( tile-y * 2 * map-current-width ) + ( tile-x * 2 ) }
+		:org addr
+		:byte hi :byte lo
+		:org old-here
+	}
+
+
+	:macro map_data_emit {
+		:calc old-here { HERE }
+		:calc addr { Map_Data_Addr_Current }
+		:org addr
+		:byte player-start-tilex
+		:byte player-start-tiley
+
+		:calc avg-x { ( player-start-hold-lh-x + player-start-hold-rh-x + player-start-hold-lf-x + player-start-hold-rf-x ) / 4 }
+		:calc avg-y { ( player-start-hold-lh-y + player-start-hold-rh-y + player-start-hold-lf-y + player-start-hold-rf-y ) / 4 }
+
+		:calc start-offset-x { avg-x - Climbing_Center_X }
+		:calc start-offset-y { avg-y - Climbing_Center_Y }
+		:byte start-offset-x
+		:byte start-offset-y
+
+		:calc player-start-lefthand-x { ( player-start-hold-lh-x - avg-x ) + Climbing_Center_X }
+		:byte player-start-lefthand-x
+		:calc player-start-lefthand-y { ( player-start-hold-lh-y - avg-y ) + Climbing_Center_Y }
+		:byte player-start-lefthand-y
+
+		:calc player-start-righthand-x { ( player-start-hold-rh-x - avg-x ) + Climbing_Center_X }
+		:byte player-start-righthand-x
+		:calc player-start-righthand-y { ( player-start-hold-rh-y - avg-y ) + Climbing_Center_Y }
+		:byte player-start-righthand-y
+
+		:calc player-start-leftfoot-x { ( player-start-hold-lf-x - avg-x ) + Climbing_Center_X }
+		:byte player-start-leftfoot-x
+		:calc player-start-leftfoot-y { ( ( player-start-hold-lf-y - avg-y ) + Climbing_Center_Y ) - 16 }
+		:byte player-start-leftfoot-y
+
+		:calc player-start-rightfoot-x { ( player-start-hold-rf-x - avg-x ) + Climbing_Center_X }
+		:byte player-start-rightfoot-x
+		:calc player-start-rightfoot-y { ( ( player-start-hold-rf-y - avg-y ) + Climbing_Center_Y ) - 16 }
+		:byte player-start-rightfoot-y
+
+		:byte player-end-tilex
+		:byte player-end-tiley
+
+		:org old-here
+	}
+
+	:macro map_info_emit {
+		:calc old-here { HERE }
+		:calc addr { Map_Info_Addr_Current }
+		:org addr
+			:byte map-info-id
+		:org old-here
+	}
+
+	:macro map_next_emit {
+		:calc old-here { HERE }
+		:calc addr { Map_Next_Addr_Current }
+		:org addr
+			jump map-next-address
+		:org old-here
+	}
+
+
+	# Intended to reset any offsets/etc needed when creating the map
+	# index-label: the label to set to the address of the map's tile index
+	:calc map_id_incr { 0 }
+	:macro map_begin map-id map-width map-height map-info-screen-id load-next-map-function mapdata-label tileindex-label {
+		:calc map-id { map_id_incr }
+		:calc map_id_incr { map_id_incr + 2 }
+		:calc map-current-width { map-width }
+		:calc map-current-height { map-height }
+		:calc map-current-tiles { map-current-height * map-current-width }
+		:calc mapdata-label { Map_Data_Addr_Current }
+		:calc tileindex-label { Map_TileIndex_Addr_Current }
+		:calc map-info-id { map-info-screen-id }
+		:calc map-next-address { load-next-map-function }
+	}
+
+	:macro map_end {
+		map_data_emit
+		map_info_emit
+		map_next_emit
+		# Advance to the next addresses
+		:calc Map_Data_Addr_Current { Map_Data_Addr_Current + Map_Data_Bytes }
+		:calc Map_TileIndex_Addr_Current { Map_TileIndex_Addr_Current + ( 2 * map-current-tiles ) }
+		:calc Map_Info_Addr_Current { Map_Info_Addr_Current + 1 }
+		:calc Map_Next_Addr_Current { Map_Next_Addr_Current + 2 }
+	}
+
+	# Begin a new tile of the map
+	:macro map_begintile x y {
+		:calc maptile_x { x }
+		:calc maptile_y { y }
+		:calc map_x { 0 }
+		:calc map_y { 0 }
+		map_tileindex_emit x y
+	}
+
+	# Add a hold to the map tile
+	# x, y are offsets into the tile,
+	# w is the width of the tile
+	# This fills the table with the delta between this hold and the previous
+	# so that the sprite index registers can be incrementally changed, saving an instruction
+	:macro map_entry spr_id x y w {
+		:calc hold-x { x }
+		:calc hold-y { y }
+		:byte spr_id
+		:calc x-delta { x - map_x }
+		:byte x-delta
+		:calc map_x { x }
+		:calc y-delta { y - map_y }
+		:byte y-delta
+		:calc map_y { y }
+	}
+
+	# Finish this tile of the map.
+	# Emits the END sigil and outputs the minimap.
+	:macro map_endtile {
+		:byte HOLD_END
+	}
+
+	:macro map_is_player_start_tile {
+		:calc player-start-tilex { maptile_x }
+		:calc player-start-tiley { maptile_y }
+	}
+	:macro map_is_goal_tile {
+		:calc player-end-tilex { maptile_x }
+		:calc player-end-tiley { maptile_y }
+	}
+
+	:macro map_is_player_start_lh {
+		:calc player-start-hold-lh-x { hold-x }
+		:calc player-start-hold-lh-y { hold-y }
+	}
+	:macro map_is_player_start_rh {
+		:calc player-start-hold-rh-x { hold-x }
+		:calc player-start-hold-rh-y { hold-y }
+	}
+	:macro map_is_player_start_lf {
+		:calc player-start-hold-lf-x { hold-x }
+		:calc player-start-hold-lf-y { hold-y }
+	}
+	:macro map_is_player_start_rf {
+		:calc player-start-hold-rf-x { hold-x }
+		:calc player-start-hold-rf-y { hold-y }
+	}
+
+	######################
+	### Map Definition ###
+	######################
+
+
+
+	# Begin defining a map
+	map_begin MAP_A MAP_A_WIDTH MAP_A_HEIGHT SCREEN_MAPINFO_A map_load_B_stub Map_Data_A_Address Maptile_Index_A_Address
+
+		# bottom
+		map_begintile 1 2
+			map_is_player_start_tile
+			map_entry HOLD_3X8 37 108 8
+			map_entry HOLD_3X8 47 118 8 map_is_player_start_lf
+			map_entry HOLD_3X8 75 120 8 map_is_player_start_rf
+			map_entry HOLD_3X8 89 104 8
+
+			map_entry HOLD_3X3 28 95 3
+			map_entry HOLD_3X3 99 99 3
+
+			map_entry HOLD_3X4 35 92 4 map_is_player_start_lh
+			map_entry HOLD_3X4 80 80 4 map_is_player_start_rh
+
+			map_entry HOLD_3X3 41 74 3
+			map_entry HOLD_3X3 59 59 3
+			map_entry HOLD_3X3 73 77 3
+
+
+			map_entry HOLD_3X3 39 59 3
+			map_entry HOLD_3X3 68 55 3
+
+
+			map_entry HOLD_3X3 25 42 3
+			map_entry HOLD_3X3 65 47 3
+
+		map_endtile
+
+		map_begintile 1 0
+			map_is_goal_tile
+		map_endtile
+
+	map_end
+
+	map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT SCREEN_MAPINFO_B main Map_Data_B_Address Maptile_Index_B_Address
+	#: maptile_2_0
+		map_begintile 2 0
+			map_is_goal_tile
+		map_endtile
+
+		map_begintile 2 1
+			map_is_player_start_tile
+			map_entry HOLD_3X5 20  4 5
+			map_entry HOLD_3X5 20 30 5 map_is_player_start_lh
+			map_entry HOLD_3X5 20 60 5 map_is_player_start_lf
+			map_entry HOLD_3X5 20 90 5
+			map_entry HOLD_3X5 20 110 5
+
+			map_entry HOLD_3X5 50  4 5
+			map_entry HOLD_3X5 50 30 5 map_is_player_start_rh
+			map_entry HOLD_3X5 50 60 5 map_is_player_start_rf
+			map_entry HOLD_3X5 50 90 5
+			map_entry HOLD_3X5 50 110 5
+
+			map_entry HOLD_3X5 80  4 5
+			map_entry HOLD_3X5 80 30 5
+			map_entry HOLD_3X5 80 60 5
+			map_entry HOLD_3X5 80 90 5
+			map_entry HOLD_3X5 80 110 5
+
+			map_entry HOLD_3X5 110  4 5
+			map_entry HOLD_3X5 110 30 5
+			map_entry HOLD_3X5 110 60 5
+			map_entry HOLD_3X5 110 90 5
+			map_entry HOLD_3X5 110 110 5
+		map_endtile
+	map_end
+
+	# Special empty tile for uninitialized map tiles
+	: maptile_empty
+		:byte HOLD_END
+
+	##########################
+	### End Map Definition ###
+	##########################
+
+
+
+	# Waits for a keypress, then waits until no keys are pressed
+	: wait_any_key_plus_debounce
+		v0 := 0
+		loop
+			while v0 -key
+			v0 += 1
+			if v0 == 16 then v0 := 0
+		again
+		loop
+			v0 := 0
+			v1 := 0
+			loop
+				while v0 != 16
+				if v0 key then v1 := 1
+				v0 += 1
+			again
+		while v1 != 0
+		again
+		;
+
+
+	:const Wipe_Delay 1
+	: wipe
+		v0 := 0
+		v1 := random 1
+		loop
+			if v1 == 0 then wipe_left
+			if v1 == 1 then wipe_right
+			v0 += 12
+		while v0 != 128
+			vF := Wipe_Delay
+			delay := vF
+			loop
+				vF := delay
+			while vF != 0
+			again
+		again
+		;
+
+	: wipe_left
+		scroll-left
+		scroll-left
+		scroll-left
+		;
+
+	: wipe_right
+		scroll-right
+		scroll-right
+		scroll-right
+		;
+
+
+	: map_load_info_screen
+		i := climbing_data_currentmap
+		load v0
+		i := map_info_id_table
+		i += v0
+		load v0
+		;
+
+	: intro_display
+		v0 := SCREEN_INTRO_OUTRO_BASE
+		screen_init
+		map_load_info_screen
+		screen_init
+		v0 := SCREEN_PRESSKEY
+		screen_init
+		;
+
+	: outro_display
+		v0 := SCREEN_INTRO_OUTRO_BASE
+		screen_init
+		map_load_info_screen
+		screen_init
+		;
+
+	: win_display
+		v0 := SCREEN_WIN
+		screen_init
+		;
+
+	: load_next_map
+		Trampoline: load_next_tramp_jump
+		;
+
+	:const Clock_Ticks_Overflow 147
+	:const Clock_X 96
+	:const Clock_Y 4
+	:const Clock_Width 6
+
+	: clock_data
+	: clock_data_hours 0
+	: clock_data_minutes 0
+	: clock_data_ticks 0
+	: clock_heart_ticks 0
+
+	: clock_tick
+		i := clock_data
+		load v2
+		v2 += 1
+		vF := Clock_Ticks_Overflow
+		vF -= v2
+		if vF != 0 then jump clock_tick_save
+		v2 := 0
+		v1 += 1
+		vF := 59
+		vF -= v1
+		if vF != 0 then jump clock_tick_save
+		v1 := 0
+		v0 += 1
+		vF := 99
+		vF -= v0
+		if vF != 0 then jump clock_tick_save
+		v0 := 99
+		v1 := 59
+	: clock_tick_save
+		i := clock_data
+		save v2
+
+		# update fatigue indicator
+		i := clock_heart_ticks
+		load v0
+		v0 += 1
+
+		if v0 == Climbing_Energy then v0 := 0
+		v1 := Heart_X
+		v2 := Heart_Y
+		i := spr_heart
+		if v0 == 0 then sprite v1 v2 5
+		if v0 == 0 then clock_tick_update_energy
+		i := clock_heart_ticks
+		save v0
+		;
+
+: clock_tick_update_energy
+	if Climbing_State == Climbing_State_MovingArm then jump clock_tick_update_energy_moving
+	if Climbing_State == Climbing_State_MovingLeg then jump clock_tick_update_energy_moving
+	if Climbing_Energy == 45 then return
+	Climbing_Energy += 1
+	;
+: clock_tick_update_energy_moving
+	Climbing_Energy += -1
+	if Climbing_Energy == 0 then :breakpoint aaa main #do-exit-move
+	;
+
+	: clock_draw
+		v1 := Clock_X
+		v2 := Clock_Y
+
+		i := clock_data_hours
+		load v0
+		draw_decimal
+		v1 += 6
+		i := spr_text_colon
+		sprite v1 v2 5
+		v1 += 3
+
+		i := clock_data_minutes
+		load v0
+		draw_decimal
+		;
+
+	# In:
+	# v0 = value
+	# v3 = x
+	# v4 = y
+	: bcd_dest
+	: bcd_dest_hi 0
+	: bcd_dest_mid 0
+	: bcd_dest_lo 0
+	: draw_decimal
+		i := bcd_dest
+		bcd v0
+		i := bcd_dest_mid
+		load v0
+		i := hex v0
+		sprite v1 v2 5
+		i := bcd_dest_lo
+		load v0
+		i := hex v0
+		v1 += 6
+		sprite v1 v2 5
+		;
+
+
+	# in: v0 = x, v1 = y
+	: is_on_screen
+		vF := 0x80
+		vF &= v0
+		if vF != 0 then return
+		vF := 0xC0
+		vF &= v1
+		if vF != 0 then return
+		;
+
+
+
+	### Stuff that has to come after sprite declarations
+	: climbing_setup_drawlimb_lefthand
+		Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_lefthand
+		Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_arm
+		i := climbing_data_lefthand
+		;
+
+	: climbing_setup_drawlimb_righthand
+		Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_righthand
+		Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_arm
+		i := climbing_data_righthand
+		;
+
+	: climbing_setup_drawlimb_leftfoot
+		Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_leftfoot
+		Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_leg
+		i := climbing_data_leftfoot
+		;
+
+	: climbing_setup_drawlimb_rightfoot
+		Trampoline-Set-I-Const climbing_tramp_i:=handsprite spr_rightfoot
+		Trampoline-Set-jmp-Const climbing_tramp_jump_drawlimb_armleg climbing_drawlimb_leg
+		i := climbing_data_rightfoot
+		;
+
+	# Setup the hold drawing i:=maptile based on
+	# v0: X tile
+	# v1: Y tile
+	# TODO: Inline this
+	: climbing_setup_draw_holds
+		Trampoline: climbing_tramp_i:=map_index_address #i := Map_TileIndex_Addr_Base
+		Trampoline: climbing_tramp_vF:=mapindex-stride
+		#:calc mapindex-stride { 2 * Map_Width }
+		#vF := mapindex-stride
+		loop
+		while v1 != 0
+			i += vF
+			v1 += -1
+		again
+		v0 <<= v0
+		i += v0
+		load v1
+		vF := v0
+		vF |= v1
+		if vF == 0 then jump climbing_setup_draw_holds_none
+		Trampoline-Set-I-v0v1 holds_tramp_i:=maptile
+		;
+	: climbing_setup_draw_holds_none
+		Trampoline-Set-I-Const holds_tramp_i:=maptile maptile_empty
+		;
+
+
+	: map_set_start_load_two
+		Trampoline: map_tramp_i:=map_data_address
+		i += v2
+		load v1
+		;
+
+	: map_set_start
+		v2 := 0
+		map_set_start_load_two
+		Climbing_TileX := v0
+		Climbing_TileY := v1
+		v2 += 2
+		map_set_start_load_two
+		Climbing_X := v0
+		Climbing_Y := v1
+
+		v2 += 2
+		map_set_start_load_two
+		i := climbing_data_lefthand
+		save v1
+
+		v2 += 2
+		map_set_start_load_two
+		i := climbing_data_righthand
+		save v1
+
+		v2 += 2
+		map_set_start_load_two
+		i := climbing_data_leftfoot
+		save v1
+
+		v2 += 2
+		map_set_start_load_two
+		i := climbing_data_rightfoot
+		save v1
+
+		v2 += 2
+		map_set_start_load_two
+		i := climbing_data_goaltile
+		save v1
+
+		;
+
+	: map_load_A
+		Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_A_Address
+		Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_A_Address
+		:calc index-stride { MAP_A_WIDTH * 2 }
+		Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
+
+		:calc map { MAP_A }
+		:calc addr { map_next_jumptable + ( map ) }
+		Trampoline-Set-jmp-Const load_next_tramp_jump addr
+
+		i := climbing_data_currentmap
+		v0 := MAP_A
+		save v0
+		;
+	: map_load_B
+		Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_B_Address
+		Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_B_Address
+		:calc index-stride { MAP_B_WIDTH * 2 }
+		Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
+
+		:calc map { MAP_B }
+		:calc addr { map_next_jumptable + ( map ) }
+		Trampoline-Set-jmp-Const load_next_tramp_jump addr
+
+		i := climbing_data_currentmap
+		v0 := MAP_B
+		save v0
+		;
+
+	:alias load_continue_counter vE
+	: load_continue_map
+		i := flag_data_continue
+		load v0
+		load_continue_counter := v0
+		loop
+			while load_continue_counter != 0
+				load_next_map
+				load_continue_counter += -1
+		again
+		;
+
+
+	: title_draw
+		v0 := SCREEN_TITLE
+		screen_init
+
+		i := flag_data_continue
+		load v0
+		if v0 == FLAGS_NOCONTINUE then jump title_draw_skip_continue
+
+		v0 := SCREEN_TITLE_SELECT_START
+		screen_init
+
+		: title_draw_no_continue
+
+		loop
+			screen_update
+			vf := 1
+			delay := vf
+			loop vf := delay while vf != 0 again
+		again
+
+	 	i := flag_data_continue
+		load v0
+		if v0 == FLAGS_NOCONTINUE then jump title_draw_skip_continue
+		v0 := SLICE_TEXT_CONTINUE
+		v4 := Title_Select_Marker_Continue_X
+		v5 := Title_Select_Marker_Y
+		slice_draw
+
+		: title_draw_skip_continue
+
+		title_select_draw_marker
+		;
+
+	: title_select_draw_marker
+		i := spr_select_marker
+		if title_alt_status == 1 then i := spr_select_marker_alt
+		v0 := Title_Select_Marker_X
+		v1 := Title_Select_Marker_Y
+		if title_selection == 1 then v0 += Title_Select_Marker_Select_Offset
+		sprite v0 v1 5
+		v0 += Title_Select_Marker_Text_Offset
+		sprite v0 v1 5
+		;
+
+
+	: title_select
+		title_selection := 0
+		title_alt_status := 0
+		: title_select_continue
+
 		v0 := KEY_LEFT
 		if v0 key then jump title_select_swap
 		v0 := KEY_RIGHT
 		if v0 key then jump title_select_swap
+		v0 := KEY_UP
+		if v0 key then jump title_select_go
+		v0 := KEY_DOWN
+		if v0 key then jump title_select_go
+		vF := delay
+		if vF != 0 then jump title_select_continue
+		title_select_shake
+		vF := Title_Delay
+		delay := vF
+		jump title_select_continue
 
-		i := flag_data_continue
-		load v0
-		if v0 == FLAGS_NOCONTINUE then jump title_select_skip_swap
+		: title_select_go
+			v0 := KEY_UP
+			if v0 key then jump title_select_go
+			v0 := KEY_DOWN
+			if v0 key then jump title_select_go
+			;
+
+		: title_select_swap
+			v0 := KEY_LEFT
+			if v0 key then jump title_select_swap
+			v0 := KEY_RIGHT
+			if v0 key then jump title_select_swap
+
+			i := flag_data_continue
+			load v0
+			if v0 == FLAGS_NOCONTINUE then jump title_select_skip_swap
+			title_select_draw_marker
+			vF := 1
+			title_selection =- vF
+			title_select_draw_marker
+			: title_select_skip_swap
+		jump title_select_continue
+
+	: title_select_shake
 		title_select_draw_marker
 		vF := 1
-		title_selection =- vF
+		v4 =- vF
 		title_select_draw_marker
-		: title_select_skip_swap
-	jump title_select_continue
-
-: title_select_shake
-	title_select_draw_marker
-	vF := 1
-	v4 =- vF
-	title_select_draw_marker
-;
+	;
