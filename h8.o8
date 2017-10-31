@@ -345,7 +345,7 @@
 		Climbing_Limb := LIMB_NONE
 		Climbing_State := Climbing_State_Idle
 		climbing_draw_scene_hands
-		encouragement_draw
+		#encouragement_draw
 
 		: climbing_main_loop
 		loop
@@ -1069,7 +1069,7 @@
 
 
 	:const Slice_Table_Bytes 4
-	:const Slice_Count 25
+	:const Slice_Count 21
 	: slice_table
 		:calc slice_table_bytes { Slice_Table_Bytes * Slice_Count }
 		:calc slice_table_end { HERE + slice_table_bytes }
@@ -1224,30 +1224,30 @@ slice_begin SLICE_TEXT_- 5
 	: spr_text_- 0x00 0x00 0xE0 0x00 0x00
 slice_end
 
-slice_begin SLICE_TEXT_ZUZUZU 5
-	: spr_text_zu0 0xEA 0x2A 0x4A 0x8A 0xEE
-	: spr_text_zu1 0xEA 0x2A 0x4A 0x8A 0xEE
-	: spr_text_zu2 0xEA 0x2A 0x4A 0x8A 0xEE
-slice_end
-
-slice_begin SLICE_TEXT_KOMM 5
- 	: spr_text_komm0 0xAE 0xCA 0x8A 0xCA 0xAE
-	: spr_text_komm1 0x8A 0xDB 0xAA 0x8A 0x8A
-	: spr_text_komm2 0x28 0x68 0xA8 0x20 0x28
-slice_end
-
-slice_begin SLICE_TEXT_AUFGEHTS 5
-	: spr_text_auf0 0x4A 0xAA 0xAA 0xEA 0xAE
-	: spr_text_auf1 0xE7 0x84 0xC4 0x85 0x87
-	: spr_text_auf2 0x75 0x45 0x67 0x45 0x75
-	: spr_text_auf3 0x77 0x24 0x27 0x21 0x27
-slice_end
-
-slice_begin SLICE_TEXT_ALLEZ 5
-	: spr_text_allez0 0x49 0xA9 0xA9 0xE9 0xAD
-	: spr_text_allez1 0x3B 0x20 0x31 0x22 0xBB
-	: spr_text_allez2 0xA0 0xA0 0x20 0x00 0xA0
-slice_end
+#slice_begin SLICE_TEXT_ZUZUZU 5
+#	: spr_text_zu0 0xEA 0x2A 0x4A 0x8A 0xEE
+#	: spr_text_zu1 0xEA 0x2A 0x4A 0x8A 0xEE
+#	: spr_text_zu2 0xEA 0x2A 0x4A 0x8A 0xEE
+#slice_end
+#
+#slice_begin SLICE_TEXT_KOMM 5
+# 	: spr_text_komm0 0xAE 0xCA 0x8A 0xCA 0xAE
+#	: spr_text_komm1 0x8A 0xDB 0xAA 0x8A 0x8A
+#	: spr_text_komm2 0x28 0x68 0xA8 0x20 0x28
+#slice_end
+#
+#slice_begin SLICE_TEXT_AUFGEHTS 5
+#	: spr_text_auf0 0x4A 0xAA 0xAA 0xEA 0xAE
+#	: spr_text_auf1 0xE7 0x84 0xC4 0x85 0x87
+#	: spr_text_auf2 0x75 0x45 0x67 0x45 0x75
+#	: spr_text_auf3 0x77 0x24 0x27 0x21 0x27
+#slice_end
+#
+#slice_begin SLICE_TEXT_ALLEZ 5
+#	: spr_text_allez0 0x49 0xA9 0xA9 0xE9 0xAD
+#	: spr_text_allez1 0x3B 0x20 0x31 0x22 0xBB
+#	: spr_text_allez2 0xA0 0xA0 0x20 0x00 0xA0
+#slice_end
 
 
 #define_text SPR_TEXT_V : spr_text_V	0xA0 0xA0 0xA0 0xA0 0x40					# "V"
@@ -1265,7 +1265,7 @@ slice_end
 
 
 	:const Screen_Table_Bytes 2
-	:const Screen_Count 10
+	:const Screen_Count 6
 	: screen_table
 		:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
 		:calc screen_table_end { HERE + screen_table_bytes }
@@ -1527,50 +1527,50 @@ screen_begin SCREEN_WIN
 	step_end
 screen_end
 
-:const Encouragement_Y 20
-:calc Encouragement_Start_X { 127 }
-:calc Encouragement_X { 99 }
-:calc Encouragement_Steps { ( Encouragement_Start_X - Encouragement_X ) / 2 }
-
-: screen_komm
-screen_begin SCREEN_KOMM
-	step_begin 4 10
-		feature_display_slice SLICE_TEXT_KOMM Encouragement_X Encouragement_Y
-	step_end
-	step_begin 0 0
-		feature_display_slice SLICE_TEXT_KOMM Encouragement_X Encouragement_Y
-	step_end
-screen_end
-
-: screen_aufgehts
-screen_begin SCREEN_AUFGEHTS
-	step_begin 4 10
-		feature_display_slice SLICE_TEXT_AUFGEHTS Encouragement_X Encouragement_Y
-	step_end
-	step_begin 0 0
-		feature_display_slice SLICE_TEXT_AUFGEHTS Encouragement_X Encouragement_Y
-	step_end
-screen_end
-
-: screen_allez
-screen_begin SCREEN_ALLEZ
-	step_begin 4 10
-		feature_display_slice SLICE_TEXT_ALLEZ Encouragement_X Encouragement_Y
-	step_end
-	step_begin 0 0
-		feature_display_slice SLICE_TEXT_ALLEZ Encouragement_X Encouragement_Y
-	step_end
-screen_end
-
-: screen_zuzuzu
-screen_begin SCREEN_ZUZUZU
-	step_begin 4 4
-		feature_display_slice SLICE_TEXT_ZUZUZU Encouragement_X Encouragement_Y
-	step_end
-	step_begin 0 0
-		feature_display_slice SLICE_TEXT_ZUZUZU Encouragement_X Encouragement_Y
-	step_end
-screen_end
+#:const Encouragement_Y 20
+#:calc Encouragement_Start_X { 127 }
+#:calc Encouragement_X { 99 }
+#:calc Encouragement_Steps { ( Encouragement_Start_X - Encouragement_X ) / 2 }
+#
+#: screen_komm
+#screen_begin SCREEN_KOMM
+#	step_begin 4 10
+#		feature_display_slice SLICE_TEXT_KOMM Encouragement_X Encouragement_Y
+#	step_end
+#	step_begin 0 0
+#		feature_display_slice SLICE_TEXT_KOMM Encouragement_X Encouragement_Y
+#	step_end
+#screen_end
+#
+#: screen_aufgehts
+#screen_begin SCREEN_AUFGEHTS
+#	step_begin 4 10
+#		feature_display_slice SLICE_TEXT_AUFGEHTS Encouragement_X Encouragement_Y
+#	step_end
+#	step_begin 0 0
+#		feature_display_slice SLICE_TEXT_AUFGEHTS Encouragement_X Encouragement_Y
+#	step_end
+#screen_end
+#
+#: screen_allez
+#screen_begin SCREEN_ALLEZ
+#	step_begin 4 10
+#		feature_display_slice SLICE_TEXT_ALLEZ Encouragement_X Encouragement_Y
+#	step_end
+#	step_begin 0 0
+#		feature_display_slice SLICE_TEXT_ALLEZ Encouragement_X Encouragement_Y
+#	step_end
+#screen_end
+#
+#: screen_zuzuzu
+#screen_begin SCREEN_ZUZUZU
+#	step_begin 4 4
+#		feature_display_slice SLICE_TEXT_ZUZUZU Encouragement_X Encouragement_Y
+#	step_end
+#	step_begin 0 0
+#		feature_display_slice SLICE_TEXT_ZUZUZU Encouragement_X Encouragement_Y
+#	step_end
+#screen_end
 
 
 
@@ -2734,10 +2734,10 @@ screen_end
 		climbing_draw_righthand
 		;
 
-: encouragement_draw
-	v0 := SCREEN_KOMM
-	vF := random 0b0000110
-	v0 += vF
-	screen_init
-
-	;
+# : encouragement_draw
+# 	v0 := SCREEN_KOMM
+# 	vF := random 0b0000110
+# 	v0 += vF
+# 	screen_init
+#
+# 	;
