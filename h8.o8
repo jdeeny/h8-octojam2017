@@ -1403,13 +1403,13 @@
 			:calc title_x { TITLE_H8_XOFFSET + TITLE_H8_XSKIP }
 			feature_display_sprite16 spr_title_8bot title_x title_y
 
-			feature_display_slice SLICE_TEXT_PRESS_KEY 35 52
+			feature_display_slice SLICE_TEXT_PRESS_KEY 34 52
 
 		step_end
 	screen_end
 
 
-	:calc Intro_Pitch_Y { 12 }
+	:calc Intro_Pitch_Y { 3 }
 	:calc Intro_Grade_Y { 20 }
 	:calc Intro_Length_Y { 28 }
 	:calc Intro_Par_Y { 36 }
@@ -1417,8 +1417,7 @@
 	: screen_intro_outro_base
 	screen_begin SCREEN_INTRO_OUTRO_BASE
 		step_begin 1 1
-			feature_display_slice SLICE_TEXT_PITCH 6 Intro_Pitch_Y
-			feature_display_slice SLICE_TEXT_COLON 23 Intro_Pitch_Y
+			feature_display_slice SLICE_TEXT_PITCH 55 Intro_Pitch_Y
 			feature_display_slice SLICE_TEXT_GRADE 6 Intro_Grade_Y
 			feature_display_slice SLICE_TEXT_COLON 22 Intro_Grade_Y
 			feature_display_slice SLICE_TEXT_PAR 6 Intro_Par_Y
@@ -1431,7 +1430,7 @@
 			feature_display_slice SLICE_TEXT_00 48 Intro_Par_Y
 			feature_display_slice SLICE_TEXT_m 56 Intro_Par_Y
 			#feature_display_slice SLICE_TEXT_MAP 99 22
-			feature_display_slice SLICE_TEXT_PRESS_KEY 37 55
+			feature_display_slice SLICE_TEXT_PRESS_KEY 34 55
 
 
 		#	:calc Inter_PressKey_X { 37 }
@@ -1461,14 +1460,14 @@
 : screen_intro_specific
 	screen_begin SCREEN_INTRO_SPECIFIC
 		step_begin 1 1
-			feature_display_slice SLICE_TEXT_READY 54 2
+			feature_display_slice SLICE_TEXT_READY 54 12
 		step_end
 	screen_end
 
 : screen_outro_specific
 	screen_begin SCREEN_OUTRO_SPECIFIC
 		step_begin 1 1
-			feature_display_slice SLICE_TEXT_SUCCESS 54 2
+			feature_display_slice SLICE_TEXT_SUCCESS 54 12
 		step_end
 	screen_end
 
@@ -1492,7 +1491,7 @@
 : screen_mapinfo_A
 screen_begin SCREEN_MAPINFO_A
 	step_begin 1 1
-		feature_display_slice SLICE_TEXT_1 45 Intro_Pitch_Y
+		feature_display_slice SLICE_TEXT_1 73 Intro_Pitch_Y
 		feature_display_slice SLICE_TEXT_V 43 Intro_Grade_Y
 		feature_display_slice SLICE_TEXT_- 47 Intro_Grade_Y
 		feature_display_slice SLICE_TEXT_48 42 Intro_Length_Y
@@ -1504,7 +1503,7 @@ screen_end
 : screen_mapinfo_B
 screen_begin SCREEN_MAPINFO_B
 	step_begin 1 1
-		feature_display_slice SLICE_TEXT_2 45 Intro_Pitch_Y
+		feature_display_slice SLICE_TEXT_2 73 Intro_Pitch_Y
 		feature_display_slice SLICE_TEXT_V 43 Intro_Grade_Y
 		feature_display_slice SLICE_TEXT_I 47 Intro_Grade_Y
 		feature_display_slice SLICE_TEXT_+ 51 Intro_Grade_Y
