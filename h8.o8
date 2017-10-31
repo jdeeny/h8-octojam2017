@@ -1508,8 +1508,8 @@ screen_end
 :calc Intro_Grade_Y { 20 }
 :calc Intro_Par_Y { 30 }
 
-: screen_intro
-screen_begin SCREEN_INTRO
+: screen_intro_outro_base
+screen_begin SCREEN_INTRO_OUTRO_BASE
 	step_begin 1 1
 		feature_display_slice SLICE_TEXT_PITCH 6 Intro_Pitch_Y
 		feature_display_slice SLICE_TEXT_GRADE 6 Intro_Grade_Y
@@ -2393,15 +2393,15 @@ map_end
 
 
 : intro_display
-	v0 := SCREEN_INTRO
+	v0 := SCREEN_INTRO_OUTRO_BASE
 	screen_init
-
-
-#	Trampoline: intro_display_tramp_jump
 	;
+
 : outro_display
-#	Trampoline: outro_display_tramp_jump
+	v0 := SCREEN_INTRO_OUTRO_BASE
+	screen_init
 	;
+
 : load_next_map
 	Trampoline: load_next_tramp_jump
 	;
