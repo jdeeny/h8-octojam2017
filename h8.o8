@@ -1261,7 +1261,9 @@ slice_end
 
 :const FEATURE_DISPLAY_SLICE 0
 :const FEATURE_DISPLAY_SPRITE16 2
-:const FEATURE_ANIMATE_SLICE 4
+:const FEATURE_SETUP_ANIMATION_SLIDE_X 4
+:const FEATURE_SETUP_ANIMATION_BOUNCE_Y 6
+:const FEATURE_SETUP_ANIMATION_CYCLE 8
 :const FEATURE_END 0xFF
 
 
@@ -1323,6 +1325,18 @@ slice_end
 	:byte y
 }
 
+:macro feature-setup-animation-slide-x animator-id slice-id x y steps increment steps-per-ease {
+	:byte FEATURE_SETUP_ANIMATION_SLIDE_X
+	:byte animator-id
+	:byte slice-id
+	:byte x
+	:byte y
+	:byte steps
+	:byte increment
+	:byte steps-per-ease
+}
+
+
 : screen_definitions
 
 : screen_title
@@ -1371,7 +1385,7 @@ screen_begin SCREEN_TITLE
 		feature_display_sprite16 spr_title_8bot title_x title_y
 
 		feature_display_slice SLICE_TEXT_START Title_Select_Start_X Title_Select_Start_Y
-		#feature_animate_slice slice_id x1 x2 y1 y2 frames easing?
+		feature-setup-animation-slide-x 0 SLICE_TEXT_START 20 10 50 1 5
 	step_end
 screen_end
 
@@ -1571,24 +1585,15 @@ screen_end
 : animator_type 0
 : animator_sliceid 0
 : animator_posn 0 0
-: animator_offset 0
-: animator_step 0
-: animator_state 0
+: animator_steps 0
+: animator_incr 0
 : animator_ease_target 0
 : animator_ease_state 0
 : animator_ease_counter 0
 
 
-:alias animator_handler_id v0
-:alias animator_sliceid v1
-:alias animator_steps v2
-:alias animator_increment v3
-:alias animator_x v4
-:alias animator_y v5
-:alias animator_steps_per_ease v6
-:alias animator_ease_state v7
 : feature_handler_setup_animation_slide_x
-	# animator id, spr id, x, y, steps, increment, steps_per_ease, ease_step
+:breakpoint setupslide
 	load v6
 	i := animator_data
 	i += v0
@@ -1611,6 +1616,10 @@ screen_end
 	v1 := 0
 	v2 := 0
 	save v2		# save steps per ease and ease state & counter
+	vF := 8
+	feature_handler_advance_current
+	:breakpoint setupslidedone
+
 	jump feature_handler_return
 
 : feature_handler_setup_animation_bounce_y
@@ -1618,7 +1627,7 @@ screen_end
 	i := animator_data
 	i += v0
 
-	animator_handler_id := ANIMATOR_TYPE_NONE #v0 := ANIMATOR_TYPE_BOUNCE_Y
+	v0 := ANIMATOR_TYPE_NONE #v0 := ANIMATOR_TYPE_BOUNCE_Y
 #	v7 := 0
 	save v7	# type, spr_id, x, y, steps, increment, steps_per_ease, ease_step
 	jump feature_handler_return
@@ -1629,7 +1638,7 @@ screen_end
 	i := animator_data
 	i += v0
 
-	animator_handler_id := ANIMATOR_TYPE_NONE #v0 := ANIMATOR_TYPE_BOUNCE_Y
+	v0 := ANIMATOR_TYPE_NONE #v0 := ANIMATOR_TYPE_BOUNCE_Y
 	v7 := 0
 	save v7	# type, spr_id, x, y, steps, increment, steps_per_ease, ease_step
 	jump feature_handler_return
@@ -1658,7 +1667,7 @@ screen_end
 : step_continue
 	# for each animator, do the animation
 	i := animator_data
-	load v7
+	load v0
 	jump0 animator_continue_handler_jumptable
 : animator_continue_handler_jumptable
 	return	# none
@@ -1667,10 +1676,22 @@ screen_end
 	jump animator_continue_handler_cycle
 
 : animator_continue_handler_slide_x
-	if animator_steps == 0 then return	# if steps = 0, we are done
+	i := animator_steps
+	load v0
+	if v0 == 0 then return	# if steps = 0, we are done
+	i := animator_sliceid
+	load v2
+	v4 := v1
+	v5 := v2
 	slice_draw
-	animator_x += animator_increment
-	animator_steps += -1
+	i := animator_sliceid
+	load v6
+	v5 += -1
+	v1 += v6
+	i := animator_sliceid
+	save v5
+	v4 := v1
+	v5 := v2
 	slice_draw
 	;
 
@@ -1678,7 +1699,6 @@ screen_end
 	# update offset
 	slice_draw
 	# add offset to y
-	animator_y += animator_increment
 	slice_draw
 	;
 
