@@ -1764,23 +1764,6 @@ screen_end
 
 :const SPR_TEXT_END 0xFF
 
-## Draw all the items in the list for this intro screen
-#: intro_draw
-#	v3 := 0
-#	loop
-#		Trampoline: intro_tramp_i:=intro_data
-#		i += v3
-#		load v2
-#	while v0 != SPR_TEXT_END
-##		i := spr_texts
-##		i += v0
-##		sprite v1 v2 Text_Height
-#		v3 += 3
-#	again
-#	;
-
-
-
 
 
 
@@ -1910,65 +1893,8 @@ screen_end
 	:byte spr-id :byte x :byte y
 }
 
-
 :calc Outro_Erfolg_X { 52 }
 :calc Outro_Erfolg_Y { 16 }
-: outro_all
-#	text_entry SPR_TEXT_ERFOLG_0 Outro_Erfolg_X Outro_Erfolg_Y
-#	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
-#	text_entry SPR_TEXT_ERFOLG_1 Outro_Erfolg_X Outro_Erfolg_Y
-#	:calc Outro_Erfolg_X { Outro_Erfolg_X + 8 }
-#	text_entry SPR_TEXT_ERFOLG_2 Outro_Erfolg_X Outro_Erfolg_Y
-#
-#	:calc Inter_PressKey_X { 37 }
-#	:calc Inter_PressKey_Y { 55 }
-#	text_entry SPR_TEXT_DRUCKE_0 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_1 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_2 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_3 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_4 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_5 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_6 Inter_PressKey_X Inter_PressKey_Y
-#	:calc Inter_PressKey_X { Inter_PressKey_X + 8 }
-#	text_entry SPR_TEXT_DRUCKE_7 Inter_PressKey_X Inter_PressKey_Y
-
-	:byte SPR_TEXT_END
-
-# Intro text specific to pitch A
-: intro_A
-	#text_entry SPR_TEXT_PITCH_0  24  Inter_Pitch_Y
-	:byte SPR_TEXT_END
-
-# Intro text specific to pitch A
-: intro_B
-	:byte SPR_TEXT_END
-
-: outro_A
-	:byte SPR_TEXT_END
-
-: outro_B
-	:byte SPR_TEXT_END
-
-# Draw all the items in the list for this intro screen
-: intro_draw
-	v3 := 0
-	loop
-		Trampoline: intro_tramp_i:=intro_data
-		i += v3
-		load v2
-	while v0 != SPR_TEXT_END
-#		i := spr_texts
-#		i += v0
-#		sprite v1 v2 Text_Height
-		v3 += 3
-	again
-	;
 
 ### Level Map
 
@@ -2630,6 +2556,8 @@ map_end
 : title_draw
 	v0 := SCREEN_TITLE
 	screen_init
+
+	screen_run
 
  	i := flag_data_continue
 	load v0
