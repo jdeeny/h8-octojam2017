@@ -56,6 +56,9 @@
 	map_load_B
 	;
 
+: map_load_C_stub
+	map_load_C
+	;
 
 
 
@@ -155,20 +158,25 @@
 
 
 	# Define the basic dimensions of the maps
-	:const MAPS_NUM 2
+	:const MAPS_NUM 3
 	# This is done early because we need to know how many bytes will be consumed
 	# by the tile indexes and minimaps
-	# Map A: 5x6 tiles
+	# Map A
 	:const MAP_A_WIDTH 3
 	:const MAP_A_HEIGHT 4
 	:calc MAP_A_TILES { MAP_A_WIDTH * MAP_A_HEIGHT }
 
-	# Map B: 4x8 tiles
+	# Map B
 	:const MAP_B_WIDTH 3
-	:const MAP_B_HEIGHT 3
+	:const MAP_B_HEIGHT 4
 	:calc MAP_B_TILES { MAP_B_WIDTH * MAP_B_HEIGHT }
 
-	:calc Maps_Total_Tiles { MAP_A_TILES + MAP_B_TILES }
+	# Map C
+	:const MAP_C_WIDTH 3
+	:const MAP_C_HEIGHT 4
+	:calc MAP_C_TILES { MAP_C_WIDTH * MAP_C_HEIGHT }
+
+	:calc Maps_Total_Tiles { MAP_A_TILES + MAP_B_TILES + MAP_C_TILES }
 
 	:const climbing_leftright_offset 8				# Distance from limb 'root' to centroid
 	:const climbing_limb_length 32						# Length of a limb
@@ -337,7 +345,7 @@
 	# This sets up the beginning of a climbing session
 	#  - loads level data, sets limb locations etc
 	: climbing_init
-		Climbing_Energy := 90
+		Climbing_Energy := 40
 		# Setup some initial XY coords for the limbs
 		map_set_start
 
@@ -375,13 +383,12 @@
 
 		: climbing_runstate_idle_notgoal
 		# Scan limb selection keys
+		Climbing_Limb := LIMB_NONE
 		ifkey KEY_LH jump climbing_runstate_idle_setlimb_lefthand
 		ifkey KEY_RH jump climbing_runstate_idle_setlimb_righthand
 		ifkey KEY_LF jump climbing_runstate_idle_setlimb_leftfoot
 		ifkey KEY_RF jump climbing_runstate_idle_setlimb_rightfoot
 		jump climbing_main_loop_continue
-		: climbing_runstate_move_up
-			jump climbing_main_loop_continue
 		: climbing_runstate_idle_setlimb_lefthand
 			Climbing_Limb := LIMB_LEFTHAND
 			Climbing_State := Climbing_State_DebounceMove
@@ -400,8 +407,9 @@
 			jump climbing_main_loop_continue
 
 	: climbing_runstate_debouncemove
-		#if Climbing_Limb key then jump climbing_main_loop_continue
+		#if Climbing_Limb -key then jump climbing_main_loop_continue
 
+		Climbing_State := Climbing_State_Idle
 		if Climbing_Limb == LIMB_LEFTHAND then Climbing_State := Climbing_State_MoveArm
 		if Climbing_Limb == LIMB_RIGHTHAND then Climbing_State := Climbing_State_MoveArm
 		if Climbing_Limb == LIMB_LEFTFOOT then Climbing_State := Climbing_State_MoveLeg
@@ -480,7 +488,7 @@
 			ifkey KEY_DOWN Climbing_DeltaY += CLIMBING_SPEED
 
 		# Add random jitter to the delta x/y
-			v0 := random 63
+			v0 := random 47
 			v0 -= Climbing_Energy
 			if vF == 0 then v0 := random 0b0000001
 			if vF != 0 then v0 := random 0b00000011
@@ -533,8 +541,13 @@
 
 		i := climbing_data_goaltile
 		load v1
-		if v0 != Climbing_TileX then jump climbing_runstate_idle_notgoal
 		if v1 != Climbing_TileY then jump climbing_runstate_idle_notgoal
+		v0 -= Climbing_Y
+		if vF == 0 then jump climbing_runstate_idle_notgoal
+		#if v0 != Climbing_X then jump climbing_runstate_idle_notgoal
+		Climbing_Limb := LIMB_NONE
+		Climbing_State := Climbing_State_Idle
+		:breakpoint donedone
 		return
 
 
@@ -1378,7 +1391,7 @@ slice_end
 
 
 	:const Screen_Table_Bytes 2
-	:const Screen_Count 7
+	:const Screen_Count 8
 	: screen_table
 		:calc screen_table_bytes { Screen_Table_Bytes * Screen_Count }
 		:calc screen_table_end { HERE + screen_table_bytes }
@@ -1662,6 +1675,19 @@ screen_begin SCREEN_MAPINFO_B
 		feature_display_slice SLICE_TEXT_48 35 Intro_Par_Y
 	step_end
 screen_end
+
+: screen_mapinfo_C
+screen_begin SCREEN_MAPINFO_C
+	step_begin 0 0
+		feature_display_slice SLICE_TEXT_1 55 Intro_Pitch_Y
+		feature_display_slice SLICE_TEXT_V 43 Intro_Grade_Y
+		feature_display_slice SLICE_TEXT_- 47 Intro_Grade_Y
+		feature_display_slice SLICE_TEXT_48 42 Intro_Length_Y
+		feature_display_slice SLICE_TEXT_48 35 Intro_Par_Y
+
+	step_end
+screen_end
+
 
 : screen_win
 screen_begin SCREEN_WIN
@@ -2398,8 +2424,8 @@ screen_end
 		:calc player-start-tilex { maptile_x }
 		:calc player-start-tiley { maptile_y }
 	}
-	:macro map_is_goal_tile {
-		:calc player-end-tilex { maptile_x }
+	:macro map_is_goal_tile hand-y {
+		:calc player-end-tilex { hand-y }
 		:calc player-end-tiley { maptile_y }
 	}
 
@@ -2431,10 +2457,16 @@ screen_end
 
 		# bottom
 
+		map_begintile 2 2
+		map_endtile
+
+		map_begintile 2 1
+		map_endtile
+
 		map_begintile 1 1
 			map_entry HOLD_CHECKER 40 116
 			map_entry HOLD_CHECKER 67 116
-			map_is_goal_tile
+			map_is_goal_tile 100
 
 		map_endtile
 
@@ -2469,21 +2501,22 @@ screen_end
 			#map_entry HOLD_3X4 45 27
 			#map_entry HOLD_3X5 65 19
 
-
 		map_endtile
-
 
 
 		map_begintile 1 0
 		map_endtile
 	map_end
 
-	map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT SCREEN_MAPINFO_B do-win Map_Data_B_Address Maptile_Index_B_Address
-		map_begintile 2 0
+	map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT SCREEN_MAPINFO_B map_load_C_stub Map_Data_B_Address Maptile_Index_B_Address
+		map_begintile 1 2
+		map_is_goal_tile 116
 		map_endtile
 
-		map_begintile 2 1
-		map_is_goal_tile
+		map_begintile 1 1
+		map_endtile
+
+		map_begintile 2 2
 			map_is_player_start_tile
 			map_entry HOLD_3X5 20  4
 			map_entry HOLD_3X5 20 30 map_is_player_start_lh
@@ -2496,7 +2529,8 @@ screen_end
 			map_entry HOLD_3X5 50 60 map_is_player_start_rf
 			map_entry HOLD_3X5 50 90
 			map_entry HOLD_3X5 50 110
-
+		map_endtile
+		map_begintile 2 1
 			map_entry HOLD_3X5 80  4
 			map_entry HOLD_3X5 80 30
 			map_entry HOLD_3X5 80 60
@@ -2510,6 +2544,32 @@ screen_end
 			map_entry HOLD_3X5 110 110
 		map_endtile
 	map_end
+
+	map_begin MAP_C MAP_C_WIDTH MAP_C_HEIGHT SCREEN_MAPINFO_C do-win Map_Data_C_Address Maptile_Index_C_Address
+	map_begintile 2 1
+		map_is_player_start_tile
+		map_entry HOLD_3X5 20 30 map_is_player_start_lh
+		map_entry HOLD_3X5 20 60 map_is_player_start_lf
+		map_entry HOLD_3X5 50 30 map_is_player_start_rh
+		map_entry HOLD_3X5 50 60 map_is_player_start_rf
+	map_endtile
+
+	map_begintile 2 2
+	map_endtile
+
+	map_begintile 1 2
+	map_endtile
+
+	map_begintile 1 1
+		map_is_goal_tile 116
+		map_entry HOLD_3X5 20 30 map_is_player_start_lh
+		map_entry HOLD_3X5 20 60 map_is_player_start_lf
+		map_entry HOLD_3X5 50 30 map_is_player_start_rh
+		map_entry HOLD_3X5 50 60 map_is_player_start_rf
+	map_endtile
+
+	map_end
+
 
 	# Special empty tile for uninitialized map tiles
 	: maptile_empty
@@ -2679,7 +2739,7 @@ screen_end
 : clock_tick_update_energy
 	if Climbing_State == Climbing_State_MovingArm then jump clock_tick_update_energy_moving
 	if Climbing_State == Climbing_State_MovingLeg then jump clock_tick_update_energy_moving
-	if Climbing_Energy == 99 then return
+	if Climbing_Energy == 45 then return
 	Climbing_Energy += 1
 	;
 : clock_tick_update_energy_moving
@@ -2882,34 +2942,51 @@ screen_end
 
 		;
 
-	: map_load_A
-		Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_A_Address
-		Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_A_Address
-		:calc index-stride { MAP_A_WIDTH * 2 }
-		Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
+: map_load_A
+	Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_A_Address
+	Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_A_Address
+	:calc index-stride { MAP_A_WIDTH * 2 }
+	Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
 
-		:calc map { MAP_A }
-		:calc addr { map_next_jumptable + ( map ) }
-		Trampoline-Set-jmp-Const load_next_tramp_jump addr
+	:calc map { MAP_A }
+	:calc addr { map_next_jumptable + ( map ) }
+	Trampoline-Set-jmp-Const load_next_tramp_jump addr
 
-		i := climbing_data_currentmap
-		v0 := MAP_A
-		save v0
-		;
-	: map_load_B
-		Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_B_Address
-		Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_B_Address
-		:calc index-stride { MAP_B_WIDTH * 2 }
-		Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
+	i := climbing_data_currentmap
+	v0 := MAP_A
+	save v0
+	;
+: map_load_B
+	:breakpoint loadb
+	Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_B_Address
+	Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_B_Address
+	:calc index-stride { MAP_B_WIDTH * 2 }
+	Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
 
-		:calc map { MAP_B }
-		:calc addr { map_next_jumptable + ( map ) }
-		Trampoline-Set-jmp-Const load_next_tramp_jump addr
+	:calc map { MAP_B }
+	:calc addr { map_next_jumptable + ( map ) }
+	Trampoline-Set-jmp-Const load_next_tramp_jump addr
 
-		i := climbing_data_currentmap
-		v0 := MAP_B
-		save v0
-		;
+	i := climbing_data_currentmap
+	v0 := MAP_B
+	save v0
+	;
+
+: map_load_C
+	:breakpoint loadc
+	Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_C_Address
+	Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_C_Address
+	:calc index-stride { MAP_C_WIDTH * 2 }
+	Trampoline-Set-vF-Const climbing_tramp_vF:=mapindex-stride index-stride
+
+	:calc map { MAP_C }
+	:calc addr { map_next_jumptable + ( map ) }
+	Trampoline-Set-jmp-Const load_next_tramp_jump addr
+
+	i := climbing_data_currentmap
+	v0 := MAP_C
+	save v0
+	;
 
 
 
