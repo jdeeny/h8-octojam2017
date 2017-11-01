@@ -457,14 +457,12 @@
 			Climbing_TempX += Climbing_DeltaX
 			Climbing_TempY += Climbing_DeltaY
 		# Apply limits
-			vF := 0x80
-			vF &= Climbing_TempY
-			if vF != 0 then Climbing_TempY := 0
-			if Climbing_TempY == 0 then Climbing_TempY := 1
-			vF := 0x40
-			vF &= Climbing_TempY
-			if vF != 0 then Climbing_TempY := 63
-			if Climbing_TempY == 63 then Climbing_TempY := 62
+			vF := 8
+			vF -= Climbing_TempY
+			if vF != 0 then Climbing_TempY := 7
+			vF := 54
+			vF =- Climbing_TempY
+			if vF != 0 then Climbing_TempY := 53
 
 
 			climbing_set_limits
