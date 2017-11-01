@@ -64,7 +64,7 @@
 
 	: main
 		hires
-		map_load_C
+		map_load_B
 		climbing_init
 
 		title_draw
@@ -675,24 +675,32 @@
 : climbing_draw_minimap
 	v0 := 1
 	v1 := 1
+	Climbing_TempX := 0
+	Climbing_TempY := 0
 	climbing_draw_minimap_tile
 	v0 := 1
 	v1 := 2
+	Climbing_TempX := 0
+	Climbing_TempY := 128
 	climbing_draw_minimap_tile
 	v0 := 2
 	v1 := 1
+	Climbing_TempX := 128
+	Climbing_TempY := 0
 	climbing_draw_minimap_tile
 	v0 := 2
 	v1 := 2
+	Climbing_TempX := 128
+	Climbing_TempY := 128
 	climbing_draw_minimap_tile
 	;
 
 : climbing_draw_minimap_tile
 	climbing_setup_draw_holds		# Setup the tile trampoline
-	Climbing_TempX := 0
-	Climbing_TempX -= Climbing_X
-	Climbing_TempY := 0
-	Climbing_TempY -= Climbing_Y
+	#Climbing_TempX := 0
+	#Climbing_TempX -= Climbing_X
+	#Climbing_TempY := 0
+	#Climbing_TempY -= Climbing_Y
 	climbing_draw_tile_minimap
 	;
 
@@ -2414,20 +2422,20 @@ screen_end
 
 		# bottom
 
-		map_begintile 2 2
-		map_endtile
-
-		map_begintile 2 1
+		map_begintile 1 2
 		map_endtile
 
 		map_begintile 1 1
+		map_endtile
+
+		map_begintile 2 1
 			map_entry HOLD_CHECKER 40 116
 			map_entry HOLD_CHECKER 67 116
 			map_is_goal_tile 100
 
 		map_endtile
 
-		map_begintile 1 2
+		map_begintile 2 2
 			map_is_player_start_tile
 			map_entry HOLD_3X8 47 18
 			map_entry HOLD_3X8 75 20
