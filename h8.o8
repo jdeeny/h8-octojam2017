@@ -90,6 +90,7 @@
 
 			wipe
 			load_next_map
+			climbing_init
 
 		jump gameplay_loop
 
@@ -547,7 +548,6 @@
 		#if v0 != Climbing_X then jump climbing_runstate_idle_notgoal
 		Climbing_Limb := LIMB_NONE
 		Climbing_State := Climbing_State_Idle
-		:breakpoint donedone
 		return
 
 
@@ -2475,10 +2475,10 @@ screen_end
 
 	map_begin MAP_B MAP_B_WIDTH MAP_B_HEIGHT SCREEN_MAPINFO_B map_load_C_stub Map_Data_B_Address Maptile_Index_B_Address
 		map_begintile 1 2
-		map_is_goal_tile 116
 		map_endtile
 
 		map_begintile 1 1
+		map_is_goal_tile 60
 		map_endtile
 
 		map_begintile 2 2
@@ -2526,11 +2526,11 @@ screen_end
 	map_endtile
 
 	map_begintile 1 1
-		map_is_goal_tile 116
-		map_entry HOLD_3X5 20 30 map_is_player_start_lh
-		map_entry HOLD_3X5 20 60 map_is_player_start_lf
-		map_entry HOLD_3X5 50 30 map_is_player_start_rh
-		map_entry HOLD_3X5 50 60 map_is_player_start_rf
+		map_is_goal_tile 60
+		map_entry HOLD_3X5 20 30
+		map_entry HOLD_3X5 20 60
+		map_entry HOLD_3X5 50 30
+		map_entry HOLD_3X5 50 60
 	map_endtile
 
 	map_end
@@ -2922,7 +2922,6 @@ screen_end
 	save v0
 	;
 : map_load_B
-	:breakpoint loadb
 	Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_B_Address
 	Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_B_Address
 	:calc index-stride { MAP_B_WIDTH * 2 }
@@ -2938,7 +2937,6 @@ screen_end
 	;
 
 : map_load_C
-	:breakpoint loadc
 	Trampoline-Set-I-Const map_tramp_i:=map_data_address Map_Data_C_Address
 	Trampoline-Set-I-Const climbing_tramp_i:=map_index_address Maptile_Index_C_Address
 	:calc index-stride { MAP_C_WIDTH * 2 }
